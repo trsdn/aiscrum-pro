@@ -18,6 +18,7 @@ export interface DashboardStore {
   issues: SprintIssue[];
   activeSprintNumber: number;
   viewingSprintNumber: number;
+  availableSprints: { sprintNumber: number }[];
   repoUrl: string | null;
 
   // Activities & logs
@@ -68,6 +69,10 @@ export interface LogEntry {
 
 let ws: WebSocket | null = null;
 const pendingMessages: ClientMessage[] = [];
+
+// Sprint caches (survive navigation between sprints)
+const stateCache = new Map<number, { state: SprintState; issues: SprintIssue[] }>();
+const activityCache = new Map<number, Activity[]>();
 
 function createWebSocket(set: SetFn, get: GetFn): void {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -381,6 +386,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   issues: [],
   activeSprintNumber: 0,
   viewingSprintNumber: 0,
+  availableSprints: [],
   repoUrl: null,
   activities: [],
   logs: [],
@@ -404,10 +410,16 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
 
   connect: () => {
     if (!ws) createWebSocket(set, get);
-    // Fetch repo URL
+    // Fetch repo URL + sprint list
     fetch("/api/repo")
       .then((r) => r.json())
       .then((d: { url?: string }) => set({ repoUrl: d.url ?? null }))
+      .catch(() => {});
+    fetch("/api/sprints")
+      .then((r) => r.json())
+      .then((d: { sprintNumber: number }[]) => {
+        if (Array.isArray(d)) set({ availableSprints: d });
+      })
       .catch(() => {});
   },
 
@@ -417,9 +429,62 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   },
 
   setViewingSprint: (n: number) => {
-    set({ viewingSprintNumber: n });
+    if (n < 1) return;
     const store = get();
-    store.send({ type: "sprint:switch", sprintNumber: n });
+
+    // Save current sprint to cache before switching
+    if (store.viewingSprintNumber > 0) {
+      stateCache.set(store.viewingSprintNumber, {
+        state: { ...store.state },
+        issues: [...store.issues],
+      });
+      activityCache.set(store.viewingSprintNumber, [...store.activities]);
+    }
+
+    const isActive = n === store.activeSprintNumber;
+    set({ viewingSprintNumber: n });
+
+    // Check cache first
+    const cached = stateCache.get(n);
+    const cachedAct = activityCache.get(n);
+    if (cached) {
+      set({
+        state: { ...cached.state },
+        issues: [...cached.issues],
+        activities: cachedAct ? [...cachedAct] : [],
+      });
+    }
+
+    if (isActive) {
+      // Request fresh state from server
+      store.send({ type: "sprint:switch", sprintNumber: n });
+    } else if (!cached) {
+      // Historical sprint — load from API
+      Promise.all([
+        fetch(`/api/sprints/${n}/state`).then((r) => (r.ok ? r.json() : null)),
+        fetch(`/api/sprints/${n}/issues`).then((r) => (r.ok ? r.json() : null)),
+      ])
+        .then(([stateData, issuesData]) => {
+          if (stateData) {
+            const s = stateData as SprintState;
+            const iss = Array.isArray(issuesData) ? (issuesData as SprintIssue[]) : [];
+            stateCache.set(n, { state: s, issues: iss });
+            // Only update if still viewing this sprint
+            if (get().viewingSprintNumber === n) {
+              set({ state: s, issues: iss });
+            }
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Refresh sprint list
+    fetch("/api/sprints")
+      .then((r) => r.json())
+      .then((d: { sprintNumber: number }[]) => {
+        if (Array.isArray(d)) set({ availableSprints: d });
+      })
+      .catch(() => {});
   },
 
   openSession: (id: string) => {

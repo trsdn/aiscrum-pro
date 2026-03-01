@@ -71,10 +71,7 @@
 .session-output {
   flex: 1;
   overflow-y: auto;
-  font-family: var(--font-mono);
   font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
   line-height: 1.5;
   padding: 8px;
   background: var(--bg-main);

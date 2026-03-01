@@ -1,0 +1,49 @@
+.markdown {
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.md-h1 { font-size: 18px; font-weight: 700; margin: 12px 0 6px; }
+.md-h2 { font-size: 15px; font-weight: 600; margin: 10px 0 4px; }
+.md-h3 { font-size: 13px; font-weight: 600; margin: 8px 0 4px; color: var(--text-dim); }
+
+.md-li { padding-left: 16px; margin: 2px 0; }
+.md-hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+.md-code {
+  display: block;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.md-inline {
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.md-table {
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 12px;
+  width: 100%;
+}
+.md-table th, .md-table td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+}
+.md-table th {
+  background: var(--bg-hover);
+  font-weight: 600;
+}

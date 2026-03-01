@@ -1,4 +1,5 @@
 import { useDashboardStore } from "../store";
+import { Markdown } from "./Markdown";
 import "./SessionPanel.css";
 
 export function SessionPanel() {
@@ -33,7 +34,9 @@ export function SessionPanel() {
             </button>
           )}
         </div>
-        <pre className="session-output">{output || "Waiting for output..."}</pre>
+        <div className="session-output">
+          <Markdown text={output || "Waiting for output..."} />
+        </div>
       </div>
     );
   }

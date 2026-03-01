@@ -8,6 +8,7 @@ export function Header() {
   const state = useDashboardStore((s) => s.state);
   const activeSprintNumber = useDashboardStore((s) => s.activeSprintNumber);
   const viewingSprintNumber = useDashboardStore((s) => s.viewingSprintNumber);
+  const availableSprints = useDashboardStore((s) => s.availableSprints);
   const issues = useDashboardStore((s) => s.issues);
   const connected = useDashboardStore((s) => s.connected);
   const executionMode = useDashboardStore((s) => s.executionMode);
@@ -56,7 +57,7 @@ export function Header() {
         <h1>🏃 Sprint Runner</h1>
         <span className="sprint-badge">{sprintLabel}</span>
         <button className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber - 1)} disabled={viewingSprintNumber <= 1}>◀</button>
-        <button className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber + 1)}>▶</button>
+        <button className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber + 1)} disabled={availableSprints.length > 0 && viewingSprintNumber > Math.max(...availableSprints.map(s => s.sprintNumber))}>▶</button>
         <span className={`phase-badge phase-${phase}`}>{phase.toUpperCase()}</span>
         {!isViewingActive && activeSprintNumber > 0 && (
           <span className="viewing-indicator">👁 viewing — Sprint {activeSprintNumber} running</span>

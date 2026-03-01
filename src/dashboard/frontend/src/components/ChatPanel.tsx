@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useDashboardStore } from "../store";
+import { Markdown } from "./Markdown";
 import "./ChatPanel.css";
 
 export function ChatPanel() {
@@ -84,7 +85,7 @@ export function ChatPanel() {
             {activeMessages.map((m, i) => (
               <div key={i} className={`chat-msg chat-${m.role}`}>
                 <span className="chat-role">{m.role}</span>
-                <div className="chat-content">{m.content}</div>
+                <div className="chat-content"><Markdown text={m.content} /></div>
               </div>
             ))}
             {streaming && (
