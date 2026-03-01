@@ -148,18 +148,20 @@ header {
 main {
   flex: 1;
   display: grid;
-  grid-template-columns: 280px 1fr 340px;
+  grid-template-columns: minmax(200px, 360px) minmax(200px, 1fr) minmax(200px, 380px);
   overflow: hidden;
 }
 
 /* Panels */
 .panel {
   padding: 16px;
-  overflow-y: auto;
+  overflow: auto;
   border-right: 1px solid var(--border);
+  resize: horizontal;
+  min-width: 180px;
 }
 
-.panel:last-child { border-right: none; }
+.panel:last-child { border-right: none; resize: none; }
 
 .panel h2 {
   font-size: 13px;
@@ -210,6 +212,8 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .issue-planned .issue-icon { color: var(--text-dim); }
@@ -451,7 +455,7 @@ footer {
 
 /* Adjust main grid when chat is open */
 main.chat-open {
-  grid-template-columns: 240px 1fr 300px 380px;
+  grid-template-columns: minmax(180px, 280px) minmax(180px, 1fr) minmax(180px, 300px) 380px;
 }
 
 /* GitHub links */
@@ -648,7 +652,7 @@ main.chat-open {
 
 /* Grid adjustment when chat is open — 4 columns */
 main.chat-open {
-  grid-template-columns: 240px 1fr 300px 380px;
+  grid-template-columns: minmax(180px, 280px) minmax(180px, 1fr) minmax(180px, 300px) 380px;
 }
 
 /* Grid adjustment — session-open no longer needed (always visible) */
