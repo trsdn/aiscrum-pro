@@ -429,6 +429,14 @@ function registerWeb(program: Command): void {
         const url = `http://localhost:${opts.port as number}`;
         console.log(`\n  🌐 Dashboard running at ${url}\n`);
 
+        // Track sprint transitions for continuous loop mode
+        eventBus.onTyped("sprint:start", ({ sprintNumber }) => {
+          try {
+            dashboardServer.setActiveSprintNumber(sprintNumber);
+            currentIssues = [];
+          } catch (err) { logger.warn({ err }, "event handler error: sprint:start"); }
+        });
+
         // Auto-open browser
         if (opts.open !== false) {
           const { exec } = await import("node:child_process");

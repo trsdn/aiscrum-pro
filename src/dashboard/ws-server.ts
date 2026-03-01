@@ -120,6 +120,18 @@ export class DashboardWebServer {
     this.publicDir = path.join(path.dirname(new URL(import.meta.url).pathname), "public");
   }
 
+  /** Update the active sprint number (called when sprint loop advances). */
+  setActiveSprintNumber(n: number): void {
+    (this.options as { activeSprintNumber?: number }).activeSprintNumber = n;
+    // Clear event buffer for new sprint
+    this.eventBuffer = [];
+    // Broadcast sprint switch to all clients
+    this.broadcast({
+      type: "sprint:switched",
+      payload: { sprintNumber: n, activeSprintNumber: n },
+    });
+  }
+
   getExecutionMode(): "autonomous" | "hitl" {
     return this.executionMode;
   }
