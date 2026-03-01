@@ -142,6 +142,7 @@ export async function runParallelExecution(
         if (config.autoMerge && result.status === "completed") {
           // Rebase branch on latest main before pre-merge (main may have changed from earlier merges)
           // Use a temporary worktree to avoid "unstaged changes" errors in the main repo
+          let rebaseSucceeded = true;
           const rebaseTmpDir = path.join(os.tmpdir(), `rebase-${result.branch.replace(/\//g, "-")}-${Date.now()}`);
           try {
             await execFile("git", ["fetch", "origin", config.baseBranch], { cwd: config.projectPath });
@@ -149,6 +150,7 @@ export async function runParallelExecution(
             await execFile("git", ["rebase", `origin/${config.baseBranch}`], { cwd: rebaseTmpDir });
             await execFile("git", ["push", "origin", `HEAD:${result.branch}`, "--force-with-lease"], { cwd: rebaseTmpDir });
           } catch (rebaseErr) {
+            rebaseSucceeded = false;
             // Rebase failed (conflicts) — abort and let pre-merge catch it
             try { await execFile("git", ["rebase", "--abort"], { cwd: rebaseTmpDir }); } catch { /* ignore */ }
             log.warn({ issue: result.issueNumber, err: String(rebaseErr) }, "rebase on latest main failed — proceeding to pre-merge");
@@ -159,6 +161,56 @@ export async function runParallelExecution(
           // Pre-merge verification: test feature branch with main merged in
           const premerge = await runPreMergeVerification(result.branch, config);
           if (!premerge.passed) {
+            // On rebase conflict, re-execute issue from latest main (counts as retry)
+            if (!rebaseSucceeded && config.maxRetries > 0) {
+              const issue = issueMap.get(result.issueNumber);
+              if (issue) {
+                log.info({ issue: result.issueNumber }, "rebase conflict — re-executing issue from latest main");
+                await addComment(result.issueNumber, "⚠️ Merge conflict detected. Re-executing from latest main...").catch(() => {});
+                try { await execFile("git", ["push", "origin", "--delete", result.branch], { cwd: config.projectPath }); } catch { /* may not exist */ }
+                try { await execFile("git", ["branch", "-D", result.branch], { cwd: config.projectPath }); } catch { /* ignore */ }
+                const retryResult = await executeIssue(client, config, issue, eventBus);
+                allResults[allResults.length - 1] = retryResult;
+                if (retryResult.status === "completed") {
+                  const retryPremerge = await runPreMergeVerification(retryResult.branch, config);
+                  if (retryPremerge.passed) {
+                    try {
+                      const retryMerge = await mergeIssuePR(retryResult.branch, {
+                        squash: config.squashMerge,
+                        deleteBranch: config.deleteBranchAfterMerge,
+                      });
+                      if (retryMerge.success) {
+                        log.info({ issue: retryResult.issueNumber, pr: retryMerge.prNumber }, "PR merged after conflict retry");
+                        try {
+                          const gateConfig = buildQualityGateConfig(config);
+                          const verifyResult = await verifyMainBranch(config.projectPath, gateConfig);
+                          if (!verifyResult.passed) {
+                            const failedChecks = verifyResult.checks.filter((c) => !c.passed).map((c) => c.name).join(", ");
+                            log.error({ issue: retryResult.issueNumber, failedChecks }, "post-merge verification FAILED on main");
+                            await escalateToStakeholder({
+                              level: "must",
+                              reason: `Post-merge verification failed after merging #${retryResult.issueNumber}`,
+                              detail: `Failed checks: ${failedChecks}. Main branch may be broken.`,
+                              context: { issueNumber: retryResult.issueNumber, branch: retryResult.branch },
+                              timestamp: new Date(),
+                            }, { ntfyEnabled: !!config.ntfy?.enabled, ntfyTopic: config.ntfy?.topic }, eventBus);
+                          }
+                        } catch (verifyErr: unknown) {
+                          log.error({ err: verifyErr, issue: retryResult.issueNumber }, "post-merge verification could not run");
+                        }
+                        continue;
+                      }
+                    } catch { /* fall through to mark failed */ }
+                  }
+                }
+                // Retry didn't resolve the conflict
+                retryResult.status = "failed";
+                retryResult.qualityGatePassed = false;
+                await setLabel(retryResult.issueNumber, "status:blocked");
+                await addComment(retryResult.issueNumber, "**Block reason:** Pre-merge verification failed after conflict retry").catch(() => {});
+                continue;
+              }
+            }
             log.warn({ issue: result.issueNumber, reason: premerge.reason }, "pre-merge verification failed");
             result.status = "failed";
             result.qualityGatePassed = false;
