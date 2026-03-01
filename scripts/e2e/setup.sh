@@ -27,7 +27,7 @@ fi
 # Ensure labels exist
 echo ""
 echo "🏷️  Ensuring labels..."
-for label in "status:ready" "status:in-progress" "status:done" "status:blocked" "status:planned" "type:escalation"; do
+for label in "status:ready" "status:in-progress" "status:done" "status:blocked" "status:planned" "type:escalation" "type:improvement" "human-decision-needed"; do
   if ! gh label list --repo "$REPO" --json name -q '.[].name' 2>/dev/null | grep -q "^${label}$"; then
     gh label create "$label" --repo "$REPO" --color "D4C5F9" 2>/dev/null || true
     echo "  ✅ Created: $label"
