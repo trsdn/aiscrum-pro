@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDashboardStore } from "../store";
 import { Markdown } from "./Markdown";
 import "./SessionPanel.css";
@@ -11,6 +11,8 @@ export function SessionPanel() {
   const closeSession = useDashboardStore((s) => s.closeSession);
   const send = useDashboardStore((s) => s.send);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [inputText, setInputText] = useState("");
 
   const output = viewingSessionId ? (sessionOutput.get(viewingSessionId) ?? "") : "";
 
@@ -19,8 +21,17 @@ export function SessionPanel() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [output]);
 
+  const sendMessage = () => {
+    const text = inputText.trim();
+    if (!text || !viewingSessionId) return;
+    send({ type: "session:send-message", sessionId: viewingSessionId, message: text });
+    setInputText("");
+    inputRef.current?.focus();
+  };
+
   if (viewingSessionId) {
     const session = sessions.find((s) => s.sessionId === viewingSessionId);
+    const isActive = session && !session.endedAt;
 
     return (
       <div className="session-viewer">
@@ -29,7 +40,7 @@ export function SessionPanel() {
           <span className="session-viewer-title">
             {session?.role ?? "Session"} {session?.issueNumber ? `#${session.issueNumber}` : ""}
           </span>
-          {session && !session.endedAt && (
+          {isActive && (
             <button
               className="btn btn-danger btn-small"
               onClick={() => {
@@ -46,6 +57,31 @@ export function SessionPanel() {
           <Markdown text={output || "Waiting for output..."} />
           <div ref={bottomRef} />
         </div>
+        {isActive && (
+          <div className="session-input">
+            <textarea
+              ref={inputRef}
+              className="session-input-field"
+              placeholder="Send context or instructions to this session..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              rows={2}
+            />
+            <button
+              className="btn btn-primary btn-small"
+              onClick={sendMessage}
+              disabled={!inputText.trim()}
+            >
+              Send
+            </button>
+          </div>
+        )}
       </div>
     );
   }

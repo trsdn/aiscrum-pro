@@ -77,3 +77,33 @@
   background: var(--bg-main);
   border-radius: 6px;
 }
+
+/* Session input bar */
+.session-input {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  align-items: flex-end;
+}
+
+.session-input-field {
+  flex: 1;
+  resize: none;
+  background: var(--bg-main);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.session-input-field:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+.session-input-field::placeholder {
+  color: var(--text-dim);
+}
