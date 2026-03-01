@@ -47,17 +47,20 @@ if [[ $milestone_count -eq 0 ]]; then
   echo "  (none found)"
 fi
 
-# --- 2. Close test issues ---
+# --- 2. Delete test issues (deep clean via GraphQL) ---
 if [[ "$KEEP_ISSUES" == false ]]; then
   echo ""
-  echo "🎫 Closing test issues (label: ${LABEL})..."
+  echo "🎫 Deleting test issues (label: ${LABEL})..."
   issue_count=0
-  while read -r num; do
-    [[ -z "$num" ]] && continue
-    gh issue close "$num" -c "Closed by test cleanup script" 2>/dev/null || true
-    echo "  ❌ Closed issue #${num}"
-    ((issue_count++)) || true
-  done < <(gh issue list --label "${LABEL}" --state open --json number -q '.[].number' 2>/dev/null || echo "")
+  # Delete open AND closed issues with the test-run label
+  for state in open closed; do
+    while IFS=$'\t' read -r num node_id; do
+      [[ -z "$num" ]] && continue
+      gh api graphql -f query="mutation { deleteIssue(input: {issueId: \"${node_id}\"}) { clientMutationId } }" --silent 2>/dev/null || true
+      echo "  🗑  Deleted issue #${num}"
+      ((issue_count++)) || true
+    done < <(gh issue list --label "${LABEL}" --state "$state" --limit 200 --json number,id -q '.[] | [.number, .id] | @tsv' 2>/dev/null || echo "")
+  done
 
   if [[ $issue_count -eq 0 ]]; then
     echo "  (none found)"
