@@ -39,7 +39,7 @@ export interface ServerMessage {
 
 /** Message sent from browser client to server. */
 export interface ClientMessage {
-  type: "sprint:start" | "sprint:stop" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
+  type: "sprint:start" | "sprint:stop" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "sprint:set-limit" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
   sprintNumber?: number;
   issueNumber?: number;
   sessionId?: string;
@@ -47,6 +47,7 @@ export interface ClientMessage {
   message?: string;
   mode?: string;
   body?: string;
+  limit?: number;
 }
 
 const MIME_TYPES: Record<string, string> = {
@@ -71,6 +72,7 @@ export interface DashboardServerOptions {
   onStop?: () => void;
   onSwitchSprint?: (sprintNumber: number) => void | Promise<void>;
   onModeChange?: (mode: "autonomous" | "hitl") => void;
+  onSetSprintLimit?: (limit: number) => void;
   /** Project root for loading sprint state files. */
   projectPath?: string;
   /** Currently active sprint number (the one being executed). */
@@ -114,6 +116,7 @@ export class DashboardWebServer {
   private eventBuffer: BufferedEvent[] = [];
   private knownMilestones: { sprintNumber: number; title: string; state: string }[] = [];
   private executionMode: "autonomous" | "hitl" = "autonomous";
+  public sprintLimit = 0;
 
   constructor(options: DashboardServerOptions) {
     this.options = options;
@@ -164,6 +167,12 @@ export class DashboardWebServer {
         type: "sprint:event",
         eventName: "mode:changed",
         payload: { mode: this.executionMode },
+      });
+      // Send sprint limit
+      this.sendTo(ws, {
+        type: "sprint:event",
+        eventName: "sprint:limit-changed",
+        payload: { limit: this.sprintLimit },
       });
       // Send active session list
       if (this.sessions.size > 0) {
@@ -464,6 +473,14 @@ export class DashboardWebServer {
           this.broadcast({ type: "sprint:event", eventName: "mode:changed", payload: { mode: msg.mode } });
         }
         break;
+      case "sprint:set-limit": {
+        const limit = typeof msg.limit === "number" ? Math.max(0, Math.floor(msg.limit)) : 0;
+        log.info({ limit }, "Dashboard client set sprint limit");
+        this.sprintLimit = limit;
+        this.options.onSetSprintLimit?.(limit);
+        this.broadcast({ type: "sprint:event", eventName: "sprint:limit-changed", payload: { limit } });
+        break;
+      }
       case "backlog:plan-issue":
         if (msg.issueNumber) {
           this.handlePlanIssue(msg.issueNumber, ws);

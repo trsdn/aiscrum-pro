@@ -28,6 +28,7 @@ export interface ClientMessage {
     | "sprint:pause"
     | "sprint:resume"
     | "sprint:switch"
+    | "sprint:set-limit"
     | "mode:set"
     | "backlog:plan-issue"
     | "backlog:remove-issue"
@@ -51,6 +52,7 @@ export interface ClientMessage {
   message?: string;
   mode?: string;
   body?: string;
+  limit?: number;
 }
 
 /** Sprint state from server. */

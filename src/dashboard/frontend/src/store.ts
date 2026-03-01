@@ -38,6 +38,7 @@ export interface DashboardStore {
 
   // Execution mode
   executionMode: "autonomous" | "hitl";
+  sprintLimit: number; // 0 = infinite
 
   // Actions
   send: (msg: ClientMessage) => void;
@@ -387,6 +388,12 @@ function handleSprintEvent(
       }
       break;
 
+    case "sprint:limit-changed":
+      if (typeof p?.limit === "number") {
+        set({ sprintLimit: p.limit });
+      }
+      break;
+
     case "decisions:approved":
     case "decisions:rejected":
     case "decisions:commented":
@@ -429,6 +436,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   chatMessages: {},
   chatStreaming: {},
   executionMode: "autonomous",
+  sprintLimit: 0,
 
   // Actions
   send: (msg: ClientMessage) => {

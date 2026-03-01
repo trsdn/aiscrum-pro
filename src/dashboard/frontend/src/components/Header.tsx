@@ -12,6 +12,7 @@ export function Header() {
   const issues = useDashboardStore((s) => s.issues);
   const connected = useDashboardStore((s) => s.connected);
   const executionMode = useDashboardStore((s) => s.executionMode);
+  const sprintLimit = useDashboardStore((s) => s.sprintLimit);
   const repoUrl = useDashboardStore((s) => s.repoUrl);
   const send = useDashboardStore((s) => s.send);
   const setViewingSprint = useDashboardStore((s) => s.setViewingSprint);
@@ -76,6 +77,20 @@ export function Header() {
         >
           <option value="autonomous">⚙ Autonomous</option>
           <option value="hitl">👤 Human-in-the-Loop</option>
+        </select>
+
+        <select
+          className="btn btn-small"
+          value={sprintLimit}
+          onChange={(e) => send({ type: "sprint:set-limit", limit: parseInt(e.target.value, 10) })}
+          title="Number of sprints to run"
+        >
+          <option value="0">∞ Infinite</option>
+          <option value="1">1 Sprint</option>
+          <option value="2">2 Sprints</option>
+          <option value="3">3 Sprints</option>
+          <option value="5">5 Sprints</option>
+          <option value="10">10 Sprints</option>
         </select>
 
         {idle && <button className="btn btn-primary" onClick={() => send({ type: "sprint:start" })} disabled={!isViewingActive}>▶ Start</button>}

@@ -268,6 +268,7 @@ function registerWeb(program: Command): void {
     .option("--port <number>", "Dashboard server port (default: 9100)", (v) => parseInt(v, 10), 9100)
     .option("--run", "Start sprint execution immediately")
     .option("--once", "Run only one sprint instead of looping (implies --run)")
+    .option("--max-sprints <number>", "Number of sprints to run (0=infinite, default: from config)", (v) => parseInt(v, 10))
     .option("--log-file <path>", "Log file path (default: sprint-runner.log)", "sprint-runner.log")
     .option("--no-open", "Don't auto-open browser")
     .action(async (opts) => {
@@ -359,10 +360,12 @@ function registerWeb(program: Command): void {
         });
 
         // Start/loop functions
+        let sprintLimit = (opts.maxSprints as number | undefined) ?? config.sprint.max_sprints ?? 0;
         const startLoop = () => {
           SprintRunner.sprintLoop(
             (sprintNumber) => buildSprintConfig(config, sprintNumber),
             eventBus,
+            sprintLimit,
           ).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             eventBus.emitTyped("sprint:error", { error: msg });
@@ -418,12 +421,17 @@ function registerWeb(program: Command): void {
             runner.setHitlMode(mode === "hitl");
             logger.info({ mode }, "execution mode changed");
           },
+          onSetSprintLimit: (limit) => {
+            sprintLimit = limit;
+            logger.info({ limit }, "sprint limit changed from dashboard");
+          },
           projectPath: process.cwd(),
           activeSprintNumber: initialSprint,
           sprintPrefix: config.sprint.prefix,
           sprintSlug: prefixToSlug(config.sprint.prefix),
           maxIssuesPerSprint: config.sprint.max_issues,
         });
+        dashboardServer.sprintLimit = sprintLimit;
 
         await dashboardServer.start();
         const url = `http://localhost:${opts.port as number}`;
