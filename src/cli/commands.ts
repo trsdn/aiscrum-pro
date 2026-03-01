@@ -302,7 +302,7 @@ function registerWeb(program: Command): void {
         try {
           const milestoneIssues = await listIssues({
             milestone: `${config.sprint.prefix} ${initialSprint}`,
-            state: "open",
+            state: "all",
           });
 
           const savedState = runner.getState();
@@ -315,13 +315,16 @@ function registerWeb(program: Command): void {
             }
           }
 
-          currentIssues = milestoneIssues.map((i) => ({
-            number: i.number,
-            title: i.title,
-            status: completedIssues.has(i.number) ? "done" as const
-              : failedIssues.has(i.number) ? "failed" as const
-              : "planned" as const,
-          }));
+          currentIssues = milestoneIssues.map((i) => {
+            const labels = ((i.labels ?? []) as Array<string | { name: string }>).map(
+              (l) => (typeof l === "string" ? l : l.name),
+            );
+            let status: "planned" | "in-progress" | "done" | "failed" = "planned";
+            if (completedIssues.has(i.number) || i.state === "closed") status = "done";
+            else if (failedIssues.has(i.number)) status = "failed";
+            else if (labels.includes("status:in-progress")) status = "in-progress";
+            return { number: i.number, title: i.title, status };
+          });
         } catch {
           // Non-critical
         }
@@ -389,12 +392,12 @@ function registerWeb(program: Command): void {
           try {
             const milestoneIssues = await listIssues({
               milestone: `${config.sprint.prefix} ${sprintNumber}`,
-              state: "open",
+              state: "all",
             });
             currentIssues = milestoneIssues.map((i) => ({
               number: i.number,
               title: i.title,
-              status: "planned" as const,
+              status: i.state === "closed" ? "done" as const : "planned" as const,
             }));
           } catch {
             currentIssues = [];
