@@ -26,6 +26,20 @@ export function ChatPanel() {
 
   const handleSend = () => {
     if (!input.trim()) return;
+
+    // Handle /clear as a client-side command
+    if (input.trim() === "/clear") {
+      if (activeChatId) {
+        const store = useDashboardStore.getState();
+        useDashboardStore.setState({
+          chatMessages: { ...store.chatMessages, [activeChatId]: [] },
+          chatStreaming: { ...store.chatStreaming, [activeChatId]: "" },
+        });
+      }
+      setInput("");
+      return;
+    }
+
     if (!activeChatId) {
       send({ type: "chat:create", role });
     }

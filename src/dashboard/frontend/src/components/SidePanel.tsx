@@ -40,6 +40,7 @@ const TOOL_KIND_ICONS: Record<string, string> = {
 
 const DEFAULT_COMMANDS: ChatCommand[] = [
   { name: "help", description: "Show available commands and capabilities" },
+  { name: "clear", description: "Clear chat history and reset context" },
   { name: "compact", description: "Summarize conversation to save context" },
   { name: "code-review", description: "Structured code review checklist" },
   { name: "create-pr", description: "Create a PR with conventional title format" },
@@ -125,6 +126,19 @@ export function SidePanel() {
     if (!trimmed) return;
     const chatId = useDashboardStore.getState().activeChatId;
     if (!chatId || chatId === "__global__") return;
+
+    // Handle /clear as a client-side command
+    if (trimmed === "/clear") {
+      const store = useDashboardStore.getState();
+      useDashboardStore.setState({
+        chatMessages: { ...store.chatMessages, [chatId]: [] },
+        chatStreaming: { ...store.chatStreaming, [chatId]: "" },
+      });
+      setInput("");
+      setShowSlashMenu(false);
+      return;
+    }
+
     send({ type: "chat:send", sessionId: chatId, message: trimmed });
     const store = useDashboardStore.getState();
     const msgs = store.chatMessages[chatId] ?? [];
