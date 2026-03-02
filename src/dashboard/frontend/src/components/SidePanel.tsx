@@ -208,14 +208,8 @@ export function SidePanel() {
 
       {/* Status bar */}
       <div className="side-panel-header">
-        <span className="side-panel-title">
-          {meta.icon} {meta.label}
-        </span>
         {isLoading && <span className="side-panel-status loading">Connecting…</span>}
         {activeSession && <span className="side-panel-status connected">● Connected</span>}
-        {activeSession?.model && (
-          <span className="side-panel-model">{activeSession.model}</span>
-        )}
         {configs && configs.filter((c) => c.category !== "mode" && c.category !== "model" && c.category !== "thought_level").length > 0 && (
           <div className="side-panel-config-wrapper">
             <button
@@ -381,7 +375,7 @@ export function SidePanel() {
       </div>
 
       {/* Mode & Model selectors */}
-      {activeSession && (
+      {activeChatId && (
         <div className="side-panel-mode-bar">
           <div className="mode-selector-wrapper">
             <button
@@ -389,22 +383,24 @@ export function SidePanel() {
               onClick={() => { setShowModeMenu(!showModeMenu); setShowModelMenu(false); }}
             >
               {(() => {
-                const m = MODE_LABELS[activeSession.modeId ?? ""] ?? MODE_LABELS[MODE_CYCLE[0]!]!;
+                const modeId = activeSession?.modeId ?? MODE_CYCLE[0]!;
+                const m = MODE_LABELS[modeId] ?? MODE_LABELS[MODE_CYCLE[0]!]!;
                 return `${m.icon} ${m.short}`;
               })()}
               <span className="mode-selector-arrow">▲</span>
             </button>
-            {showModeMenu && (
+            {showModeMenu && activeChatId && (
               <div className="mode-selector-menu">
                 {MODE_CYCLE.map((modeId) => {
                   const m = MODE_LABELS[modeId]!;
-                  const isActive = (activeSession.modeId ?? MODE_CYCLE[0]) === modeId;
+                  const currentMode = activeSession?.modeId ?? MODE_CYCLE[0];
+                  const isActive = currentMode === modeId;
                   return (
                     <button
                       key={modeId}
                       className={`mode-selector-option${isActive ? " active" : ""}`}
                       onClick={() => {
-                        send({ type: "chat:set-mode", sessionId: activeSession.id, mode: modeId });
+                        send({ type: "chat:set-mode", sessionId: activeChatId, mode: modeId });
                         setShowModeMenu(false);
                       }}
                     >
