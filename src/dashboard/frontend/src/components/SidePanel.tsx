@@ -94,10 +94,6 @@ export function SidePanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeMessages, streaming, thinking, toolCalls, plan]);
 
-  const handleClosePanel = () => {
-    useDashboardStore.setState({ chatPanelOpen: false });
-  };
-
   const switchToSession = (sessionId: string) => {
     const session = chatSessions.find((s) => s.id === sessionId);
     useDashboardStore.setState({
@@ -193,7 +189,6 @@ export function SidePanel() {
             </div>
           );
         })}
-        <button className="btn btn-small side-panel-close" onClick={handleClosePanel} title="Hide panel">◀</button>
       </div>
 
       {/* Status bar */}
