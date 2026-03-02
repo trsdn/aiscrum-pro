@@ -28,7 +28,18 @@ function renderTable(lines: string[]): string {
 }
 
 function markdownToHtml(text: string): string {
-  const lines = text.split("\n");
+  const blocks: Record<string, string> = {};
+  let blockId = 0;
+
+  // Extract raw HTML table blocks (agent output) — pass through as-is
+  let processed = text.replace(/<table[\s\S]*?<\/table>/gi, (match) => {
+    const key = `__BLOCK_${blockId++}__`;
+    blocks[key] = `<div class="md-table-wrap">${match}</div>`;
+    return key;
+  });
+
+  // Detect and render markdown tables
+  const lines = processed.split("\n");
   const rendered: string[] = [];
   let i = 0;
 
@@ -45,14 +56,17 @@ function markdownToHtml(text: string): string {
         tableLines.push(lines[i]!);
         i++;
       }
-      rendered.push(renderTable(tableLines));
+      const key = `__BLOCK_${blockId++}__`;
+      blocks[key] = renderTable(tableLines);
+      rendered.push(key);
       continue;
     }
     rendered.push(line);
     i++;
   }
 
-  return escapeHtml(rendered.join("\n"))
+  // Escape remaining text, then apply markdown formatting
+  let html = escapeHtml(rendered.join("\n"))
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="md-code"><code>$2</code></pre>')
     .replace(/`([^`]+)`/g, '<code class="md-inline">$1</code>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
@@ -66,6 +80,13 @@ function markdownToHtml(text: string): string {
     .replace(/^- (.+)$/gm, '<div class="md-li">• $1</div>')
     .replace(/^\d+\. (.+)$/gm, '<div class="md-li">$1</div>')
     .replace(/\n/g, "<br>");
+
+  // Restore preserved HTML/table blocks
+  for (const [key, value] of Object.entries(blocks)) {
+    html = html.replace(key, value);
+  }
+
+  return html;
 }
 
 interface Props {

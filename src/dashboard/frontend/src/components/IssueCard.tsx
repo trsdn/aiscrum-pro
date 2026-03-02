@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { GhIssueItem } from "../types";
 import { useDashboardStore } from "../store";
+import { Markdown } from "./Markdown";
 
 interface IssueCardProps {
   item: GhIssueItem;
@@ -57,7 +58,7 @@ export function IssueCard({ item, actions, extraContent }: IssueCardProps) {
             </div>
           )}
           {item.body ? (
-            <div className="item-body-full">{item.body}</div>
+            <div className="item-body-full"><Markdown text={item.body} /></div>
           ) : (
             <div className="item-body-empty">No description.</div>
           )}

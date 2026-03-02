@@ -1,0 +1,63 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - heading "🏃 Sprint Runner" [level=1] [ref=e5]
+      - link "Sprint 1 ↗" [ref=e7] [cursor=pointer]:
+        - /url: https://github.com/trsdn/ai-scrum-autonomous-v2/milestone/1
+      - button "◀" [disabled] [ref=e8] [cursor=pointer]
+      - button "▶" [ref=e9] [cursor=pointer]
+      - generic [ref=e10]: FAILED
+    - generic [ref=e11]:
+      - generic [ref=e12]: 0/0 done
+      - generic [ref=e13]: 4505m 13s
+      - combobox [ref=e15] [cursor=pointer]:
+        - option "⚙ Autonomous" [selected]
+        - option "👤 Human-in-the-Loop"
+      - combobox "Number of sprints to run" [ref=e16] [cursor=pointer]:
+        - option "∞ Infinite" [selected]
+        - option "1 Sprint"
+        - option "2 Sprints"
+        - option "3 Sprints"
+        - option "5 Sprints"
+        - option "10 Sprints"
+      - button "▶ Start" [ref=e17] [cursor=pointer]
+    - generic [ref=e18]:
+      - generic [ref=e19]: Plan
+      - generic [ref=e20]: Execute
+      - generic [ref=e21]: Review
+      - generic [ref=e22]: Retro
+      - generic [ref=e23]: Complete
+  - navigation [ref=e24]:
+    - button "🏃 Sprint" [ref=e25] [cursor=pointer]
+    - button "📦 Sprint Backlog" [ref=e26] [cursor=pointer]
+    - button "📋 Backlog" [ref=e27] [cursor=pointer]
+    - button "🚧 Blocked" [ref=e28] [cursor=pointer]
+    - button "⚖️ Decisions" [ref=e29] [cursor=pointer]
+    - button "💡 Ideas" [ref=e30] [cursor=pointer]
+    - button "🤖 Agents (1) ▶" [ref=e32] [cursor=pointer]
+  - generic [ref=e34]:
+    - main:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic [ref=e35]:
+                  - heading "Issues" [level=2] [ref=e36]
+                  - generic [ref=e37]: No issues in this sprint yet.
+                - generic [ref=e38]:
+                  - heading "Activity" [level=2] [ref=e39]
+                  - list [ref=e40]:
+                    - listitem [ref=e41]: No activity yet. Start a sprint to see progress.
+                - generic [ref=e42]:
+                  - heading "ACP Sessions" [level=2] [ref=e43]
+                  - generic [ref=e44]: No active ACP sessions
+          - generic [ref=e46]:
+            - generic [ref=e47]:
+              - generic [ref=e48]: ⬤ Terminal
+              - generic [ref=e49]: 0 entries
+            - generic [ref=e51]: Waiting for log output...
+```
