@@ -689,7 +689,15 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     fetch("/api/sprints")
       .then((r) => r.json())
       .then((d: { sprintNumber: number; milestoneNumber?: number }[]) => {
-        if (Array.isArray(d)) set({ availableSprints: d });
+        if (Array.isArray(d)) {
+          set({ availableSprints: d });
+          // Auto-navigate to latest sprint if none is active
+          const store = get();
+          if (store.viewingSprintNumber === 0 && d.length > 0) {
+            const latest = Math.max(...d.map((s) => s.sprintNumber));
+            store.setViewingSprint(latest);
+          }
+        }
       })
       .catch(() => {});
   },

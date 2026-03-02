@@ -32,7 +32,7 @@ export function IssueList() {
   }
 
   return (
-    <ul className="issue-list">
+    <ul id="issue-list" className="issue-list">
       {issues.map((issue) => {
         const icon = STATUS_ICON[issue.status] ?? "·";
         const statusClass = issue.status.replace("status:", "");

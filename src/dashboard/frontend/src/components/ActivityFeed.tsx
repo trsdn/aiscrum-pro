@@ -5,8 +5,8 @@ export function ActivityFeed() {
   const activities = useDashboardStore((s) => s.activities);
 
   return (
-    <div className="activity-container">
-      <ul className="activity-list">
+    <div id="activity-panel" className="activity-container">
+      <ul id="activity-list" className="activity-list">
         {activities.map((a, i) => (
           <li key={i} className={`activity-item activity-${a.status}`}>
             <span className="activity-time">

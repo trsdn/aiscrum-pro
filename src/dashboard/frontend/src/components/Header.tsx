@@ -30,6 +30,9 @@ export function Header() {
   const paused = phase === "paused";
   const idle = phase === "init" || phase === "complete" || phase === "failed";
 
+  // Timer tracks autonomous mode runtime only
+  const isAutonomousRunning = executionMode === "autonomous" && running;
+
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (state.finalElapsed) {
@@ -38,9 +41,9 @@ export function Header() {
       return;
     }
     if (!state.startedAt) { setElapsed("0m 00s"); return; }
-    // Stop ticking when sprint is no longer actively running
     const start = new Date(state.startedAt).getTime();
-    if (idle) {
+    if (!isAutonomousRunning) {
+      // Freeze at current value when not in autonomous mode
       const sec = Math.floor((Date.now() - start) / 1000);
       setElapsed(`${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, "0")}s`);
       return;
@@ -52,7 +55,7 @@ export function Header() {
     tick();
     timerRef.current = setInterval(tick, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [state.startedAt, state.finalElapsed, idle]);
+  }, [state.startedAt, state.finalElapsed, isAutonomousRunning]);
 
   const currentSprint = availableSprints.find((s) => s.sprintNumber === viewingSprintNumber);
   const milestoneId = currentSprint?.milestoneNumber ?? displayNumber;
@@ -64,9 +67,9 @@ export function Header() {
     <header className="header">
       <div className="header-left">
         <h1>🏃 Sprint Runner</h1>
-        <span className="sprint-badge">{sprintLabel}</span>
-        <button className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber - 1)} disabled={viewingSprintNumber <= 1}>◀</button>
-        <button className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber + 1)} disabled={availableSprints.length > 0 && viewingSprintNumber > Math.max(...availableSprints.map(s => s.sprintNumber))}>▶</button>
+        <span id="sprint-label" className="sprint-badge">{sprintLabel}</span>
+        <button id="btn-prev" className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber - 1)} disabled={viewingSprintNumber <= 1}>◀</button>
+        <button id="btn-next" className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber + 1)} disabled={availableSprints.length > 0 && viewingSprintNumber > Math.max(...availableSprints.map(s => s.sprintNumber))}>▶</button>
         <span className={`phase-badge phase-${phase}`}>{phase.toUpperCase()}</span>
         {!isViewingActive && activeSprintNumber > 0 && (
           <span className="viewing-indicator">👁 viewing — Sprint {activeSprintNumber} running</span>
