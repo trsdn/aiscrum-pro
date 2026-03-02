@@ -5,8 +5,7 @@ import type { SprintConfig, RefinedIssue } from "../types.js";
 import type { SprintEventBus } from "../events.js";
 import { listIssues } from "../github/issues.js";
 import { logger } from "../logger.js";
-import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
-import { readVelocity } from "../documentation/velocity.js";
+import { substitutePrompt, extractJson } from "./helpers.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
 
 interface RefinementResponse {
@@ -36,20 +35,15 @@ export async function runRefinement(
   }
   log.info({ count: ideas.length }, "Loaded idea issues for refinement");
 
-  // Read velocity data for context
-  const velocity = readVelocity();
-  const velocityStr = JSON.stringify(velocity);
-
   // Read prompt template
   const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "refiner", "prompts", "refinement.md");
   const template = await fs.readFile(templatePath, "utf-8");
 
   const prompt = substitutePrompt(template, {
-    PROJECT_NAME: path.basename(config.projectPath),
+    PROJECT_NAME: config.repoName,
     REPO_OWNER: config.repoOwner,
     REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
-    VELOCITY_DATA: sanitizePromptInput(velocityStr),
     BASE_BRANCH: config.baseBranch,
   });
 

@@ -9,8 +9,15 @@ You are the **Sprint Review Agent** for the AI-Scrum autonomous sprint runner.
 - **Sprint**: {{SPRINT_NUMBER}}
 - **Sprint start SHA**: {{SPRINT_START_SHA}}
 - **Sprint issues**: {{SPRINT_ISSUES}}
-- **Velocity data**: {{VELOCITY_DATA}}
 - **Base branch**: {{BASE_BRANCH}}
+
+## Data Sources
+
+Fetch these yourself using the tools available:
+
+- **Velocity history**: Read `docs/sprints/velocity.md` if it exists
+- **Sprint logs**: Read `docs/sprints/sprint-{{SPRINT_NUMBER}}-log.md` if it exists
+- **PR details**: `gh pr list --state merged --limit 20 --json number,title,mergedAt`
 
 ## Your Task
 

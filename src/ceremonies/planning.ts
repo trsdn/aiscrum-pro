@@ -4,18 +4,17 @@ import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig, SprintPlan } from "../types.js";
 import { SprintPlanSchema } from "../types.js";
 import type { SprintEventBus } from "../events.js";
-import { listIssues } from "../github/issues.js";
 import { setLabel } from "../github/labels.js";
 import { setMilestone, getMilestone, createMilestone } from "../github/milestones.js";
 import { createSprintLog } from "../documentation/sprint-log.js";
-import { readVelocity } from "../documentation/velocity.js";
 import { logger } from "../logger.js";
-import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
+import { substitutePrompt, extractJson } from "./helpers.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
 
 /**
- * Run the sprint planning ceremony: select and sequence backlog issues
- * into a sprint plan via ACP, then label and milestone them.
+ * Run the sprint planning ceremony: send the planner agent instructions
+ * to select and sequence backlog issues, then label and milestone them.
+ * The agent fetches backlog issues and velocity data itself via MCP tools.
  */
 export async function runSprintPlanning(
   client: AcpClient,
@@ -24,29 +23,16 @@ export async function runSprintPlanning(
 ): Promise<SprintPlan> {
   const log = logger.child({ ceremony: "planning" });
 
-  // Read velocity data
-  const velocity = readVelocity();
-  const velocityStr = JSON.stringify(velocity);
-
-  // List available backlog issues (filtered by backlog_labels if configured)
-  const listOpts: { state: string; labels?: string[] } = { state: "open" };
-  if (config.backlogLabels.length > 0) {
-    listOpts.labels = config.backlogLabels;
-  }
-  const backlog = await listIssues(listOpts);
-  log.info({ count: backlog.length, labels: config.backlogLabels }, "Loaded backlog issues");
-
   // Read prompt template
   const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "planner", "prompts", "planning.md");
   const template = await fs.readFile(templatePath, "utf-8");
 
   const prompt = substitutePrompt(template, {
-    PROJECT_NAME: path.basename(config.projectPath),
+    PROJECT_NAME: config.repoName,
     REPO_OWNER: config.repoOwner,
     REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     MAX_ISSUES: String(config.maxIssuesPerSprint),
-    VELOCITY_DATA: sanitizePromptInput(velocityStr),
     BASE_BRANCH: config.baseBranch,
   });
 

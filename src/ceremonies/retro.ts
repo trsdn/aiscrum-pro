@@ -10,7 +10,6 @@ import type {
 } from "../types.js";
 import type { SprintEventBus } from "../events.js";
 import { calculateSprintMetrics } from "../metrics.js";
-import { readVelocity } from "../documentation/velocity.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
@@ -33,46 +32,6 @@ export async function runSprintRetro(
   // Calculate metrics
   const metrics = calculateSprintMetrics(result);
 
-  // Read velocity data
-  const velocity = readVelocity();
-  const velocityStr = JSON.stringify(velocity);
-
-  // Load previous retro improvements (best-effort)
-  let previousImprovements = "None available";
-  const prevRetroPath = path.join(
-    config.projectPath,
-    "docs",
-    "sprints",
-    `sprint-${config.sprintNumber - 1}-retro.md`,
-  );
-  try {
-    previousImprovements = await fs.readFile(prevRetroPath, "utf-8");
-  } catch {
-    log.debug("No previous retro file found — using empty context");
-  }
-
-  // Read sprint runner config for context (filtered to sprint-relevant keys)
-  let runnerConfig = "";
-  const configPath = path.join(config.projectPath, "sprint-runner.config.yaml");
-  try {
-    const rawConfig = await fs.readFile(configPath, "utf-8");
-    // Filter to sprint-relevant keys only
-    const lines = rawConfig.split("\n");
-    const relevantKeys = ["sprintPrefix", "qualityGate", "maxParallel", "sessionTimeout", "backlogLabels", "maxRetries"];
-    const filteredLines = lines.filter(line => {
-      const trimmed = line.trim();
-      if (trimmed === "" || trimmed.startsWith("#")) return true;
-      return relevantKeys.some(key => trimmed.startsWith(key));
-    });
-    runnerConfig = filteredLines.join("\n");
-  } catch {
-    log.debug("No sprint runner config found");
-  }
-
-  // Read prompt template
-  const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "retro", "prompts", "retro.md");
-  const template = await fs.readFile(templatePath, "utf-8");
-
   // Build failure diagnostics from sprint results
   const failureDiagnostics = result.results
     .filter((r) => r.status === "failed")
@@ -85,15 +44,16 @@ export async function runSprintRetro(
       retryCount: r.retryCount,
     }));
 
+  // Read prompt template
+  const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "retro", "prompts", "retro.md");
+  const template = await fs.readFile(templatePath, "utf-8");
+
   const prompt = substitutePrompt(template, {
-    PROJECT_NAME: path.basename(config.projectPath),
+    PROJECT_NAME: config.repoName,
     REPO_OWNER: config.repoOwner,
     REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     SPRINT_REVIEW_DATA: sanitizePromptInput(JSON.stringify({ review, metrics })),
-    VELOCITY_DATA: velocityStr,
-    PREVIOUS_RETRO_IMPROVEMENTS: sanitizePromptInput(previousImprovements),
-    SPRINT_RUNNER_CONFIG: runnerConfig,
     FAILURE_DIAGNOSTICS: sanitizePromptInput(JSON.stringify(failureDiagnostics)),
   });
 

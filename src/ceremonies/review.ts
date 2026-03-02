@@ -4,7 +4,6 @@ import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig, SprintResult, ReviewResult, IssueResult } from "../types.js";
 import type { SprintEventBus } from "../events.js";
 import { calculateSprintMetrics, topFailedGates } from "../metrics.js";
-import { readVelocity } from "../documentation/velocity.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
@@ -76,10 +75,6 @@ export async function runSprintReview(
   const failedGates = topFailedGates(result);
   log.info({ metrics }, "Calculated sprint metrics");
 
-  // Read velocity data
-  const velocity = readVelocity();
-  const velocityStr = JSON.stringify(velocity);
-
   // Verify PR merges
   const flaggedPRs = await verifyPRMerges(result.results);
   if (flaggedPRs.length > 0) {
@@ -110,13 +105,12 @@ export async function runSprintReview(
   const template = await fs.readFile(templatePath, "utf-8");
 
   const prompt = substitutePrompt(template, {
-    PROJECT_NAME: path.basename(config.projectPath),
+    PROJECT_NAME: config.repoName,
     REPO_OWNER: config.repoOwner,
     REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     SPRINT_START_SHA: config.baseBranch,
     SPRINT_ISSUES: sanitizePromptInput(JSON.stringify(issuesSummary)),
-    VELOCITY_DATA: sanitizePromptInput(velocityStr),
     BASE_BRANCH: config.baseBranch,
     METRICS: JSON.stringify(metrics),
     FAILED_GATES: failedGates,
