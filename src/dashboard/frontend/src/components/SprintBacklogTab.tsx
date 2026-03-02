@@ -9,10 +9,12 @@ export function SprintBacklogTab() {
   const [sprintNumber, setSprintNumber] = useState(0);
   const [loading, setLoading] = useState(true);
   const send = useDashboardStore((s) => s.send);
+  const viewingSprintNumber = useDashboardStore((s) => s.viewingSprintNumber);
 
-  const fetchItems = () => {
+  const fetchItems = (sprint?: number) => {
     setLoading(true);
-    fetch("/api/sprint-backlog")
+    const url = sprint && sprint > 0 ? `/api/sprint-backlog?sprint=${sprint}` : "/api/sprint-backlog";
+    fetch(url)
       .then((r) => r.json())
       .then((d) => {
         setSprintNumber(d.sprintNumber ?? 0);
@@ -22,7 +24,7 @@ export function SprintBacklogTab() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => { fetchItems(viewingSprintNumber); }, [viewingSprintNumber]);
 
   const handleRemove = (issueNumber: number) => {
     if (confirm(`Remove #${issueNumber} from Sprint ${sprintNumber}?`)) {
@@ -38,7 +40,7 @@ export function SprintBacklogTab() {
     <div className="tab-list-container">
       <div className="tab-list-header">
         <h2>📦 Sprint {sprintNumber} Backlog ({items.length})</h2>
-        <button className="btn btn-small" onClick={fetchItems}>↻ Refresh</button>
+        <button className="btn btn-small" onClick={() => fetchItems(viewingSprintNumber)}>↻ Refresh</button>
       </div>
       <ul className="tab-list">
         {items.map((item) => (

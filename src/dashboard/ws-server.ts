@@ -805,7 +805,7 @@ export class DashboardWebServer {
 
     // API routes
     if (url.pathname.startsWith("/api/")) {
-      this.handleApi(url.pathname, res);
+      this.handleApi(url, res);
       return;
     }
 
@@ -835,7 +835,8 @@ export class DashboardWebServer {
   }
 
   /** Handle REST API requests. */
-  private handleApi(pathname: string, res: http.ServerResponse): void {
+  private handleApi(url: URL, res: http.ServerResponse): void {
+    const pathname = url.pathname;
     res.setHeader("Content-Type", "application/json");
 
     if (pathname === "/api/repo") {
@@ -931,9 +932,11 @@ export class DashboardWebServer {
       return;
     }
 
-    // /api/sprint-backlog — issues in the active sprint with full body
+    // /api/sprint-backlog — issues in the active or requested sprint with full body
     if (pathname === "/api/sprint-backlog") {
-      this.handleSprintBacklogRequest(res);
+      const requestedSprint = url.searchParams.get("sprint");
+      const sprintNum = requestedSprint ? parseInt(requestedSprint, 10) : undefined;
+      this.handleSprintBacklogRequest(res, sprintNum);
       return;
     }
 
@@ -1042,9 +1045,9 @@ export class DashboardWebServer {
   }
 
   /** Return issues planned in the active sprint with full body for detail view. */
-  private handleSprintBacklogRequest(res: http.ServerResponse): void {
+  private handleSprintBacklogRequest(res: http.ServerResponse, requestedSprint?: number): void {
     const prefix = this.options.sprintPrefix ?? "Sprint";
-    const sprintNum = this.activeSprintNumber ?? 1;
+    const sprintNum = requestedSprint && requestedSprint > 0 ? requestedSprint : (this.activeSprintNumber ?? 1);
     const milestoneName = `${prefix} ${sprintNum}`;
     import("../github/issues.js").then(async ({ listIssues }) => {
       try {
