@@ -45,6 +45,7 @@ export interface ChatManagerOptions {
 export class ChatManager {
   private client: AcpClient | null = null;
   private sessions = new Map<string, ChatSession>();
+  private pendingConfigs = new Map<string, Array<{ id: string; name: string; category?: string; currentValue: string; options: Array<{ value: string; name: string }> }>>();
   private readonly options: ChatManagerOptions;
   private connected = false;
 
@@ -100,7 +101,12 @@ export class ChatManager {
       },
       onConfigUpdate: (acpSessionId, configs) => {
         const chatId = this.findChatId(acpSessionId);
-        if (chatId) this.options.onConfigUpdate?.(chatId, configs);
+        if (chatId) {
+          this.options.onConfigUpdate?.(chatId, configs);
+        } else {
+          // Buffer configs that arrive before session is registered
+          this.pendingConfigs.set(acpSessionId, configs);
+        }
       },
     });
 
@@ -134,6 +140,13 @@ export class ChatManager {
 
     this.sessions.set(chatId, session);
     log.info({ chatId, role, acpSessionId: sessionInfo.sessionId }, "Chat session created");
+
+    // Replay any config events that arrived before session was registered
+    const pending = this.pendingConfigs.get(sessionInfo.sessionId);
+    if (pending) {
+      this.pendingConfigs.delete(sessionInfo.sessionId);
+      this.options.onConfigUpdate?.(chatId, pending);
+    }
 
     return session;
   }
