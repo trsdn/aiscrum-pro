@@ -1,37 +1,38 @@
 #!/usr/bin/env bash
 # scripts/test-setup.sh — Create a realistic test repo state for sprint runner testing
 #
+# Targets: trsdn/ai-scrum-test-project (the TEST repo, NOT this repo!)
+#
 # Usage: ./scripts/test-setup.sh
 #
 # Creates:
-#   - "Test Sprint 1" milestone with 6 issues assigned (ready to run)
-#   - "Test Sprint 2" milestone (empty, for auto-advance)
+#   - "Sprint 1" milestone with 6 issues assigned (ready to run)
+#   - "Sprint 2" milestone (empty, for auto-advance)
 #   - ~15 backlog issues labeled status:ready (for refinement/planning)
 #   - ~5 idea issues labeled type:idea (unrefined)
-#   - All test issues labeled "test-run" for easy cleanup
 #
 # Run cleanup first: ./scripts/test-cleanup.sh
 
 set -euo pipefail
 
-LABEL="test-run"
-PREFIX="Test Sprint"
+REPO="trsdn/ai-scrum-test-project"
+PREFIX="Sprint"
 
-echo "🧪 Test Setup: Creating realistic test repo state"
+echo "🧪 Test Setup: ${REPO}"
 echo ""
 
 # Ensure labels exist
-for lbl in "${LABEL}" "status:ready" "status:refined" "type:idea" "type:enhancement" "type:chore" "bug"; do
-  gh label create "$lbl" --force 2>/dev/null || true
+for lbl in "status:ready" "status:refined" "type:idea" "type:enhancement" "type:chore" "bug"; do
+  gh label create "$lbl" --repo "${REPO}" --force 2>/dev/null || true
 done
 
 # --- Milestone creation ---
 for n in 1 2; do
   milestone="${PREFIX} ${n}"
-  if gh api "repos/{owner}/{repo}/milestones" --paginate -q ".[].title" 2>/dev/null | grep -qF "$milestone"; then
+  if gh api "repos/${REPO}/milestones" --paginate -q ".[].title" 2>/dev/null | grep -qF "$milestone"; then
     echo "📋 Milestone exists: ${milestone}"
   else
-    gh api "repos/{owner}/{repo}/milestones" -f "title=${milestone}" -f "description=Test sprint ${n}" >/dev/null
+    gh api "repos/${REPO}/milestones" -f "title=${milestone}" -f "description=Sprint ${n}" >/dev/null
     echo "📋 Created milestone: ${milestone}"
   fi
 done
@@ -39,12 +40,11 @@ done
 # --- Helper to create an issue ---
 create_issue() {
   local title="$1" body="$2" labels="$3" milestone="${4:-}"
-  local args=(--title "$title" --body "$body")
+  local args=(--repo "${REPO}" --title "$title" --body "$body")
   IFS=',' read -ra lbl_arr <<< "$labels"
   for l in "${lbl_arr[@]}"; do
     args+=(--label "$l")
   done
-  args+=(--label "${LABEL}")
   if [[ -n "$milestone" ]]; then
     args+=(--milestone "$milestone")
   fi
@@ -63,7 +63,7 @@ create_issue "test: Add input validation to config loader" \
 - [ ] Validate that \`session_timeout_ms\` is positive
 - [ ] Return clear error message on invalid config
 - [ ] Add unit tests for validation edge cases" \
-"bug,status:ready" "${PREFIX} 1"
+"bug,status:ready" "Sprint 1"
 
 create_issue "test: Add retry count to sprint log output" \
 "## Acceptance Criteria
@@ -71,7 +71,7 @@ create_issue "test: Add retry count to sprint log output" \
 - [ ] Format: \`Retries: N\` in huddle entry
 - [ ] Zero retries shows \`Retries: 0\`
 - [ ] Add test covering retry count display" \
-"type:chore,status:ready" "${PREFIX} 1"
+"type:chore,status:ready" "Sprint 1"
 
 create_issue "test: Improve error message for missing milestone" \
 "## Acceptance Criteria
@@ -79,7 +79,7 @@ create_issue "test: Improve error message for missing milestone" \
 - [ ] Suggests creating the milestone with correct naming
 - [ ] Error is logged at warn level, not error
 - [ ] Add test for error message format" \
-"bug,status:ready" "${PREFIX} 1"
+"bug,status:ready" "Sprint 1"
 
 create_issue "test: Add elapsed time to quality gate output" \
 "## Acceptance Criteria
@@ -87,7 +87,7 @@ create_issue "test: Add elapsed time to quality gate output" \
 - [ ] Each individual check has its own duration
 - [ ] Total duration is sum of all checks
 - [ ] Add tests for timing data" \
-"type:enhancement,status:ready" "${PREFIX} 1"
+"type:enhancement,status:ready" "Sprint 1"
 
 create_issue "test: Export sprint metrics as JSON" \
 "## Acceptance Criteria
@@ -95,7 +95,7 @@ create_issue "test: Export sprint metrics as JSON" \
 - [ ] JSON includes: velocity, first_pass_rate, avg_duration_ms
 - [ ] JSON output is valid and parseable
 - [ ] Add test for JSON output format" \
-"type:enhancement,status:ready" "${PREFIX} 1"
+"type:enhancement,status:ready" "Sprint 1"
 
 create_issue "test: Add issue title to branch name" \
 "## Acceptance Criteria
@@ -103,7 +103,7 @@ create_issue "test: Add issue title to branch name" \
 - [ ] Title is slugified (lowercase, hyphens, max 40 chars)
 - [ ] Special characters are stripped
 - [ ] Add tests for title slugification" \
-"type:chore,status:ready" "${PREFIX} 1"
+"type:chore,status:ready" "Sprint 1"
 
 echo ""
 echo "━━━ Backlog Issues (15) ━━━"
@@ -237,10 +237,10 @@ create_issue "idea: Agent performance leaderboard" \
 "type:idea"
 
 echo ""
-echo "✅ Test setup complete!"
+echo "✅ Test setup complete! (${REPO})"
 echo ""
-TOTAL=$(gh issue list --label "${LABEL}" --state open --json number -q '. | length')
-SPRINT1=$(gh api "repos/{owner}/{repo}/issues?milestone=$(gh api repos/{owner}/{repo}/milestones -q '.[] | select(.title=="Test Sprint 1") | .number')&state=open" -q '. | length' 2>/dev/null || echo "?")
+TOTAL=$(gh issue list --repo "${REPO}" --state open --limit 300 --json number -q '. | length')
+SPRINT1=$(gh api "repos/${REPO}/milestones" -q '.[] | select(.title=="Sprint 1") | .open_issues' 2>/dev/null || echo "?")
 echo "   ${TOTAL} total issues (${SPRINT1} in Sprint 1, rest in backlog)"
 echo ""
 echo "▶ Start test run:"
