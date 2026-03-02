@@ -148,3 +148,81 @@
   font-size: 12px;
   color: var(--text-dim);
 }
+
+/* Editable fields */
+.settings-table td:nth-child(2) {
+  width: 200px;
+}
+
+.settings-table td:nth-child(3) {
+  color: var(--text-dim);
+  font-size: 12px;
+  padding-left: 16px;
+}
+
+.settings-input {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+  max-width: 300px;
+  box-sizing: border-box;
+}
+
+.settings-input:focus {
+  border-color: #58a6ff;
+  outline: none;
+}
+
+.settings-input-narrow {
+  max-width: 100px;
+}
+
+.settings-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.settings-actions .settings-dirty {
+  font-size: 12px;
+  color: #d29922;
+  font-weight: 500;
+}
+
+.settings-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 1000;
+  animation: settingsFade 2s ease-in-out forwards;
+}
+
+.settings-toast.success {
+  background: #3fb950;
+  color: #fff;
+}
+
+.settings-toast.error {
+  background: #f85149;
+  color: #fff;
+}
+
+@keyframes settingsFade {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}

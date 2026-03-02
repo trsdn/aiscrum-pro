@@ -808,7 +808,7 @@ export class DashboardWebServer {
 
     // API routes
     if (url.pathname.startsWith("/api/")) {
-      this.handleApi(url, res);
+      this.handleApi(url, req, res);
       return;
     }
 
@@ -838,7 +838,7 @@ export class DashboardWebServer {
   }
 
   /** Handle REST API requests. */
-  private handleApi(url: URL, res: http.ServerResponse): void {
+  private handleApi(url: URL, req: http.IncomingMessage, res: http.ServerResponse): void {
     const pathname = url.pathname;
     res.setHeader("Content-Type", "application/json");
 
@@ -945,6 +945,31 @@ export class DashboardWebServer {
 
     // /api/config — full project config for the settings page
     if (pathname === "/api/config") {
+      if (req.method === "PUT" || req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("end", () => {
+          try {
+            const newConfig = JSON.parse(body);
+            const projectPath = this.options.projectPath ?? process.cwd();
+            const configPath = path.join(projectPath, ".aiscrum", "config.yaml");
+            // Dynamic import to avoid top-level dep
+            import("yaml").then(({ stringify }) => {
+              fs.writeFileSync(configPath, stringify(newConfig, { lineWidth: 120 }), "utf-8");
+              this.options.config = newConfig;
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ ok: true }));
+            }).catch((err) => {
+              res.writeHead(500);
+              res.end(JSON.stringify({ error: String(err) }));
+            });
+          } catch (err) {
+            res.writeHead(400);
+            res.end(JSON.stringify({ error: String(err) }));
+          }
+        });
+        return;
+      }
       const config = this.options.config ?? null;
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(config));
