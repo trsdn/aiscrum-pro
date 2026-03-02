@@ -45,6 +45,7 @@ body {
 }
 .btn:hover { background: var(--border); }
 .btn-small { padding: 3px 8px; font-size: 12px; }
+.btn-icon { width: 36px; height: 36px; padding: 0; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .btn-primary { background: var(--green); color: #000; border-color: var(--green); }
 .btn-primary:hover { opacity: 0.85; }
 .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }

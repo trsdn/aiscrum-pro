@@ -212,6 +212,15 @@ export class ChatManager {
     log.info({ chatId, optionId, value }, "Chat session config changed");
   }
 
+  /** Cancel an in-progress prompt turn. */
+  async cancelSession(chatId: string): Promise<void> {
+    const session = this.sessions.get(chatId);
+    if (!session) throw new Error(`Chat session ${chatId} not found`);
+    const client = await this.ensureClient();
+    await client.cancelSession(session.acpSessionId);
+    log.info({ chatId }, "Chat session cancelled");
+  }
+
   /** Get a chat session by ID. */
   getSession(chatId: string): ChatSession | undefined {
     return this.sessions.get(chatId);

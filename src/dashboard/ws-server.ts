@@ -39,7 +39,7 @@ export interface ServerMessage {
 
 /** Message sent from browser client to server. */
 export interface ClientMessage {
-  type: "sprint:start" | "sprint:stop" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "sprint:set-limit" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "chat:set-mode" | "chat:set-config" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
+  type: "sprint:start" | "sprint:stop" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "sprint:set-limit" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "chat:cancel" | "chat:set-mode" | "chat:set-config" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
   sprintNumber?: number;
   issueNumber?: number;
   sessionId?: string;
@@ -543,6 +543,11 @@ export class DashboardWebServer {
           this.handleChatClose(msg.sessionId);
         }
         break;
+      case "chat:cancel":
+        if (msg.sessionId) {
+          this.handleChatCancel(msg.sessionId, ws);
+        }
+        break;
       case "chat:set-mode":
         if (msg.sessionId && msg.mode) {
           this.handleChatSetMode(msg.sessionId, msg.mode, ws);
@@ -778,6 +783,19 @@ export class DashboardWebServer {
       this.sendTo(ws, {
         type: "chat:error",
         payload: { sessionId, error: `Failed to set config: ${msg}` },
+      });
+    }
+  }
+
+  private async handleChatCancel(sessionId: string, ws: WebSocket): Promise<void> {
+    try {
+      await this.getChatManager().cancelSession(sessionId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.error({ err, sessionId }, "Failed to cancel chat session");
+      this.sendTo(ws, {
+        type: "chat:error",
+        payload: { sessionId, error: `Failed to cancel: ${msg}` },
       });
     }
   }

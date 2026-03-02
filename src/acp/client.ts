@@ -452,7 +452,16 @@ export class AcpClient {
   async setConfigOption(sessionId: string, optionId: string, value: string): Promise<void> {
     const conn = this.requireConnection();
     this.log.info({ sessionId, optionId, value }, "setting session config option");
-    await conn.setSessionConfigOption({ sessionId, configOptionId: optionId, value });
+    await conn.setSessionConfigOption({ sessionId, configId: optionId, value });
+  }
+
+  /**
+   * Cancel an in-progress prompt turn.
+   */
+  async cancelSession(sessionId: string): Promise<void> {
+    const conn = this.requireConnection();
+    this.log.info({ sessionId }, "cancelling session");
+    await conn.cancel({ sessionId });
   }
 
   /**
