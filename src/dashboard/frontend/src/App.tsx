@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { useDashboardStore } from "./store";
 import { Header } from "./components/Header";
 import { SprintTab } from "./components/SprintTab";
+import { SprintBacklogTab } from "./components/SprintBacklogTab";
 import { BacklogTab, BlockedTab, DecisionsTab, IdeasTab } from "./components/Tabs";
 import { ChatPanel } from "./components/ChatPanel";
 import "./index.css";
 
-type Tab = "sprint" | "backlog" | "blocked" | "decisions" | "ideas";
+type Tab = "sprint" | "sprint-backlog" | "backlog" | "blocked" | "decisions" | "ideas";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "sprint", label: "Sprint", icon: "🏃" },
+  { id: "sprint-backlog", label: "Sprint Backlog", icon: "📦" },
   { id: "backlog", label: "Backlog", icon: "📋" },
   { id: "blocked", label: "Blocked", icon: "🚧" },
   { id: "decisions", label: "Decisions", icon: "⚖️" },
@@ -39,6 +41,7 @@ export default function App() {
         ))}
       </nav>
       {activeTab === "sprint" && <SprintTab />}
+      {activeTab === "sprint-backlog" && <SprintBacklogTab />}
       {activeTab === "backlog" && <BacklogTab />}
       {activeTab === "blocked" && <BlockedTab />}
       {activeTab === "decisions" && <DecisionsTab />}

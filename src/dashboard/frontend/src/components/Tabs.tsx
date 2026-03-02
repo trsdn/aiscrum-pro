@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import type { GhIssueItem } from "../types";
 import { useDashboardStore } from "../store";
+import { IssueCard } from "./IssueCard";
 import "./TabList.css";
 
 export function BacklogTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const send = useDashboardStore((s) => s.send);
-  const repoUrl = useDashboardStore((s) => s.repoUrl);
   const activeSprintNumber = useDashboardStore((s) => s.activeSprintNumber);
   const availableSprints = useDashboardStore((s) => s.availableSprints);
   const backlogPending = useDashboardStore((s) => s.backlogPending);
@@ -70,14 +70,10 @@ export function BacklogTab() {
       </div>
       <ul className="tab-list">
         {visibleItems.map((item) => (
-          <li key={item.number} className="tab-list-item">
-            <div className="tab-list-item-header">
-              {repoUrl ? (
-                <a href={`${repoUrl}/issues/${item.number}`} target="_blank" rel="noopener" className="item-number">#{item.number}</a>
-              ) : (
-                <span className="item-number">#{item.number}</span>
-              )}
-              <span className="item-title">{item.title}</span>
+          <IssueCard
+            key={item.number}
+            item={item}
+            actions={
               <button
                 className={`btn btn-small btn-primary${backlogPending.has(item.number) ? " btn-pending" : ""}`}
                 disabled={backlogPending.has(item.number)}
@@ -85,13 +81,8 @@ export function BacklogTab() {
               >
                 {backlogPending.has(item.number) ? "Adding…" : `→ Sprint ${targetSprint || "?"}`}
               </button>
-            </div>
-            {item.labels && item.labels.length > 0 && (
-              <div className="item-labels">
-                {item.labels.map((l) => <span key={l} className="label-badge">{l}</span>)}
-              </div>
-            )}
-          </li>
+            }
+          />
         ))}
       </ul>
     </div>
@@ -102,7 +93,6 @@ export function BlockedTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const send = useDashboardStore((s) => s.send);
-  const repoUrl = useDashboardStore((s) => s.repoUrl);
 
   const fetchItems = () => {
     setLoading(true);
@@ -126,40 +116,32 @@ export function BlockedTab() {
       </div>
       <ul className="tab-list">
         {items.map((item) => (
-          <li key={item.number} className="tab-list-item">
-            <div className="tab-list-item-header">
-              {repoUrl ? (
-                <a href={`${repoUrl}/issues/${item.number}`} target="_blank" rel="noopener" className="item-number">#{item.number}</a>
-              ) : (
-                <span className="item-number">#{item.number}</span>
-              )}
-              <span className="item-title">{item.title}</span>
-              <button
-                className="btn btn-small"
-                onClick={() => {
-                  const msg = prompt("Add comment:");
-                  if (msg) send({ type: "blocked:comment", issueNumber: item.number, body: msg });
-                }}
-              >
-                💬
-              </button>
-              <button
-                className="btn btn-small btn-primary"
-                onClick={() => {
-                  if (confirm(`Unblock #${item.number}?`))
-                    send({ type: "blocked:unblock", issueNumber: item.number });
-                }}
-              >
-                🔓 Unblock
-              </button>
-            </div>
-            {item.blockedReason && (
-              <div className="item-blocked-reason">
-                <strong>⛔ Reason:</strong> {item.blockedReason}
-              </div>
-            )}
-            {item.body && <div className="item-body">{item.body.slice(0, 300)}</div>}
-          </li>
+          <IssueCard
+            key={item.number}
+            item={item}
+            actions={
+              <>
+                <button
+                  className="btn btn-small"
+                  onClick={() => {
+                    const msg = prompt("Add comment:");
+                    if (msg) send({ type: "blocked:comment", issueNumber: item.number, body: msg });
+                  }}
+                >
+                  💬
+                </button>
+                <button
+                  className="btn btn-small btn-primary"
+                  onClick={() => {
+                    if (confirm(`Unblock #${item.number}?`))
+                      send({ type: "blocked:unblock", issueNumber: item.number });
+                  }}
+                >
+                  🔓 Unblock
+                </button>
+              </>
+            }
+          />
         ))}
       </ul>
     </div>
@@ -170,7 +152,6 @@ export function DecisionsTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const send = useDashboardStore((s) => s.send);
-  const repoUrl = useDashboardStore((s) => s.repoUrl);
 
   const fetchItems = () => {
     setLoading(true);
@@ -194,14 +175,10 @@ export function DecisionsTab() {
       </div>
       <ul className="tab-list">
         {items.map((item) => (
-          <li key={item.number} className="tab-list-item">
-            <div className="tab-list-item-header">
-              {repoUrl ? (
-                <a href={`${repoUrl}/issues/${item.number}`} target="_blank" rel="noopener" className="item-number">#{item.number}</a>
-              ) : (
-                <span className="item-number">#{item.number}</span>
-              )}
-              <span className="item-title">{item.title}</span>
+          <IssueCard
+            key={item.number}
+            item={item}
+            actions={
               <div className="decision-actions">
                 <button
                   className="btn btn-small btn-success"
@@ -225,9 +202,8 @@ export function DecisionsTab() {
                   💬
                 </button>
               </div>
-            </div>
-            {item.body && <div className="item-body">{item.body.slice(0, 500)}</div>}
-          </li>
+            }
+          />
         ))}
       </ul>
     </div>
@@ -237,7 +213,6 @@ export function DecisionsTab() {
 export function IdeasTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const repoUrl = useDashboardStore((s) => s.repoUrl);
 
   const fetchItems = () => {
     setLoading(true);
@@ -261,22 +236,7 @@ export function IdeasTab() {
       </div>
       <ul className="tab-list">
         {items.map((item) => (
-          <li key={item.number} className="tab-list-item">
-            <div className="tab-list-item-header">
-              {repoUrl ? (
-                <a href={`${repoUrl}/issues/${item.number}`} target="_blank" rel="noopener" className="item-number">#{item.number}</a>
-              ) : (
-                <span className="item-number">#{item.number}</span>
-              )}
-              <span className="item-title">{item.title}</span>
-            </div>
-            {item.body && <div className="item-body">{item.body.slice(0, 300)}</div>}
-            {item.labels && item.labels.length > 0 && (
-              <div className="item-labels">
-                {item.labels.map((l) => <span key={l} className="label-badge">{l}</span>)}
-              </div>
-            )}
-          </li>
+          <IssueCard key={item.number} item={item} />
         ))}
       </ul>
     </div>

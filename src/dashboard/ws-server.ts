@@ -827,6 +827,12 @@ export class DashboardWebServer {
       return;
     }
 
+    // /api/sprint-backlog — issues in the active sprint with full body
+    if (pathname === "/api/sprint-backlog") {
+      this.handleSprintBacklogRequest(res);
+      return;
+    }
+
     res.writeHead(404);
     res.end(JSON.stringify({ error: "Not found" }));
   }
@@ -916,6 +922,7 @@ export class DashboardWebServer {
           .map((i) => ({
             number: i.number,
             title: i.title,
+            body: i.body ?? "",
             labels: i.labels.map((l) => l.name),
           }));
         res.writeHead(200);
@@ -930,6 +937,32 @@ export class DashboardWebServer {
     });
   }
 
+  /** Return issues planned in the active sprint with full body for detail view. */
+  private handleSprintBacklogRequest(res: http.ServerResponse): void {
+    const prefix = this.options.sprintPrefix ?? "Sprint";
+    const sprintNum = this.activeSprintNumber ?? 1;
+    const milestoneName = `${prefix} ${sprintNum}`;
+    import("../github/issues.js").then(async ({ listIssues }) => {
+      try {
+        const ghIssues = await listIssues({ milestone: milestoneName, state: "open" });
+        const items = ghIssues.map((i) => ({
+          number: i.number,
+          title: i.title,
+          body: i.body ?? "",
+          labels: i.labels.map((l) => l.name),
+        }));
+        res.writeHead(200);
+        res.end(JSON.stringify({ sprintNumber: sprintNum, items }));
+      } catch {
+        res.writeHead(200);
+        res.end(JSON.stringify({ sprintNumber: sprintNum, items: [] }));
+      }
+    }).catch(() => {
+      res.writeHead(200);
+      res.end(JSON.stringify({ sprintNumber: sprintNum, items: [] }));
+    });
+  }
+
   /** Return idea issues (type:idea, awaiting refinement). */
   private handleIdeasRequest(res: http.ServerResponse): void {
     import("../github/issues.js").then(async ({ listIssues }) => {
@@ -938,7 +971,8 @@ export class DashboardWebServer {
         const ideas = ghIssues.map((i) => ({
           number: i.number,
           title: i.title,
-          body: (i.body ?? "").slice(0, 200),
+          body: i.body ?? "",
+          labels: i.labels.map((l) => l.name),
         }));
         res.writeHead(200);
         res.end(JSON.stringify(ideas));
