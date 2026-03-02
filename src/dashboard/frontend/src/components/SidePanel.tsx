@@ -4,12 +4,12 @@ import { Markdown } from "./Markdown";
 import "./SidePanel.css";
 
 const ROLE_META: Record<string, { icon: string; label: string }> = {
-  refiner:   { icon: "🔬", label: "Refiner" },
-  planner:   { icon: "📐", label: "Planner" },
-  reviewer:  { icon: "🔍", label: "Reviewer" },
-  researcher:{ icon: "🔎", label: "Researcher" },
-  general:   { icon: "💬", label: "General" },
-  challenger:{ icon: "⚔️", label: "Challenger" },
+  refiner:   { icon: "🔬", label: "Refinement Agent" },
+  planner:   { icon: "📐", label: "Planning Agent" },
+  reviewer:  { icon: "🔍", label: "Review Agent" },
+  researcher:{ icon: "🔎", label: "Research Agent" },
+  general:   { icon: "💬", label: "General Agent" },
+  challenger:{ icon: "⚔️", label: "Challenger Agent" },
 };
 
 export function SidePanel() {
@@ -93,13 +93,15 @@ export function SidePanel() {
         )}
         {activeMessages.map((m, i) => (
           <div key={i} className={`chat-msg chat-${m.role}`}>
-            <span className="chat-role">{m.role}</span>
+            <span className="chat-role">
+              {m.role === "assistant" ? meta.label : m.role === "user" ? "You" : m.role}
+            </span>
             <div className="chat-content"><Markdown text={m.content} /></div>
           </div>
         ))}
         {streaming && (
           <div className="chat-msg chat-assistant">
-            <span className="chat-role">assistant</span>
+            <span className="chat-role">{meta.label}</span>
             <div className="chat-content chat-streaming">{streaming}▌</div>
           </div>
         )}

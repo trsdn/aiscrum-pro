@@ -224,9 +224,17 @@ export function IdeasTab() {
       .finally(() => setLoading(false));
   };
 
-  const startRefine = () => {
+  const startRefine = (item: GhIssueItem) => {
+    const contextMessage = [
+      `I'd like you to help me refine this idea. Please review the issue context below and ask clarifying questions to help define clear, testable acceptance criteria. Don't make any changes yet — just interview me to understand what I need.`,
+      ``,
+      `---`,
+      `**Issue #${item.number}: ${item.title}**`,
+      ``,
+      item.body || '_No description provided._',
+    ].join("\n");
+    useDashboardStore.setState({ chatPanelOpen: true, sidePanelRole: "refiner", pendingChatMessage: contextMessage });
     send({ type: "chat:create", role: "refiner" });
-    useDashboardStore.setState({ chatPanelOpen: true, sidePanelRole: "refiner" });
   };
 
   useEffect(() => { fetchItems(); }, []);
@@ -248,7 +256,7 @@ export function IdeasTab() {
             actions={
               <button
                 className="btn btn-small btn-primary"
-                onClick={() => startRefine()}
+                onClick={() => startRefine(item)}
               >
                 🔬 Refine
               </button>

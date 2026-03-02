@@ -37,6 +37,7 @@ export interface DashboardStore {
   chatStreaming: Record<string, string>;
   chatPanelOpen: boolean;
   sidePanelRole: string | null;
+  pendingChatMessage: string | null;
 
   // Execution mode
   executionMode: "autonomous" | "hitl";
@@ -186,12 +187,22 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
       const raw = msg.payload as { sessionId: string; role: string; model?: string } | undefined;
       if (raw) {
         const p: ChatSession = { id: raw.sessionId, role: raw.role, model: raw.model };
+        const pending = get().pendingChatMessage;
+        const initialMessages: ChatMessage[] = pending
+          ? [{ role: "user", content: pending }]
+          : [];
         set((prev) => ({
           ...prev,
           chatSessions: [...prev.chatSessions, p],
           activeChatId: p.id,
-          chatMessages: { ...prev.chatMessages, [p.id]: [] },
+          chatMessages: { ...prev.chatMessages, [p.id]: initialMessages },
+          pendingChatMessage: null,
         }));
+        // Auto-send the pending message to the agent
+        if (pending) {
+          const sendFn = get().send;
+          sendFn({ type: "chat:send", sessionId: p.id, message: pending });
+        }
       }
       break;
     }
@@ -457,6 +468,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   chatStreaming: {},
   chatPanelOpen: false,
   sidePanelRole: null,
+  pendingChatMessage: null,
   executionMode: "autonomous",
   sprintLimit: 0,
   backlogPending: new Set<number>(),
