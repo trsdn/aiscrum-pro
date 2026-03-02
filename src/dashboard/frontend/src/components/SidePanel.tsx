@@ -216,7 +216,7 @@ export function SidePanel() {
         {activeSession?.model && (
           <span className="side-panel-model">{activeSession.model}</span>
         )}
-        {configs && configs.filter((c) => c.category !== "mode" && c.category !== "model").length > 0 && (
+        {configs && configs.filter((c) => c.category !== "mode" && c.category !== "model" && c.category !== "thought_level").length > 0 && (
           <div className="side-panel-config-wrapper">
             <button
               className="side-panel-settings-btn"
@@ -227,7 +227,7 @@ export function SidePanel() {
             </button>
             {showSettings && (
               <div className="side-panel-settings-panel">
-                {configs.filter((c) => c.category !== "mode" && c.category !== "model").map((cfg) => (
+                {configs.filter((c) => c.category !== "mode" && c.category !== "model" && c.category !== "thought_level").map((cfg) => (
                   <div key={cfg.id} className="settings-group">
                     <label className="settings-label">{cfg.name}</label>
                     <select
@@ -417,20 +417,25 @@ export function SidePanel() {
           </div>
           {(() => {
             const modelCfg = configs?.find((c) => c.category === "model");
+            const reasoningCfg = configs?.find((c) => c.category === "thought_level");
             if (!modelCfg) return null;
             const currentOpt = modelCfg.options.find((o) => o.value === modelCfg.currentValue);
             const shortLabel = currentOpt?.name ?? modelCfg.currentValue;
+            const reasoningLabel = reasoningCfg
+              ? reasoningCfg.options.find((o) => o.value === reasoningCfg.currentValue)?.name ?? reasoningCfg.currentValue
+              : null;
             return (
               <div className="mode-selector-wrapper">
                 <button
                   className="mode-selector-btn"
                   onClick={() => { setShowModelMenu(!showModelMenu); setShowModeMenu(false); }}
                 >
-                  🧠 {shortLabel}
+                  🧠 {shortLabel}{reasoningLabel ? ` · ${reasoningLabel}` : ""}
                   <span className="mode-selector-arrow">▲</span>
                 </button>
                 {showModelMenu && (
                   <div className="mode-selector-menu model-menu">
+                    <div className="model-menu-section">Model</div>
                     {modelCfg.options.map((opt) => (
                       <button
                         key={opt.value}
@@ -445,6 +450,27 @@ export function SidePanel() {
                         {opt.name}
                       </button>
                     ))}
+                    {reasoningCfg && (
+                      <>
+                        <div className="model-menu-divider" />
+                        <div className="model-menu-section">Reasoning</div>
+                        <div className="model-menu-reasoning">
+                          {reasoningCfg.options.map((opt) => (
+                            <button
+                              key={opt.value}
+                              className={`reasoning-chip${opt.value === reasoningCfg.currentValue ? " active" : ""}`}
+                              onClick={() => {
+                                if (activeChatId) {
+                                  send({ type: "chat:set-config", sessionId: activeChatId, optionId: reasoningCfg.id, value: opt.value });
+                                }
+                              }}
+                            >
+                              {opt.name}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
