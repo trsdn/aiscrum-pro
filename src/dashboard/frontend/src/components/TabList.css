@@ -22,6 +22,22 @@
   font-weight: 600;
 }
 
+.backlog-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sprint-select {
+  background: var(--bg-hover);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .tab-list { list-style: none; }
 
 .tab-list-item {

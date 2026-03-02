@@ -520,7 +520,7 @@ export class DashboardWebServer {
       }
       case "backlog:plan-issue":
         if (msg.issueNumber) {
-          this.handlePlanIssue(msg.issueNumber, ws);
+          this.handlePlanIssue(msg.issueNumber, ws, msg.sprintNumber as number | undefined);
         }
         break;
       case "backlog:remove-issue":
@@ -1067,8 +1067,8 @@ export class DashboardWebServer {
   }
 
   /** Add an issue to the current sprint (set milestone + status:planned label). */
-  private async handlePlanIssue(issueNumber: number, ws: WebSocket): Promise<void> {
-    const sprintNum = this.activeSprintNumber ?? 1;
+  private async handlePlanIssue(issueNumber: number, ws: WebSocket, targetSprint?: number): Promise<void> {
+    const sprintNum = targetSprint ?? this.activeSprintNumber ?? 1;
     const prefix = this.options.sprintPrefix ?? "Sprint";
     const milestoneTitle = `${prefix} ${sprintNum}`;
     try {
