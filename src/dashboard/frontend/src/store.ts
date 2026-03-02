@@ -291,7 +291,7 @@ function handleSprintEvent(
         state: {
           ...store.state,
           sprintNumber: (p?.sprintNumber as number) ?? store.state.sprintNumber,
-          phase: "refine",
+          phase: "plan",
           startedAt: new Date().toISOString(),
         },
         activeSprintNumber: (p?.sprintNumber as number) ?? store.activeSprintNumber,

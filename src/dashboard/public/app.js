@@ -239,7 +239,7 @@
         }
         activities = [];
         state.sprintNumber = payload.sprintNumber;
-        state.phase = "refine";
+        state.phase = "plan";
         state.startedAt = new Date();
         activeSprintNumber = payload.sprintNumber;
         viewingSprintNumber = payload.sprintNumber;
@@ -413,7 +413,7 @@
     updatePhaseStepper(state.phase);
   }
 
-  const PHASE_ORDER = ["refine", "plan", "execute", "review", "retro", "complete"];
+  const PHASE_ORDER = ["plan", "execute", "review", "retro", "complete"];
 
   function updatePhaseStepper(currentPhase) {
     const stepper = document.getElementById("phase-stepper");

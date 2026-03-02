@@ -97,7 +97,7 @@ test.describe("Dashboard Sprint Navigation", () => {
   test("phase badge shows a valid phase", async ({ page }) => {
     const badge = page.locator(".phase-badge");
     const text = await badge.textContent();
-    expect(["init", "refine", "plan", "execute", "review", "retro", "complete", "failed", "paused"]).toContain(text);
+    expect(["init", "plan", "execute", "review", "retro", "complete", "failed", "paused"]).toContain(text);
   });
 
   test("activity log section exists", async ({ page }) => {

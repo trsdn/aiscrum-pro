@@ -15,7 +15,6 @@ const SprintStateSchema = z
     sprintNumber: z.number(),
     phase: z.enum([
       "init",
-      "refine",
       "plan",
       "execute",
       "review",

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDashboardStore } from "../store";
 import "./Header.css";
 
-const PHASES = ["refine", "plan", "execute", "review", "retro", "complete"];
+const PHASES = ["plan", "execute", "review", "retro", "complete"];
 
 export function Header() {
   const state = useDashboardStore((s) => s.state);

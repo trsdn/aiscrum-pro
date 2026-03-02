@@ -15,12 +15,6 @@ vi.mock("../../src/acp/client.js", () => ({
   })),
 }));
 
-vi.mock("../../src/ceremonies/refinement.js", () => ({
-  runRefinement: vi.fn().mockResolvedValue([
-    { number: 1, title: "Issue 1", ice_score: 8 },
-  ]),
-}));
-
 vi.mock("../../src/ceremonies/planning.js", () => ({
   runSprintPlanning: vi.fn().mockResolvedValue({
     sprintNumber: 1,
@@ -108,7 +102,7 @@ describe("sprint cycle integration", () => {
     const runner = new SprintRunner(config, events);
     await runner.fullCycle();
 
-    expect(phaseChanges).toEqual(["init", "refine", "plan", "execute", "review", "retro", "complete"]);
+    expect(phaseChanges).toEqual(["init", "plan", "execute", "review", "retro", "complete"]);
   });
 
   it("fullCycle emits sprint:start and sprint:complete", { timeout: 15000 }, async () => {
@@ -154,8 +148,8 @@ describe("sprint cycle integration", () => {
   });
 
   it("fullCycle on error emits sprint:error", { timeout: 15000 }, async () => {
-    const { runRefinement } = await import("../../src/ceremonies/refinement.js");
-    vi.mocked(runRefinement).mockRejectedValueOnce(new Error("Refinement exploded"));
+    const { runSprintPlanning } = await import("../../src/ceremonies/planning.js");
+    vi.mocked(runSprintPlanning).mockRejectedValueOnce(new Error("Planning exploded"));
 
     const events = new SprintEventBus();
     const errors: string[] = [];
@@ -165,6 +159,6 @@ describe("sprint cycle integration", () => {
     await runner.fullCycle();
 
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toBe("Refinement exploded");
+    expect(errors[0]).toBe("Planning exploded");
   });
 });

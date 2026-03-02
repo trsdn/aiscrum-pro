@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import { AcpClient } from "./acp/client.js";
 import { resolveSessionConfig } from "./acp/session-config.js";
-import { runRefinement } from "./ceremonies/refinement.js";
 import { runSprintPlanning } from "./ceremonies/planning.js";
 import { runParallelExecution } from "./ceremonies/parallel-dispatcher.js";
 import { runSprintReview } from "./ceremonies/review.js";
@@ -29,12 +28,10 @@ import type {
   SprintResult,
   ReviewResult,
   RetroResult,
-  RefinedIssue,
 } from "./types.js";
 
 export type SprintPhase =
   | "init"
-  | "refine"
   | "plan"
   | "execute"
   | "review"
@@ -181,16 +178,11 @@ export class SprintRunner {
       createSprintLog(this.config.sprintNumber, `${this.config.sprintPrefix} cycle started`, 0, undefined, this.config.sprintPrefix, this.config.sprintSlug);
       await this.client.connect();
 
-      // 2. refine
-      await this.checkPaused();
-      this.transition("refine", undefined, "Refinement Agent");
-      const refined = await this.runRefine();
-
-      // 3. plan
+      // 2. plan
       await this.checkPaused();
       const plannerModel = (await resolveSessionConfig(this.config, "planner")).model;
       this.transition("plan", plannerModel, "Planning Agent");
-      const plan = await this.runPlan(refined);
+      const plan = await this.runPlan();
 
       // Broadcast planned issues so dashboard can update
       this.events.emitTyped("sprint:planned", {
@@ -203,7 +195,7 @@ export class SprintRunner {
       // Warn about issues missing acceptance criteria
       this.warnMissingAcceptanceCriteria(plan);
 
-      // 4. execute
+      // 3. execute
       if (this.hitlMode) {
         this.log.info("HITL mode — pausing before execution for stakeholder review");
         this.events.emitTyped("log", { level: "info", message: "⏸ HITL: Pausing before execution — review the plan and resume in dashboard to continue" });
@@ -214,18 +206,18 @@ export class SprintRunner {
       this.transition("execute", workerModel, "Worker Agent");
       const result = await this.runExecute(plan);
 
-      // 5. review
+      // 4. review
       await this.checkPaused();
       const reviewerModel = (await resolveSessionConfig(this.config, "reviewer")).model;
       this.transition("review", reviewerModel, "Review Agent");
       const review = await this.runReview(result);
 
-      // 6. retro
+      // 5. retro
       await this.checkPaused();
       this.transition("retro", undefined, "Retro Agent");
       const retro = await this.runRetro(result, review);
 
-      // 7. complete
+      // 6. complete
       this.state.retro = retro;
       this.transition("complete");
       await this.client.disconnect();
@@ -319,18 +311,10 @@ export class SprintRunner {
 
     return results;
   }
-  /** Run the refinement phase */
-  async runRefine(): Promise<RefinedIssue[]> {
-    this.log.info("Running refinement");
-    const refined = await runRefinement(this.client, this.config, this.events);
-    this.log.info({ count: refined.length }, "Refinement complete");
-    return refined;
-  }
-
   /** Run the sprint planning phase */
-  async runPlan(refinedIssues?: RefinedIssue[]): Promise<SprintPlan> {
+  async runPlan(): Promise<SprintPlan> {
     this.log.info("Running sprint planning");
-    const plan = await runSprintPlanning(this.client, this.config, refinedIssues, this.events);
+    const plan = await runSprintPlanning(this.client, this.config, this.events);
     this.state.plan = plan;
     this.persistState();
     this.log.info(

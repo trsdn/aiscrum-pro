@@ -204,7 +204,7 @@ function registerRefine(program: Command): void {
 function registerFullCycle(program: Command): void {
   program
     .command("full-cycle")
-    .description("Run a full sprint cycle: refine → plan → execute → review → retro")
+    .description("Run a full sprint cycle: plan → execute → review → retro")
     .requiredOption("--sprint <number>", "Sprint number", parseSprintNumber)
     .action(async (opts) => {
       try {
@@ -214,31 +214,26 @@ function registerFullCycle(program: Command): void {
 
         const client = await createConnectedClient(config);
         try {
-          // Step 1: Refine
-          console.log("\n🔄 Phase 1/5: Refinement...");
-          const refined = await runRefinement(client, sprintConfig);
-          console.log(`  Refined ${refined.length} issues`);
-
-          // Step 2: Plan
-          console.log("\n🔄 Phase 2/5: Planning...");
-          const plan = await runSprintPlanning(client, sprintConfig, refined);
+          // Step 1: Plan
+          console.log("\n🔄 Phase 1/4: Planning...");
+          const plan = await runSprintPlanning(client, sprintConfig);
           console.log(`  Planned ${plan.sprint_issues.length} issues (${plan.estimated_points} points)`);
 
-          // Step 3: Execute all issues (with parallel dispatch, merge, pre-merge verification)
-          console.log("\n🔄 Phase 3/5: Execution...");
+          // Step 2: Execute all issues (with parallel dispatch, merge, pre-merge verification)
+          console.log("\n🔄 Phase 2/4: Execution...");
           const sprintResult = await runParallelExecution(client, sprintConfig, plan);
           const results = sprintResult.results;
           for (const r of results) {
             console.log(`  ${r.status === "completed" ? "✅" : "❌"} #${r.issueNumber} — ${r.status}`);
           }
 
-          // Step 4: Review
-          console.log("\n🔄 Phase 4/5: Review...");
+          // Step 3: Review
+          console.log("\n🔄 Phase 3/4: Review...");
           const review = await runSprintReview(client, sprintConfig, sprintResult);
           console.log(`  ${review.demoItems.length} demo items, ${review.openItems.length} open items`);
 
-          // Step 5: Retro
-          console.log("\n🔄 Phase 5/5: Retrospective...");
+          // Step 4: Retro
+          console.log("\n🔄 Phase 4/4: Retrospective...");
           const retro = await runSprintRetro(client, sprintConfig, sprintResult, review);
           console.log(`  ${retro.wentWell.length} went well, ${retro.wentBadly.length} went badly`);
           console.log(`  ${retro.improvements.length} improvements identified`);

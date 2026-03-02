@@ -7,7 +7,6 @@ import type {
   SprintResult,
   ReviewResult,
   RetroResult,
-  RefinedIssue,
 } from "../src/types.js";
 import { SprintEventBus } from "../src/events.js";
 import { getNextOpenMilestone, closeMilestone } from "../src/github/milestones.js";
@@ -22,13 +21,6 @@ vi.mock("../src/acp/client.js", () => ({
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn().mockResolvedValue(undefined),
   })),
-}));
-
-vi.mock("../src/ceremonies/refinement.js", () => ({
-  runRefinement: vi.fn().mockResolvedValue([
-    { number: 1, title: "Issue 1", ice_score: 8 },
-    { number: 2, title: "Issue 2", ice_score: 5 },
-  ] satisfies RefinedIssue[]),
 }));
 
 vi.mock("../src/ceremonies/planning.js", () => ({
@@ -329,8 +321,8 @@ describe("SprintRunner", { timeout: 15000 }, () => {
     });
 
     it("sets failed phase on error", async () => {
-      const { runRefinement } = await import("../src/ceremonies/refinement.js");
-      vi.mocked(runRefinement).mockRejectedValueOnce(new Error("ACP timeout"));
+      const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+      vi.mocked(runSprintPlanning).mockRejectedValueOnce(new Error("ACP timeout"));
 
       const runner = new SprintRunner(config);
       const finalState = await runner.fullCycle();
@@ -350,8 +342,8 @@ describe("SprintRunner", { timeout: 15000 }, () => {
           }) as any,
       );
 
-      const { runRefinement } = await import("../src/ceremonies/refinement.js");
-      vi.mocked(runRefinement).mockRejectedValueOnce(new Error("fail"));
+      const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+      vi.mocked(runSprintPlanning).mockRejectedValueOnce(new Error("fail"));
 
       const runner = new SprintRunner(config);
       await runner.fullCycle();
@@ -361,17 +353,6 @@ describe("SprintRunner", { timeout: 15000 }, () => {
   });
 
   describe("individual phase methods", () => {
-    it("runRefine returns refined issues", async () => {
-      const runner = new SprintRunner(config);
-      // Connect first since phases need the client
-      await (runner as any).client.connect();
-
-      const refined = await runner.runRefine();
-      expect(refined).toHaveLength(2);
-      expect(refined[0]!.number).toBe(1);
-      expect(refined[1]!.ice_score).toBe(5);
-    });
-
     it("runPlan stores plan in state", async () => {
       const runner = new SprintRunner(config);
       await (runner as any).client.connect();
@@ -520,8 +501,8 @@ describe("SprintRunner", { timeout: 15000 }, () => {
 
   describe("error handling", () => {
     it("handles non-Error throws", async () => {
-      const { runRefinement } = await import("../src/ceremonies/refinement.js");
-      vi.mocked(runRefinement).mockRejectedValueOnce("string error");
+      const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+      vi.mocked(runSprintPlanning).mockRejectedValueOnce("string error");
 
       const runner = new SprintRunner(config);
       const finalState = await runner.fullCycle();
@@ -531,8 +512,8 @@ describe("SprintRunner", { timeout: 15000 }, () => {
     });
 
     it("persists state on failure", async () => {
-      const { runRefinement } = await import("../src/ceremonies/refinement.js");
-      vi.mocked(runRefinement).mockRejectedValueOnce(new Error("boom"));
+      const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+      vi.mocked(runSprintPlanning).mockRejectedValueOnce(new Error("boom"));
 
       const runner = new SprintRunner(config);
       await runner.fullCycle();
@@ -555,8 +536,8 @@ describe("SprintRunner", { timeout: 15000 }, () => {
           }) as any,
       );
 
-      const { runRefinement } = await import("../src/ceremonies/refinement.js");
-      vi.mocked(runRefinement).mockRejectedValueOnce(new Error("boom"));
+      const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+      vi.mocked(runSprintPlanning).mockRejectedValueOnce(new Error("boom"));
 
       const runner = new SprintRunner(config);
       const finalState = await runner.fullCycle();
@@ -588,12 +569,14 @@ describe("sprintLoop", { timeout: 30000 }, () => {
         }) as any,
     );
 
-    // Restore runRefinement — "error handling" tests add mockRejectedValueOnce
-    const { runRefinement } = await import("../src/ceremonies/refinement.js");
-    vi.mocked(runRefinement).mockResolvedValue([
-      { number: 1, title: "Issue 1", ice_score: 8 },
-      { number: 2, title: "Issue 2", ice_score: 5 },
-    ] as any);
+    // Restore runSprintPlanning — "error handling" tests add mockRejectedValueOnce
+    const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+    vi.mocked(runSprintPlanning).mockResolvedValue({
+      sprintNumber: 1,
+      sprint_issues: [{ number: 1, title: "Issue 1", estimate: 3 }],
+      estimated_points: 3,
+      rationale: "test",
+    } as any);
   });
 
   it("runs multiple sprints until no milestones remain", async () => {
@@ -674,8 +657,8 @@ describe("sprintLoop", { timeout: 30000 }, () => {
       .mockResolvedValueOnce(makeMilestone(2));
     vi.mocked(closeMilestone).mockResolvedValue(undefined);
 
-    const { runRefinement } = await import("../src/ceremonies/refinement.js");
-    vi.mocked(runRefinement).mockRejectedValueOnce(new Error("ACP down"));
+    const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+    vi.mocked(runSprintPlanning).mockRejectedValueOnce(new Error("ACP down"));
 
     const bus = new SprintEventBus();
     const results = await SprintRunner.sprintLoop(
