@@ -22,6 +22,7 @@ const MODE_LABELS: Record<string, { short: string; icon: string }> = {
 const MODE_CYCLE = [
   "https://agentclientprotocol.com/protocol/session-modes#agent",
   "https://agentclientprotocol.com/protocol/session-modes#plan",
+  "https://agentclientprotocol.com/protocol/session-modes#autopilot",
 ];
 
 const TOOL_KIND_ICONS: Record<string, string> = {
@@ -67,6 +68,7 @@ export function SidePanel() {
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashFilter, setSlashFilter] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -213,7 +215,7 @@ export function SidePanel() {
         {activeSession?.model && (
           <span className="side-panel-model">{activeSession.model}</span>
         )}
-        {configs && configs.length > 0 && (
+        {configs && configs.filter((c) => c.category !== "mode").length > 0 && (
           <div className="side-panel-config-wrapper">
             <button
               className="side-panel-settings-btn"
@@ -224,7 +226,7 @@ export function SidePanel() {
             </button>
             {showSettings && (
               <div className="side-panel-settings-panel">
-                {configs.map((cfg) => (
+                {configs.filter((c) => c.category !== "mode").map((cfg) => (
                   <div key={cfg.id} className="settings-group">
                     <label className="settings-label">{cfg.name}</label>
                     <select
@@ -377,22 +379,41 @@ export function SidePanel() {
         </button>
       </div>
 
-      {/* Mode toggle */}
+      {/* Mode selector */}
       {activeSession && (
         <div className="side-panel-mode-bar">
-          {MODE_CYCLE.map((modeId) => {
-            const m = MODE_LABELS[modeId]!;
-            const isActive = (activeSession.modeId ?? MODE_CYCLE[0]) === modeId;
-            return (
-              <button
-                key={modeId}
-                className={`mode-tab${isActive ? " mode-tab-active" : ""}`}
-                onClick={() => send({ type: "chat:set-mode", sessionId: activeSession.id, mode: modeId })}
-              >
-                {m.icon} {m.short}
-              </button>
-            );
-          })}
+          <div className="mode-selector-wrapper">
+            <button
+              className="mode-selector-btn"
+              onClick={() => setShowModeMenu(!showModeMenu)}
+            >
+              {(() => {
+                const m = MODE_LABELS[activeSession.modeId ?? ""] ?? MODE_LABELS[MODE_CYCLE[0]!]!;
+                return `${m.icon} ${m.short}`;
+              })()}
+              <span className="mode-selector-arrow">▲</span>
+            </button>
+            {showModeMenu && (
+              <div className="mode-selector-menu">
+                {MODE_CYCLE.map((modeId) => {
+                  const m = MODE_LABELS[modeId]!;
+                  const isActive = (activeSession.modeId ?? MODE_CYCLE[0]) === modeId;
+                  return (
+                    <button
+                      key={modeId}
+                      className={`mode-selector-option${isActive ? " active" : ""}`}
+                      onClick={() => {
+                        send({ type: "chat:set-mode", sessionId: activeSession.id, mode: modeId });
+                        setShowModeMenu(false);
+                      }}
+                    >
+                      {m.icon} {m.short}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
           <span className="mode-hint">Shift+Tab</span>
         </div>
       )}
