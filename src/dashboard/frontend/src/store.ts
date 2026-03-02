@@ -8,6 +8,7 @@ import type {
   ClientMessage,
   ServerMessage,
 } from "./types";
+import { notifySprintEvent } from "./notifications";
 
 export interface ChatToolCall {
   toolCallId: string;
@@ -503,6 +504,9 @@ function handleSprintEvent(
 ): void {
   const p = payload as Record<string, unknown> | undefined;
   const store = get();
+
+  // Trigger browser notification (only when tab is hidden)
+  notifySprintEvent(name, p);
 
   switch (name) {
     case "sprint:start":

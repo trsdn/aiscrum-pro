@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useDashboardStore } from "../store";
+import {
+  getNotificationsEnabled,
+  setNotificationsEnabled,
+  requestNotificationPermission,
+} from "../notifications";
 import "./Header.css";
 
 const PHASES = ["plan", "execute", "review", "retro", "complete"];
@@ -18,7 +23,21 @@ export function Header() {
   const setViewingSprint = useDashboardStore((s) => s.setViewingSprint);
 
   const [elapsed, setElapsed] = useState("0m 00s");
+  const [notificationsOn, setNotificationsOn] = useState(getNotificationsEnabled);
   const timerRef = useRef<ReturnType<typeof setInterval>>(null);
+
+  const toggleNotifications = useCallback(async () => {
+    if (notificationsOn) {
+      setNotificationsEnabled(false);
+      setNotificationsOn(false);
+    } else {
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        setNotificationsEnabled(true);
+        setNotificationsOn(true);
+      }
+    }
+  }, [notificationsOn]);
 
   const isViewingActive = viewingSprintNumber === activeSprintNumber || viewingSprintNumber === 0;
   const displayNumber = viewingSprintNumber || state.sprintNumber || "—";
@@ -77,6 +96,13 @@ export function Header() {
       </div>
 
       <div className="header-right">
+        <button
+          className={`btn btn-small ${notificationsOn ? "btn-notif-on" : ""}`}
+          onClick={toggleNotifications}
+          title={notificationsOn ? "Disable browser notifications" : "Enable browser notifications"}
+        >
+          {notificationsOn ? "🔔" : "🔕"}
+        </button>
         <span className="issue-count">{doneCount}/{totalCount} done</span>
         <span className="elapsed">{elapsed}</span>
         <span className={`status-dot ${connected ? "status-connected" : "status-disconnected"}`} />
