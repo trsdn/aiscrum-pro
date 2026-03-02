@@ -236,6 +236,22 @@ create_issue "idea: Agent performance leaderboard" \
 "Track which agent configurations (model, prompts) produce the best results over time. Visualize in dashboard metrics tab." \
 "type:idea"
 
+# --- Deploy .aiscrum config to test repo ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RUNNER_DIR="$(dirname "$SCRIPT_DIR")"
+TEST_REPO_DIR="${HOME}/dev/GitHub/ai-scrum-test-project"
+
+if [ -d "$TEST_REPO_DIR" ]; then
+  mkdir -p "$TEST_REPO_DIR/.aiscrum"
+  cp "$RUNNER_DIR/.aiscrum/config.test.yaml" "$TEST_REPO_DIR/.aiscrum/config.yaml"
+  cp "$RUNNER_DIR/.aiscrum/quality-gates.yaml" "$TEST_REPO_DIR/.aiscrum/quality-gates.yaml"
+  # Copy roles if not present
+  if [ -d "$RUNNER_DIR/.aiscrum/roles" ]; then
+    cp -r "$RUNNER_DIR/.aiscrum/roles" "$TEST_REPO_DIR/.aiscrum/" 2>/dev/null || true
+  fi
+  echo "📁 Deployed .aiscrum/ config to ${TEST_REPO_DIR}"
+fi
+
 echo ""
 echo "✅ Test setup complete! (${REPO})"
 echo ""
@@ -244,7 +260,7 @@ SPRINT1=$(gh api "repos/${REPO}/milestones" -q '.[] | select(.title=="Sprint 1")
 echo "   ${TOTAL} total issues (${SPRINT1} in Sprint 1, rest in backlog)"
 echo ""
 echo "▶ Start test run:"
-echo "   npx tsx src/index.ts web --config .aiscrum/config.test.yaml"
+echo "   cd ${TEST_REPO_DIR} && npx tsx ${RUNNER_DIR}/src/index.ts web"
 echo ""
 echo "🧹 Clean up when done:"
 echo "   ./scripts/test-cleanup.sh"

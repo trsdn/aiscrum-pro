@@ -102,6 +102,16 @@ if [[ $file_count -eq 0 ]]; then
   echo "  (none found)"
 fi
 
+# --- 5. Clean deployed .aiscrum config (keep roles) ---
+echo ""
+echo "📄 Cleaning deployed config in test repo..."
+for f in "${TEST_REPO_DIR}/.aiscrum/config.yaml" "${TEST_REPO_DIR}/.aiscrum/quality-gates.yaml"; do
+  if [[ -f "$f" ]]; then
+    rm "$f"
+    echo "  ❌ Deleted: $(basename "$f")"
+  fi
+done
+
 echo ""
 echo "✅ Cleanup complete! (${REPO})"
 echo ""
