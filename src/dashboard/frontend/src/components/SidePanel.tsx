@@ -39,13 +39,13 @@ const TOOL_KIND_ICONS: Record<string, string> = {
 
 const DEFAULT_COMMANDS: ChatCommand[] = [
   { name: "help", description: "Show available commands and capabilities" },
-  { name: "clear", description: "Clear the conversation history" },
   { name: "compact", description: "Summarize conversation to save context" },
-  { name: "plan", description: "Create a structured implementation plan" },
-  { name: "review", description: "Review code changes in the current branch" },
-  { name: "explain", description: "Explain the selected code or concept" },
-  { name: "fix", description: "Find and fix issues in the code" },
-  { name: "test", description: "Generate or run tests" },
+  { name: "code-review", description: "Structured code review checklist" },
+  { name: "create-pr", description: "Create a PR with conventional title format" },
+  { name: "direction-gate", description: "Structured review before strategic direction changes" },
+  { name: "sprint-planning", description: "Quick sprint planning for manual use" },
+  { name: "tdd-workflow", description: "Test-driven development cycle" },
+  { name: "copilot-authoring", description: "Reference for creating Copilot customization artifacts" },
 ];
 
 export function SidePanel() {
