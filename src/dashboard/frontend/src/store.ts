@@ -137,7 +137,20 @@ function createWebSocket(set: SetFn, get: GetFn): void {
   };
 
   ws.onclose = () => {
-    set({ connected: false });
+    set({
+      connected: false,
+      chatSessions: [],
+      activeChatId: null,
+      generalChatId: null,
+      chatMessages: {},
+      chatStreaming: {},
+      chatThinking: {},
+      chatToolCalls: {},
+      chatUsage: {},
+      chatPlan: {},
+      chatCommands: {},
+      chatConfig: {},
+    });
     ws = null;
     setTimeout(() => createWebSocket(set, get), 2000);
   };
