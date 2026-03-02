@@ -103,6 +103,20 @@ export function BlockedTab() {
       .finally(() => setLoading(false));
   };
 
+  const startDiscuss = (item: GhIssueItem) => {
+    const contextMessage = [
+      `This issue is blocked. Please review the context below, help me understand the blocker, and suggest options to resolve it. Ask clarifying questions if needed.`,
+      ``,
+      `---`,
+      `**Issue #${item.number}: ${item.title}**`,
+      item.blockedReason ? `**Blocked reason:** ${item.blockedReason}` : '',
+      ``,
+      item.body || '_No description provided._',
+    ].filter(Boolean).join("\n");
+    useDashboardStore.setState({ chatPanelOpen: true, sidePanelRole: "general", pendingChatMessage: contextMessage });
+    send({ type: "chat:create", role: "general" });
+  };
+
   useEffect(() => { fetchItems(); }, []);
 
   if (loading) return <div className="tab-loading">Loading blocked items...</div>;
@@ -123,12 +137,18 @@ export function BlockedTab() {
               <>
                 <button
                   className="btn btn-small"
+                  onClick={() => startDiscuss(item)}
+                >
+                  💬 Discuss
+                </button>
+                <button
+                  className="btn btn-small"
                   onClick={() => {
                     const msg = prompt("Add comment:");
                     if (msg) send({ type: "blocked:comment", issueNumber: item.number, body: msg });
                   }}
                 >
-                  💬
+                  ✏️ Comment
                 </button>
                 <button
                   className="btn btn-small btn-primary"
@@ -162,6 +182,19 @@ export function DecisionsTab() {
       .finally(() => setLoading(false));
   };
 
+  const startDiscuss = (item: GhIssueItem) => {
+    const contextMessage = [
+      `This issue needs a decision. Please review the context below, summarize the options, and help me think through the trade-offs. Ask clarifying questions if needed before I decide.`,
+      ``,
+      `---`,
+      `**Issue #${item.number}: ${item.title}**`,
+      ``,
+      item.body || '_No description provided._',
+    ].join("\n");
+    useDashboardStore.setState({ chatPanelOpen: true, sidePanelRole: "general", pendingChatMessage: contextMessage });
+    send({ type: "chat:create", role: "general" });
+  };
+
   useEffect(() => { fetchItems(); }, []);
 
   if (loading) return <div className="tab-loading">Loading decisions...</div>;
@@ -181,6 +214,12 @@ export function DecisionsTab() {
             actions={
               <div className="decision-actions">
                 <button
+                  className="btn btn-small"
+                  onClick={() => startDiscuss(item)}
+                >
+                  💬 Discuss
+                </button>
+                <button
                   className="btn btn-small btn-success"
                   onClick={() => send({ type: "decisions:approve", issueNumber: item.number })}
                 >
@@ -199,7 +238,7 @@ export function DecisionsTab() {
                     if (msg) send({ type: "decisions:comment", issueNumber: item.number, body: msg });
                   }}
                 >
-                  💬
+                  ✏️ Comment
                 </button>
               </div>
             }
