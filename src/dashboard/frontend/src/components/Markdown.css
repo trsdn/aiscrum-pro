@@ -47,3 +47,11 @@
   background: var(--bg-hover);
   font-weight: 600;
 }
+
+/* Streaming cursor */
+.streaming-cursor {
+  animation: blink 0.8s step-end infinite;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}

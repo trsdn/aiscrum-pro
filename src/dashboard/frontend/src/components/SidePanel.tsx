@@ -149,7 +149,10 @@ export function SidePanel() {
         {streaming && (
           <div className="chat-msg chat-assistant">
             <span className="chat-role">{meta.label}</span>
-            <div className="chat-content chat-streaming">{streaming}▌</div>
+            <div className="chat-content chat-streaming">
+              <Markdown text={streaming} />
+              <span className="streaming-cursor">▌</span>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
