@@ -40,9 +40,74 @@
 .side-panel-tab:hover { color: var(--text); }
 .side-panel-tab-active { background: var(--accent); color: #fff; }
 
+/* Session tabs in side panel */
+.session-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.session-tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--text-dim);
+  background: transparent;
+  transition: background 0.1s;
+}
+.session-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.session-tab-active {
+  background: var(--accent);
+  color: #fff;
+}
+.session-tab-active:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.session-tab-label {
+  pointer-events: none;
+}
+
+.session-tab-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.6;
+  line-height: 1;
+}
+.session-tab-close:hover {
+  opacity: 1;
+}
+
 .side-panel-close {
   margin-left: auto;
-  font-size: 14px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Agent toggle button in tab nav */
+.tab-nav-spacer {
+  flex: 1;
+}
+.agent-toggle-btn {
+  margin-left: auto;
 }
 
 .side-panel-status {
@@ -138,32 +203,4 @@
 .app-resize-handle:hover,
 .app-resize-handle:active {
   background: var(--accent);
-}
-
-/* Floating chat bubble */
-.chat-bubble {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-.chat-bubble:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-}
-.chat-bubble-active {
-  background: var(--green);
 }

@@ -15,6 +15,7 @@ const ROLE_META: Record<string, { icon: string; label: string }> = {
 export function SidePanel() {
   const activeChatId = useDashboardStore((s) => s.activeChatId);
   const chatSessions = useDashboardStore((s) => s.chatSessions);
+  const generalChatId = useDashboardStore((s) => s.generalChatId);
   const chatMessages = useDashboardStore((s) => s.chatMessages);
   const chatStreaming = useDashboardStore((s) => s.chatStreaming);
   const sidePanelRole = useDashboardStore((s) => s.sidePanelRole);
@@ -26,7 +27,7 @@ export function SidePanel() {
   const activeMessages = activeChatId ? chatMessages[activeChatId] ?? [] : [];
   const streaming = activeChatId ? chatStreaming[activeChatId] : undefined;
   const activeSession = chatSessions.find((s) => s.id === activeChatId);
-  const isLoading = !activeSession && activeChatId !== "__global__";
+  const isLoading = !activeSession && activeChatId !== "__global__" && activeChatId !== null;
 
   const role = activeSession?.role ?? sidePanelRole ?? "agent";
   const meta = ROLE_META[role] ?? { icon: "🤖", label: role };
@@ -35,13 +36,31 @@ export function SidePanel() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeMessages, streaming]);
 
-  const handleClose = () => {
+  const handleClosePanel = () => {
+    useDashboardStore.setState({ chatPanelOpen: false });
+  };
+
+  const switchToSession = (sessionId: string) => {
+    const session = chatSessions.find((s) => s.id === sessionId);
+    useDashboardStore.setState({
+      activeChatId: sessionId,
+      sidePanelRole: session?.role ?? null,
+    });
+  };
+
+  const closeSession = (sessionId: string) => {
+    if (sessionId === generalChatId) return;
+    send({ type: "chat:close", sessionId });
     const store = useDashboardStore.getState();
-    // Don't kill the persistent general session — just hide the panel
-    if (activeChatId && activeChatId !== "__global__" && activeChatId !== store.generalChatId) {
-      send({ type: "chat:close", sessionId: activeChatId });
-    }
-    useDashboardStore.setState({ chatPanelOpen: false, activeChatId: null });
+    const remaining = store.chatSessions.filter((s) => s.id !== sessionId);
+    const nextActive = sessionId === activeChatId
+      ? (generalChatId ?? remaining[0]?.id ?? null)
+      : activeChatId;
+    useDashboardStore.setState({
+      chatSessions: remaining,
+      activeChatId: nextActive,
+      sidePanelRole: remaining.find((s) => s.id === nextActive)?.role ?? null,
+    });
   };
 
   const handleSend = () => {
@@ -70,6 +89,33 @@ export function SidePanel() {
 
   return (
     <div className="side-panel">
+      {/* Session tabs */}
+      <div className="session-tabs">
+        {chatSessions.map((s) => {
+          const m = ROLE_META[s.role] ?? { icon: "🤖", label: s.role };
+          const isActive = s.id === activeChatId;
+          return (
+            <div
+              key={s.id}
+              className={`session-tab${isActive ? " session-tab-active" : ""}`}
+              onClick={() => switchToSession(s.id)}
+            >
+              <span className="session-tab-label">{m.icon} {m.label}</span>
+              {s.id !== generalChatId && (
+                <button
+                  className="session-tab-close"
+                  onClick={(e) => { e.stopPropagation(); closeSession(s.id); }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          );
+        })}
+        <button className="btn btn-small side-panel-close" onClick={handleClosePanel} title="Hide panel">◀</button>
+      </div>
+
+      {/* Status bar */}
       <div className="side-panel-header">
         <span className="side-panel-title">
           {meta.icon} {meta.label}
@@ -79,7 +125,6 @@ export function SidePanel() {
         {activeSession?.model && (
           <span className="side-panel-model">{activeSession.model}</span>
         )}
-        <button className="btn btn-small side-panel-close" onClick={handleClose}>✕</button>
       </div>
 
       <div className="side-panel-messages">

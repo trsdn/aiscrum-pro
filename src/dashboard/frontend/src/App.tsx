@@ -25,8 +25,7 @@ const DEFAULT_SIDE_WIDTH = 420;
 export default function App() {
   const connect = useDashboardStore((s) => s.connect);
   const chatPanelOpen = useDashboardStore((s) => s.chatPanelOpen);
-  const generalChatId = useDashboardStore((s) => s.generalChatId);
-  const activeChatId = useDashboardStore((s) => s.activeChatId);
+  const chatSessions = useDashboardStore((s) => s.chatSessions);
   const [activeTab, setActiveTab] = useState<Tab>("sprint");
   const [sideWidth, setSideWidth] = useState(DEFAULT_SIDE_WIDTH);
   const dragging = useRef(false);
@@ -35,20 +34,21 @@ export default function App() {
     connect();
   }, [connect]);
 
-  const toggleGeneralChat = useCallback(() => {
-    const isShowingGeneral = chatPanelOpen && activeChatId === generalChatId;
-    if (isShowingGeneral) {
-      // Hide panel (keep session alive)
-      useDashboardStore.setState({ chatPanelOpen: false, activeChatId: null });
-    } else if (generalChatId) {
-      // Show/switch to general session
+  const toggleAgentPanel = useCallback(() => {
+    if (chatPanelOpen) {
+      useDashboardStore.setState({ chatPanelOpen: false });
+    } else {
+      // Open panel — show last active session or fall back to general
+      const store = useDashboardStore.getState();
+      const target = store.activeChatId ?? store.generalChatId;
+      const session = store.chatSessions.find((s) => s.id === target);
       useDashboardStore.setState({
         chatPanelOpen: true,
-        activeChatId: generalChatId,
-        sidePanelRole: "general",
+        activeChatId: target,
+        sidePanelRole: session?.role ?? "general",
       });
     }
-  }, [chatPanelOpen, activeChatId, generalChatId]);
+  }, [chatPanelOpen]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -72,6 +72,8 @@ export default function App() {
     document.addEventListener("mouseup", onMouseUp);
   }, []);
 
+  const sessionCount = chatSessions.length;
+
   return (
     <>
       <Header />
@@ -85,6 +87,15 @@ export default function App() {
             {t.icon} {t.label}
           </button>
         ))}
+        <div className="tab-nav-spacer" />
+        <button
+          className={`tab-btn agent-toggle-btn ${chatPanelOpen ? "tab-active" : ""}`}
+          onClick={toggleAgentPanel}
+          title={chatPanelOpen ? "Hide Agent Panel" : "Show Agent Panel"}
+        >
+          🤖 Agents{sessionCount > 0 ? ` (${sessionCount})` : ""}
+          {chatPanelOpen ? " ◀" : " ▶"}
+        </button>
       </nav>
       <div className="app-layout">
         <div className="app-main">
@@ -104,17 +115,6 @@ export default function App() {
           </>
         )}
       </div>
-
-      {/* Floating chat bubble for persistent general agent */}
-      {generalChatId && (
-        <button
-          className={`chat-bubble${chatPanelOpen && activeChatId === generalChatId ? " chat-bubble-active" : ""}`}
-          onClick={toggleGeneralChat}
-          title="General Agent"
-        >
-          💬
-        </button>
-      )}
     </>
   );
 }
