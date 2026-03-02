@@ -9,6 +9,8 @@ import type {
   RetroResult,
   RefinedIssue,
 } from "../src/types.js";
+import { SprintEventBus } from "../src/events.js";
+import { getNextOpenMilestone, closeMilestone } from "../src/github/milestones.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -113,6 +115,11 @@ vi.mock("../src/metrics.js", () => ({
 
 vi.mock("../src/enforcement/escalation.js", () => ({
   escalateToStakeholder: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../src/github/milestones.js", () => ({
+  getNextOpenMilestone: vi.fn(),
+  closeMilestone: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../src/logger.js", () => {
@@ -558,5 +565,165 @@ describe("SprintRunner", { timeout: 15000 }, () => {
       expect(finalState.phase).toBe("failed");
       expect(finalState.error).toBe("boom");
     });
+  });
+});
+
+describe("sprintLoop", { timeout: 30000 }, () => {
+  function makeMilestone(n: number) {
+    return { sprintNumber: n, milestone: { title: `Sprint ${n}`, number: n, state: "open" } };
+  }
+
+  beforeEach(async () => {
+    // Reset milestone mocks
+    vi.mocked(getNextOpenMilestone).mockReset();
+    vi.mocked(closeMilestone).mockReset().mockResolvedValue(undefined);
+
+    // Restore AcpClient — "error handling" tests corrupt it with mockImplementation
+    const { AcpClient } = await import("../src/acp/client.js");
+    vi.mocked(AcpClient).mockImplementation(
+      () =>
+        ({
+          connect: vi.fn().mockResolvedValue(undefined),
+          disconnect: vi.fn().mockResolvedValue(undefined),
+        }) as any,
+    );
+
+    // Restore runRefinement — "error handling" tests add mockRejectedValueOnce
+    const { runRefinement } = await import("../src/ceremonies/refinement.js");
+    vi.mocked(runRefinement).mockResolvedValue([
+      { number: 1, title: "Issue 1", ice_score: 8 },
+      { number: 2, title: "Issue 2", ice_score: 5 },
+    ] as any);
+  });
+
+  it("runs multiple sprints until no milestones remain", async () => {
+    vi.mocked(getNextOpenMilestone)
+      .mockResolvedValueOnce(makeMilestone(1))
+      .mockResolvedValueOnce(makeMilestone(2))
+      .mockResolvedValueOnce(null);
+    vi.mocked(closeMilestone).mockResolvedValue(undefined);
+
+    const bus = new SprintEventBus();
+    const sprintStarts: number[] = [];
+    bus.onTyped("sprint:start", ({ sprintNumber }) => sprintStarts.push(sprintNumber));
+
+    const results = await SprintRunner.sprintLoop(
+      (n) => makeConfig({ sprintNumber: n }),
+      bus,
+    );
+
+    expect(results).toHaveLength(2);
+    expect(results[0]!.phase).toBe("complete");
+    expect(results[1]!.phase).toBe("complete");
+    expect(sprintStarts).toEqual([1, 2]);
+    expect(closeMilestone).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after maxSprints is reached", async () => {
+    vi.mocked(getNextOpenMilestone)
+      .mockResolvedValueOnce(makeMilestone(1))
+      .mockResolvedValueOnce(makeMilestone(2))
+      .mockResolvedValueOnce(makeMilestone(3));
+    vi.mocked(closeMilestone).mockResolvedValue(undefined);
+
+    const bus = new SprintEventBus();
+    const results = await SprintRunner.sprintLoop(
+      (n) => makeConfig({ sprintNumber: n }),
+      bus,
+      2,
+    );
+
+    expect(results).toHaveLength(2);
+    expect(results[0]!.phase).toBe("complete");
+    expect(results[1]!.phase).toBe("complete");
+    expect(closeMilestone).toHaveBeenCalledTimes(2);
+  });
+
+  it("maxSprints=1 runs exactly one sprint", async () => {
+    vi.mocked(getNextOpenMilestone).mockResolvedValueOnce(makeMilestone(5));
+    vi.mocked(closeMilestone).mockResolvedValue(undefined);
+
+    const results = await SprintRunner.sprintLoop(
+      (n) => makeConfig({ sprintNumber: n }),
+      undefined,
+      1,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]!.phase).toBe("complete");
+  });
+
+  it("maxSprints=0 means infinite (stops only when no milestones)", async () => {
+    vi.mocked(getNextOpenMilestone)
+      .mockResolvedValueOnce(makeMilestone(1))
+      .mockResolvedValueOnce(null);
+    vi.mocked(closeMilestone).mockResolvedValue(undefined);
+
+    const results = await SprintRunner.sprintLoop(
+      (n) => makeConfig({ sprintNumber: n }),
+      undefined,
+      0,
+    );
+
+    expect(results).toHaveLength(1);
+  });
+
+  it("stops loop on sprint failure", async () => {
+    vi.mocked(getNextOpenMilestone)
+      .mockResolvedValueOnce(makeMilestone(1))
+      .mockResolvedValueOnce(makeMilestone(2));
+    vi.mocked(closeMilestone).mockResolvedValue(undefined);
+
+    const { runRefinement } = await import("../src/ceremonies/refinement.js");
+    vi.mocked(runRefinement).mockRejectedValueOnce(new Error("ACP down"));
+
+    const bus = new SprintEventBus();
+    const results = await SprintRunner.sprintLoop(
+      (n) => makeConfig({ sprintNumber: n }),
+      bus,
+    );
+
+    expect(results).toHaveLength(1);
+    expect(results[0]!.phase).toBe("failed");
+    expect(closeMilestone).not.toHaveBeenCalled();
+    expect(getNextOpenMilestone).toHaveBeenCalledTimes(1);
+  });
+
+  it("emits log events for sprint transitions", async () => {
+    vi.mocked(getNextOpenMilestone)
+      .mockResolvedValueOnce(makeMilestone(1))
+      .mockResolvedValueOnce(null);
+    vi.mocked(closeMilestone).mockResolvedValue(undefined);
+
+    const bus = new SprintEventBus();
+    const logs: string[] = [];
+    bus.onTyped("log", ({ message }) => logs.push(message));
+
+    await SprintRunner.sprintLoop(
+      (n) => makeConfig({ sprintNumber: n }),
+      bus,
+    );
+
+    expect(logs.some((m) => m.includes("Starting Sprint 1"))).toBe(true);
+    expect(logs.some((m) => m.includes("No open sprint milestones"))).toBe(true);
+  });
+
+  it("emits log when sprint limit reached", async () => {
+    vi.mocked(getNextOpenMilestone)
+      .mockResolvedValueOnce(makeMilestone(1))
+      .mockResolvedValueOnce(makeMilestone(2));
+    vi.mocked(closeMilestone).mockResolvedValue(undefined);
+
+    const bus = new SprintEventBus();
+    const logs: string[] = [];
+    bus.onTyped("log", ({ message }) => logs.push(message));
+
+    await SprintRunner.sprintLoop(
+      (n) => makeConfig({ sprintNumber: n }),
+      bus,
+      1,
+    );
+
+    expect(logs.some((m) => m.includes("Sprint limit reached"))).toBe(true);
   });
 });

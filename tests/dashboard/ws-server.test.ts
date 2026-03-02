@@ -15,6 +15,19 @@ function waitForCondition(check: () => boolean, timeoutMs = 5000, intervalMs = 5
   });
 }
 
+/** Number of messages sent on initial WS connect (state, issues, switched, mode, limit). */
+const INITIAL_MESSAGE_COUNT = 5;
+
+/** Check if a message is one of the initial connect messages. */
+function isInitialMessage(msg: { type?: string; eventName?: string }): boolean {
+  if (msg.type === "sprint:state") return true;
+  if (msg.type === "sprint:issues") return true;
+  if (msg.type === "sprint:switched") return true;
+  if (msg.type === "sprint:event" && msg.eventName === "mode:changed") return true;
+  if (msg.type === "sprint:event" && msg.eventName === "sprint:limit-changed") return true;
+  return false;
+}
+
 function makeOptions(overrides?: Partial<DashboardServerOptions>): DashboardServerOptions {
   const bus = new SprintEventBus();
   const state: SprintState = {
@@ -121,12 +134,14 @@ describe("DashboardWebServer", () => {
 
     await new Promise<void>((resolve, reject) => {
       let initialCount = 0;
+      let eventEmitted = false;
       ws.on("message", (data) => {
         const msg = JSON.parse(data.toString());
-        if (msg.type === "sprint:state" || msg.type === "sprint:issues" || msg.type === "sprint:switched" || (msg.type === "sprint:event" && msg.eventName === "mode:changed" && msg.payload?.mode === "autonomous")) {
+        if (isInitialMessage(msg)) {
           initialCount++;
-          // After initial messages, emit an event
-          if (initialCount === 2) {
+          // After all initial messages, emit a test event
+          if (initialCount === INITIAL_MESSAGE_COUNT && !eventEmitted) {
+            eventEmitted = true;
             options.eventBus.emitTyped("log", { level: "info", message: "test log" });
           }
           return;
@@ -356,10 +371,10 @@ describe("DashboardWebServer", () => {
       let initialCount = 0;
       ws.on("message", (data) => {
         const msg = JSON.parse(data.toString());
-        if (initialCount < 4) {
+        if (initialCount < INITIAL_MESSAGE_COUNT) {
           initialCount++;
-          if (initialCount === 4) {
-            // Send sprint:switch after initial messages (state + issues + switched + mode)
+          if (initialCount === INITIAL_MESSAGE_COUNT) {
+            // Send sprint:switch after all initial messages
             ws.send(JSON.stringify({ type: "sprint:switch", sprintNumber: 2 }));
           }
           return;
@@ -398,9 +413,9 @@ describe("DashboardWebServer", () => {
       let initialCount = 0;
       ws.on("message", (data) => {
         const msg = JSON.parse(data.toString());
-        if (initialCount < 3) {
+        if (initialCount < INITIAL_MESSAGE_COUNT) {
           initialCount++;
-          if (initialCount === 3) {
+          if (initialCount === INITIAL_MESSAGE_COUNT) {
             // Emit sprint:planned after initial messages received
             options.eventBus.emitTyped("sprint:planned", {
               issues: [{ number: 10, title: "Test Issue" }],
@@ -527,10 +542,12 @@ describe("DashboardWebServer", () => {
 
     await new Promise<void>((resolve, reject) => {
       let initialDone = false;
+      let initialCount = 0;
       ws.on("message", (data) => {
         const msg = JSON.parse(data.toString());
-        if (!initialDone && (msg.type === "sprint:state" || msg.type === "sprint:issues" || msg.type === "sprint:switched" || (msg.type === "sprint:event" && msg.eventName === "mode:changed" && msg.payload?.mode === "autonomous"))) {
-          if (msg.type === "sprint:event" && msg.eventName === "mode:changed") {
+        if (!initialDone && isInitialMessage(msg)) {
+          initialCount++;
+          if (initialCount === INITIAL_MESSAGE_COUNT) {
             initialDone = true;
             ws.send(JSON.stringify({ type: "mode:set", mode: "hitl" }));
           }

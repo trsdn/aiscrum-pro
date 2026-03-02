@@ -3,7 +3,6 @@ import "./ActivityFeed.css";
 
 export function ActivityFeed() {
   const activities = useDashboardStore((s) => s.activities);
-  const logs = useDashboardStore((s) => s.logs);
 
   return (
     <div className="activity-container">
@@ -24,22 +23,6 @@ export function ActivityFeed() {
           <li className="empty-state">No activity yet. Start a sprint to see progress.</li>
         )}
       </ul>
-
-      {logs.length > 0 && (
-        <>
-          <h2 className="panel-title" style={{ marginTop: 16 }}>Log</h2>
-          <div className="log-panel">
-            {logs.map((l, i) => (
-              <div key={i} className={`log-entry log-${l.level}`}>
-                <span className="log-time">
-                  {l.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
-                </span>
-                <span className="log-msg">{l.message}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }

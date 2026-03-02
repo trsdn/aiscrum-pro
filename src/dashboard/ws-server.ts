@@ -39,7 +39,7 @@ export interface ServerMessage {
 
 /** Message sent from browser client to server. */
 export interface ClientMessage {
-  type: "sprint:start" | "sprint:stop" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
+  type: "sprint:start" | "sprint:stop" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "sprint:set-limit" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
   sprintNumber?: number;
   issueNumber?: number;
   sessionId?: string;
@@ -47,6 +47,7 @@ export interface ClientMessage {
   message?: string;
   mode?: string;
   body?: string;
+  limit?: number;
 }
 
 const MIME_TYPES: Record<string, string> = {
@@ -71,6 +72,7 @@ export interface DashboardServerOptions {
   onStop?: () => void;
   onSwitchSprint?: (sprintNumber: number) => void | Promise<void>;
   onModeChange?: (mode: "autonomous" | "hitl") => void;
+  onSetSprintLimit?: (limit: number) => void;
   /** Project root for loading sprint state files. */
   projectPath?: string;
   /** Currently active sprint number (the one being executed). */
@@ -114,14 +116,33 @@ export class DashboardWebServer {
   private eventBuffer: BufferedEvent[] = [];
   private knownMilestones: { sprintNumber: number; title: string; state: string }[] = [];
   private executionMode: "autonomous" | "hitl" = "autonomous";
+  private activeSprintNumberOverride: number | undefined;
+  public sprintLimit = 0;
 
   constructor(options: DashboardServerOptions) {
     this.options = options;
     this.publicDir = path.join(path.dirname(new URL(import.meta.url).pathname), "public");
   }
 
+  /** Update the active sprint number (called when sprint loop advances). */
+  setActiveSprintNumber(n: number): void {
+    this.activeSprintNumberOverride = n;
+    // Clear event buffer for new sprint
+    this.eventBuffer = [];
+    // Broadcast sprint switch to all clients
+    this.broadcast({
+      type: "sprint:switched",
+      payload: { sprintNumber: n, activeSprintNumber: n },
+    });
+  }
+
   getExecutionMode(): "autonomous" | "hitl" {
     return this.executionMode;
+  }
+
+  /** Effective active sprint number (override takes precedence over options). */
+  private get activeSprintNumber(): number | undefined {
+    return this.activeSprintNumberOverride ?? this.options.activeSprintNumber;
   }
 
   async start(): Promise<void> {
@@ -145,13 +166,19 @@ export class DashboardWebServer {
       // Send active sprint info so client knows which sprint is running
       this.sendTo(ws, {
         type: "sprint:switched",
-        payload: { sprintNumber: this.options.activeSprintNumber, activeSprintNumber: this.options.activeSprintNumber },
+        payload: { sprintNumber: this.activeSprintNumber, activeSprintNumber: this.activeSprintNumber },
       });
       // Send current execution mode so client dropdown syncs
       this.sendTo(ws, {
         type: "sprint:event",
         eventName: "mode:changed",
         payload: { mode: this.executionMode },
+      });
+      // Send sprint limit
+      this.sendTo(ws, {
+        type: "sprint:event",
+        eventName: "sprint:limit-changed",
+        payload: { limit: this.sprintLimit },
       });
       // Send active session list
       if (this.sessions.size > 0) {
@@ -165,6 +192,25 @@ export class DashboardWebServer {
           outputLength: s.output.length,
         }));
         this.sendTo(ws, { type: "session:list", payload: sessions });
+
+        // Auto-subscribe to all active sessions so output streams immediately
+        for (const s of this.sessions.values()) {
+          if (!s.endedAt) {
+            let subs = this.sessionSubscribers.get(s.sessionId);
+            if (!subs) {
+              subs = new Set();
+              this.sessionSubscribers.set(s.sessionId, subs);
+            }
+            subs.add(ws);
+            // Send buffered output history
+            if (s.output.length > 0) {
+              this.sendTo(ws, {
+                type: "session:output",
+                payload: { sessionId: s.sessionId, text: s.output.join(""), isHistory: true },
+              });
+            }
+          }
+        }
       }
 
       // Replay buffered events so new clients see activity history
@@ -200,7 +246,7 @@ export class DashboardWebServer {
 
     // Discover sprints from GitHub milestones (async, non-blocking)
     const prefix = this.options.sprintPrefix ?? "Sprint";
-    const activeNum = this.options.activeSprintNumber ?? 1;
+    const activeNum = this.activeSprintNumber ?? 1;
     listSprintMilestones(prefix).then((milestones) => {
       this.knownMilestones = milestones;
       // Determine max sprint from both milestones and active sprint
@@ -325,7 +371,7 @@ export class DashboardWebServer {
       setTimeout(() => {
         this.broadcast({ type: "sprint:issues", payload: this.options.getIssues() });
         // Also update the issue cache
-        const sprintNum = this.options.activeSprintNumber ?? 1;
+        const sprintNum = this.activeSprintNumber ?? 1;
         if (this.issueCache) {
           this.issueCache.set(sprintNum, this.options.getIssues().map((i) => ({
             number: i.number,
@@ -347,6 +393,14 @@ export class DashboardWebServer {
         output: [],
       });
       this.broadcastSessionList();
+      // Auto-subscribe all connected clients to the new session
+      if (this.wss) {
+        const subs = new Set<WebSocket>();
+        for (const ws of this.wss.clients) {
+          if (ws.readyState === ws.OPEN) subs.add(ws);
+        }
+        if (subs.size > 0) this.sessionSubscribers.set(payload.sessionId, subs);
+      }
     });
 
     bus.onTyped("session:end", (payload) => {
@@ -363,9 +417,9 @@ export class DashboardWebServer {
       const session = this.sessions.get(payload.sessionId);
       if (session) {
         session.output.push(payload.text);
-        // Cap stored output to prevent memory bloat (keep last 500 chunks)
-        if (session.output.length > 500) {
-          session.output = session.output.slice(-400);
+        // Cap stored output to prevent memory bloat (keep last 2000 chunks)
+        if (session.output.length > 2000) {
+          session.output = session.output.slice(-1800);
         }
       }
       // Send to subscribers of this session
@@ -401,13 +455,30 @@ export class DashboardWebServer {
                 type: "sprint:state",
                 payload: state ?? this.options.getState(),
               });
-              this.sendTo(ws, {
-                type: "sprint:issues",
-                payload: this.options.getIssues(),
-              });
+              // For active sprint use live issues; for historical use cache
+              const isActive = sprintNum === this.activeSprintNumber;
+              if (isActive) {
+                this.sendTo(ws, {
+                  type: "sprint:issues",
+                  payload: this.options.getIssues(),
+                });
+              } else if (this.issueCache?.has(sprintNum)) {
+                this.sendTo(ws, {
+                  type: "sprint:issues",
+                  payload: this.issueCache.get(sprintNum),
+                });
+              } else {
+                // Cache miss — load from GitHub async
+                this.loadHistoricalIssues(sprintNum).then((issues) => {
+                  this.sendTo(ws, {
+                    type: "sprint:issues",
+                    payload: issues,
+                  });
+                }).catch(() => {});
+              }
               this.sendTo(ws, {
                 type: "sprint:switched",
-                payload: { sprintNumber: sprintNum, activeSprintNumber: this.options.activeSprintNumber },
+                payload: { sprintNumber: sprintNum, activeSprintNumber: this.activeSprintNumber },
               });
             })
             .catch((err: unknown) => {
@@ -435,6 +506,14 @@ export class DashboardWebServer {
           this.broadcast({ type: "sprint:event", eventName: "mode:changed", payload: { mode: msg.mode } });
         }
         break;
+      case "sprint:set-limit": {
+        const limit = typeof msg.limit === "number" ? Math.max(0, Math.floor(msg.limit)) : 0;
+        log.info({ limit }, "Dashboard client set sprint limit");
+        this.sprintLimit = limit;
+        this.options.onSetSprintLimit?.(limit);
+        this.broadcast({ type: "sprint:event", eventName: "sprint:limit-changed", payload: { limit } });
+        break;
+      }
       case "backlog:plan-issue":
         if (msg.issueNumber) {
           this.handlePlanIssue(msg.issueNumber, ws);
@@ -604,7 +683,7 @@ export class DashboardWebServer {
       if (session) {
         writeSessionLog(session, {
           projectPath: this.options.projectPath ?? process.cwd(),
-          sprintNumber: this.options.activeSprintNumber ?? 1,
+          sprintNumber: this.activeSprintNumber ?? 1,
         });
       }
       await this.getChatManager().closeSession(sessionId);
@@ -736,7 +815,7 @@ export class DashboardWebServer {
 
     // /api/sprint-capacity — current sprint capacity info
     if (pathname === "/api/sprint-capacity") {
-      const sprintNum = this.options.activeSprintNumber ?? 1;
+      const sprintNum = this.activeSprintNumber ?? 1;
       const maxIssues = this.options.maxIssuesPerSprint ?? 8;
       const plannedCount = this.options.getIssues().length;
       res.writeHead(200);
@@ -751,7 +830,7 @@ export class DashboardWebServer {
   /** Fetch issues for a sprint — serves from cache, loads on demand if needed. */
   private handleSprintIssues(sprintNumber: number, res: http.ServerResponse): void {
     // Active sprint: always return live tracked issues
-    if (sprintNumber === this.options.activeSprintNumber) {
+    if (sprintNumber === this.activeSprintNumber) {
       const issues = this.options.getIssues();
       if (this.issueCache) {
         this.issueCache.set(sprintNumber, issues);
@@ -796,16 +875,45 @@ export class DashboardWebServer {
     });
   }
 
-  /** Return backlog issues (refined, not assigned to an open sprint). */
+  /** Load historical sprint issues from GitHub (for sprint:switch cache misses). */
+  private async loadHistoricalIssues(sprintNumber: number): Promise<IssueEntry[]> {
+    const prefix = this.options.sprintPrefix ?? "Sprint";
+    try {
+      const { listIssues } = await import("../github/issues.js");
+      const ghIssues = await listIssues({
+        milestone: `${prefix} ${sprintNumber}`,
+        state: "all",
+      });
+      const mapped: IssueEntry[] = ghIssues.map((i) => ({
+        number: i.number,
+        title: i.title,
+        status: (i.state === "closed" ? "done" : "planned") as "planned" | "done",
+      }));
+      this.issueCache?.set(sprintNumber, mapped);
+      return mapped;
+    } catch (err: unknown) {
+      log.warn({ err, sprintNumber }, "Failed to load historical issues from GitHub");
+      return [];
+    }
+  }
+
+  /** Return backlog issues (open, no milestone, excluding ideas). */
   private handleBacklogRequest(res: http.ServerResponse): void {
     import("../github/issues.js").then(async ({ listIssues }) => {
       try {
-        const ghIssues = await listIssues({ state: "open", labels: ["status:refined"] });
-        const backlog = ghIssues.map((i) => ({
-          number: i.number,
-          title: i.title,
-          labels: i.labels.map((l) => l.name),
-        }));
+        const ghIssues = await listIssues({ state: "open" });
+        // Backlog = open issues without a sprint milestone, excluding ideas
+        const backlog = ghIssues
+          .filter((i) => {
+            if (i.milestone) return false;
+            if (i.labels.some((l) => l.name === "type:idea")) return false;
+            return true;
+          })
+          .map((i) => ({
+            number: i.number,
+            title: i.title,
+            labels: i.labels.map((l) => l.name),
+          }));
         res.writeHead(200);
         res.end(JSON.stringify(backlog));
       } catch {
@@ -944,7 +1052,7 @@ export class DashboardWebServer {
 
   /** Add an issue to the current sprint (set milestone + status:planned label). */
   private async handlePlanIssue(issueNumber: number, ws: WebSocket): Promise<void> {
-    const sprintNum = this.options.activeSprintNumber ?? 1;
+    const sprintNum = this.activeSprintNumber ?? 1;
     const prefix = this.options.sprintPrefix ?? "Sprint";
     const milestoneTitle = `${prefix} ${sprintNum}`;
     try {
@@ -1035,7 +1143,7 @@ export class DashboardWebServer {
             const state = JSON.parse(raw) as { phase?: string };
             sprintMap.set(num, {
               phase: state.phase ?? "unknown",
-              isActive: num === this.options.activeSprintNumber,
+              isActive: num === this.activeSprintNumber,
             });
           } catch {
             sprintMap.set(num, { phase: "unknown", isActive: false });
@@ -1056,7 +1164,7 @@ export class DashboardWebServer {
     }
 
     // Ensure active sprint is in the list
-    const activeNum = this.options.activeSprintNumber;
+    const activeNum = this.activeSprintNumber;
     if (activeNum && !sprintMap.has(activeNum)) {
       const currentState = this.options.getState();
       sprintMap.set(activeNum, { phase: currentState.phase, isActive: true });
@@ -1090,7 +1198,7 @@ export class DashboardWebServer {
   /** Load sprint state from disk. */
   private loadSprintState(sprintNumber: number): SprintState | null {
     // If this is the active sprint, return live state
-    if (sprintNumber === this.options.activeSprintNumber) {
+    if (sprintNumber === this.activeSprintNumber) {
       return this.options.getState();
     }
 

@@ -94,7 +94,7 @@ describe("getIssue", () => {
     expect(result).toEqual(issue);
     expect(mockExecFile).toHaveBeenCalledWith(
       "gh",
-      ["issue", "view", "42", "--json", "number,title,body,labels,state"],
+      ["issue", "view", "42", "--json", "number,title,body,labels,state,milestone"],
       expect.any(Function),
     );
   });
@@ -133,7 +133,7 @@ describe("listIssues", () => {
     expect(result).toEqual(issues);
     expect(mockExecFile).toHaveBeenCalledWith(
       "gh",
-      ["issue", "list", "--json", "number,title,body,labels,state"],
+      ["issue", "list", "--json", "number,title,body,labels,state,milestone"],
       expect.any(Function),
     );
   });
@@ -146,7 +146,7 @@ describe("listIssues", () => {
       "gh",
       [
         "issue", "list",
-        "--json", "number,title,body,labels,state",
+        "--json", "number,title,body,labels,state,milestone",
         "--label", "bug,urgent",
         "--state", "open",
       ],
@@ -162,7 +162,7 @@ describe("listIssues", () => {
       "gh",
       [
         "issue", "list",
-        "--json", "number,title,body,labels,state",
+        "--json", "number,title,body,labels,state,milestone",
         "--milestone", "Sprint 1",
       ],
       expect.any(Function),

@@ -268,6 +268,7 @@ function registerWeb(program: Command): void {
     .option("--port <number>", "Dashboard server port (default: 9100)", (v) => parseInt(v, 10), 9100)
     .option("--run", "Start sprint execution immediately")
     .option("--once", "Run only one sprint instead of looping (implies --run)")
+    .option("--max-sprints <number>", "Number of sprints to run (0=infinite, default: from config)", (v) => parseInt(v, 10))
     .option("--log-file <path>", "Log file path (default: sprint-runner.log)", "sprint-runner.log")
     .option("--no-open", "Don't auto-open browser")
     .action(async (opts) => {
@@ -301,7 +302,7 @@ function registerWeb(program: Command): void {
         try {
           const milestoneIssues = await listIssues({
             milestone: `${config.sprint.prefix} ${initialSprint}`,
-            state: "open",
+            state: "all",
           });
 
           const savedState = runner.getState();
@@ -314,13 +315,16 @@ function registerWeb(program: Command): void {
             }
           }
 
-          currentIssues = milestoneIssues.map((i) => ({
-            number: i.number,
-            title: i.title,
-            status: completedIssues.has(i.number) ? "done" as const
-              : failedIssues.has(i.number) ? "failed" as const
-              : "planned" as const,
-          }));
+          currentIssues = milestoneIssues.map((i) => {
+            const labels = ((i.labels ?? []) as Array<string | { name: string }>).map(
+              (l) => (typeof l === "string" ? l : l.name),
+            );
+            let status: "planned" | "in-progress" | "done" | "failed" = "planned";
+            if (completedIssues.has(i.number) || i.state === "closed") status = "done";
+            else if (failedIssues.has(i.number)) status = "failed";
+            else if (labels.includes("status:in-progress")) status = "in-progress";
+            return { number: i.number, title: i.title, status };
+          });
         } catch {
           // Non-critical
         }
@@ -359,10 +363,12 @@ function registerWeb(program: Command): void {
         });
 
         // Start/loop functions
+        let sprintLimit = (opts.maxSprints as number | undefined) ?? config.sprint.max_sprints ?? 0;
         const startLoop = () => {
           SprintRunner.sprintLoop(
             (sprintNumber) => buildSprintConfig(config, sprintNumber),
             eventBus,
+            () => sprintLimit,
           ).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             eventBus.emitTyped("sprint:error", { error: msg });
@@ -386,12 +392,12 @@ function registerWeb(program: Command): void {
           try {
             const milestoneIssues = await listIssues({
               milestone: `${config.sprint.prefix} ${sprintNumber}`,
-              state: "open",
+              state: "all",
             });
             currentIssues = milestoneIssues.map((i) => ({
               number: i.number,
               title: i.title,
-              status: "planned" as const,
+              status: i.state === "closed" ? "done" as const : "planned" as const,
             }));
           } catch {
             currentIssues = [];
@@ -418,16 +424,29 @@ function registerWeb(program: Command): void {
             runner.setHitlMode(mode === "hitl");
             logger.info({ mode }, "execution mode changed");
           },
+          onSetSprintLimit: (limit) => {
+            sprintLimit = limit;
+            logger.info({ limit }, "sprint limit changed from dashboard");
+          },
           projectPath: process.cwd(),
           activeSprintNumber: initialSprint,
           sprintPrefix: config.sprint.prefix,
           sprintSlug: prefixToSlug(config.sprint.prefix),
           maxIssuesPerSprint: config.sprint.max_issues,
         });
+        dashboardServer.sprintLimit = sprintLimit;
 
         await dashboardServer.start();
         const url = `http://localhost:${opts.port as number}`;
         console.log(`\n  🌐 Dashboard running at ${url}\n`);
+
+        // Track sprint transitions for continuous loop mode
+        eventBus.onTyped("sprint:start", ({ sprintNumber }) => {
+          try {
+            dashboardServer.setActiveSprintNumber(sprintNumber);
+            currentIssues = [];
+          } catch (err) { logger.warn({ err }, "event handler error: sprint:start"); }
+        });
 
         // Auto-open browser
         if (opts.open !== false) {
