@@ -43,17 +43,26 @@ export function SidePanel() {
   };
 
   const handleSend = () => {
-    if (!input.trim() || !activeChatId) return;
-    send({ type: "chat:send", sessionId: activeChatId, message: input.trim() });
+    if (!input.trim()) return;
+    const chatId = useDashboardStore.getState().activeChatId;
+    if (!chatId || chatId === "__global__") return;
+    send({ type: "chat:send", sessionId: chatId, message: input.trim() });
     const store = useDashboardStore.getState();
-    const msgs = store.chatMessages[activeChatId] ?? [];
+    const msgs = store.chatMessages[chatId] ?? [];
     useDashboardStore.setState({
       chatMessages: {
         ...store.chatMessages,
-        [activeChatId]: [...msgs, { role: "user", content: input.trim() }],
+        [chatId]: [...msgs, { role: "user", content: input.trim() }],
       },
     });
     setInput("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   return (
@@ -97,12 +106,13 @@ export function SidePanel() {
       </div>
 
       <div className="side-panel-input-row">
-        <input
+        <textarea
           className="side-panel-input"
-          placeholder="Ask something..."
+          placeholder="Ask something… (Enter to send, Shift+Enter for new line)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+          onKeyDown={handleKeyDown}
+          rows={2}
           autoFocus
         />
         <button className="btn btn-primary btn-small" onClick={handleSend}>

@@ -102,6 +102,8 @@
   font-size: 13px;
   font-family: var(--font);
   outline: none;
+  resize: none;
+  line-height: 1.5;
 }
 .side-panel-input:focus { border-color: var(--accent); }
 
