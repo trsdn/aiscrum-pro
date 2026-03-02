@@ -38,7 +38,13 @@ export function Header() {
       return;
     }
     if (!state.startedAt) { setElapsed("0m 00s"); return; }
+    // Stop ticking when sprint is no longer actively running
     const start = new Date(state.startedAt).getTime();
+    if (idle) {
+      const sec = Math.floor((Date.now() - start) / 1000);
+      setElapsed(`${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, "0")}s`);
+      return;
+    }
     const tick = () => {
       const sec = Math.floor((Date.now() - start) / 1000);
       setElapsed(`${Math.floor(sec / 60)}m ${String(sec % 60).padStart(2, "0")}s`);
@@ -46,7 +52,7 @@ export function Header() {
     tick();
     timerRef.current = setInterval(tick, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [state.startedAt, state.finalElapsed]);
+  }, [state.startedAt, state.finalElapsed, idle]);
 
   const currentSprint = availableSprints.find((s) => s.sprintNumber === viewingSprintNumber);
   const milestoneId = currentSprint?.milestoneNumber ?? displayNumber;
