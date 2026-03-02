@@ -264,13 +264,17 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
     case "chat:chunk": {
       const p = msg.payload as { sessionId: string; text: string } | undefined;
       if (p) {
-        set((prev) => ({
-          ...prev,
-          chatStreaming: {
-            ...prev.chatStreaming,
-            [p.sessionId]: (prev.chatStreaming[p.sessionId] ?? "") + p.text,
-          },
-        }));
+        set((prev) => {
+          const current = prev.chatStreaming[p.sessionId] ?? "";
+          const updated = current + p.text;
+          return {
+            ...prev,
+            chatStreaming: {
+              ...prev.chatStreaming,
+              [p.sessionId]: current === "" ? updated.trimStart() : updated,
+            },
+          };
+        });
       }
       break;
     }
@@ -295,7 +299,7 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
               ...prev.chatMessages,
               [p.sessionId]: [
                 ...msgs,
-                { role: "assistant", content: p.response },
+                { role: "assistant", content: p.response.trimStart() },
               ],
             },
             chatStreaming: streaming,
