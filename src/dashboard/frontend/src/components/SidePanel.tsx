@@ -369,7 +369,7 @@ export function SidePanel() {
           rows={2}
           autoFocus
         />
-        {(streaming || thinking) ? (
+        {(streaming || thinking) && (
           <button
             className="btn btn-danger btn-icon"
             onClick={() => {
@@ -379,11 +379,10 @@ export function SidePanel() {
           >
             ■
           </button>
-        ) : (
-          <button className="btn btn-primary btn-icon" onClick={handleSend} title="Send">
-            ▶
-          </button>
         )}
+        <button className="btn btn-primary btn-icon" onClick={handleSend} title="Send">
+          ▶
+        </button>
       </div>
 
       {/* Mode & Model selectors */}
