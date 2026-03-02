@@ -136,28 +136,10 @@ export function BlockedTab() {
             actions={
               <>
                 <button
-                  className="btn btn-small"
+                  className="btn btn-small btn-primary"
                   onClick={() => startDiscuss(item)}
                 >
                   💬 Discuss
-                </button>
-                <button
-                  className="btn btn-small"
-                  onClick={() => {
-                    const msg = prompt("Add comment:");
-                    if (msg) send({ type: "blocked:comment", issueNumber: item.number, body: msg });
-                  }}
-                >
-                  ✏️ Comment
-                </button>
-                <button
-                  className="btn btn-small btn-primary"
-                  onClick={() => {
-                    if (confirm(`Unblock #${item.number}?`))
-                      send({ type: "blocked:unblock", issueNumber: item.number });
-                  }}
-                >
-                  🔓 Unblock
                 </button>
               </>
             }
@@ -214,31 +196,10 @@ export function DecisionsTab() {
             actions={
               <div className="decision-actions">
                 <button
-                  className="btn btn-small"
+                  className="btn btn-small btn-primary"
                   onClick={() => startDiscuss(item)}
                 >
                   💬 Discuss
-                </button>
-                <button
-                  className="btn btn-small btn-success"
-                  onClick={() => send({ type: "decisions:approve", issueNumber: item.number })}
-                >
-                  ✅ Approve
-                </button>
-                <button
-                  className="btn btn-small btn-danger"
-                  onClick={() => send({ type: "decisions:reject", issueNumber: item.number })}
-                >
-                  ❌ Reject
-                </button>
-                <button
-                  className="btn btn-small"
-                  onClick={() => {
-                    const msg = prompt("Comment:");
-                    if (msg) send({ type: "decisions:comment", issueNumber: item.number, body: msg });
-                  }}
-                >
-                  ✏️ Comment
                 </button>
               </div>
             }
