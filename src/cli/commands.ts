@@ -274,12 +274,12 @@ function registerWeb(program: Command): void {
         let initialSprint = opts.sprint as number | undefined;
         if (!initialSprint) {
           const next = await getNextOpenMilestone(config.sprint.prefix);
-          if (!next) {
-            console.error(`❌ No open sprint milestones found (prefix: "${config.sprint.prefix}").`);
-            console.error(`   Create a milestone named '${config.sprint.prefix} N' in GitHub, or use --sprint <number>.`);
-            process.exit(1);
+          if (next) {
+            initialSprint = next.sprintNumber;
+          } else {
+            initialSprint = 1;
+            console.warn(`⚠️  No open sprint milestones found — defaulting to Sprint 1.`);
           }
-          initialSprint = next.sprintNumber;
         }
 
         redirectLogToFile(opts.logFile as string);
