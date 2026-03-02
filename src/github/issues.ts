@@ -214,6 +214,23 @@ export async function addComment(
   await execGh(["issue", "comment", String(number), "--body", body]);
 }
 
+/** Get comments on an issue, newest first. */
+export async function getComments(
+  number: number,
+  limit = 5,
+): Promise<Array<{ body: string; createdAt: string }>> {
+  const json = await execGh([
+    "issue", "view", String(number),
+    "--json", "comments",
+    "--jq", `.comments | sort_by(.createdAt) | reverse | .[:${limit}]`,
+  ]);
+  try {
+    return JSON.parse(json) as Array<{ body: string; createdAt: string }>;
+  } catch {
+    return [];
+  }
+}
+
 /** Close an issue. */
 export async function closeIssue(number: number): Promise<void> {
   await execGh(["issue", "close", String(number)]);

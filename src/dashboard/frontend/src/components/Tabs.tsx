@@ -113,6 +113,11 @@ export function BlockedTab() {
                 🔓 Unblock
               </button>
             </div>
+            {item.blockedReason && (
+              <div className="item-blocked-reason">
+                <strong>⛔ Reason:</strong> {item.blockedReason}
+              </div>
+            )}
             {item.body && <div className="item-body">{item.body.slice(0, 300)}</div>}
           </li>
         ))}
