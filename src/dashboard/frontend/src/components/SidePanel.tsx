@@ -37,6 +37,17 @@ const TOOL_KIND_ICONS: Record<string, string> = {
   other: "🔧",
 };
 
+const DEFAULT_COMMANDS: ChatCommand[] = [
+  { name: "help", description: "Show available commands and capabilities" },
+  { name: "clear", description: "Clear the conversation history" },
+  { name: "compact", description: "Summarize conversation to save context" },
+  { name: "plan", description: "Create a structured implementation plan" },
+  { name: "review", description: "Review code changes in the current branch" },
+  { name: "explain", description: "Explain the selected code or concept" },
+  { name: "fix", description: "Find and fix issues in the code" },
+  { name: "test", description: "Generate or run tests" },
+];
+
 export function SidePanel() {
   const activeChatId = useDashboardStore((s) => s.activeChatId);
   const chatSessions = useDashboardStore((s) => s.chatSessions);
@@ -65,7 +76,13 @@ export function SidePanel() {
   const toolCalls = activeChatId ? chatToolCalls[activeChatId] : undefined;
   const usage = activeChatId ? chatUsage[activeChatId] : undefined;
   const plan = activeChatId ? chatPlan[activeChatId] : undefined;
-  const commands = activeChatId ? chatCommands[activeChatId] : undefined;
+  const agentCommands = activeChatId ? chatCommands[activeChatId] : undefined;
+  // Merge default commands with agent-provided ones (agent commands take priority)
+  const allCommands = (() => {
+    const agentNames = new Set((agentCommands ?? []).map((c) => c.name));
+    const defaults = DEFAULT_COMMANDS.filter((c) => !agentNames.has(c.name));
+    return [...(agentCommands ?? []), ...defaults];
+  })();
   const configs = activeChatId ? chatConfig[activeChatId] : undefined;
   const activeSession = chatSessions.find((s) => s.id === activeChatId);
   const isLoading = !activeSession && activeChatId !== "__global__" && activeChatId !== null;
@@ -125,8 +142,7 @@ export function SidePanel() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setInput(val);
-    // Slash command detection
-    if (val.startsWith("/") && commands && commands.length > 0) {
+    if (val.startsWith("/")) {
       setShowSlashMenu(true);
       setSlashFilter(val.slice(1).toLowerCase());
     } else {
@@ -148,9 +164,9 @@ export function SidePanel() {
     }
   };
 
-  const filteredCommands = commands?.filter((c) =>
+  const filteredCommands = allCommands.filter((c) =>
     c.name.toLowerCase().includes(slashFilter) || c.description.toLowerCase().includes(slashFilter),
-  ) ?? [];
+  );
 
   return (
     <div className="side-panel">
@@ -354,9 +370,7 @@ export function SidePanel() {
         <textarea
           ref={inputRef}
           className="side-panel-input"
-          placeholder={commands && commands.length > 0
-            ? "Type / for commands or ask something…"
-            : "Ask something… (Enter to send, Shift+Enter for new line)"}
+          placeholder="Type / for commands, or ask something…"
           value={input}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
