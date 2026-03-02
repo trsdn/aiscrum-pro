@@ -5,9 +5,10 @@ import { SprintTab } from "./components/SprintTab";
 import { SprintBacklogTab } from "./components/SprintBacklogTab";
 import { BacklogTab, BlockedTab, DecisionsTab, IdeasTab } from "./components/Tabs";
 import { SidePanel } from "./components/SidePanel";
+import { SettingsPage } from "./components/SettingsPage";
 import "./index.css";
 
-type Tab = "sprint" | "sprint-backlog" | "backlog" | "blocked" | "decisions" | "ideas";
+type Tab = "sprint" | "sprint-backlog" | "backlog" | "blocked" | "decisions" | "ideas" | "settings";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "sprint", label: "Sprint", icon: "🏃" },
@@ -16,6 +17,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "blocked", label: "Blocked", icon: "🚧" },
   { id: "decisions", label: "Decisions", icon: "⚖️" },
   { id: "ideas", label: "Ideas", icon: "💡" },
+  { id: "settings", label: "Settings", icon: "⚙️" },
 ];
 
 const MIN_SIDE_WIDTH = 320;
@@ -88,7 +90,7 @@ export default function App() {
           </button>
         ))}
         <div className="tab-nav-spacer" />
-        {activeTab !== "sprint" && (
+        {activeTab !== "sprint" && activeTab !== "settings" && (
           <button
             className={`tab-btn agent-toggle-btn ${chatPanelOpen ? "tab-active" : ""}`}
             onClick={toggleAgentPanel}
@@ -107,8 +109,9 @@ export default function App() {
           {activeTab === "blocked" && <BlockedTab />}
           {activeTab === "decisions" && <DecisionsTab />}
           {activeTab === "ideas" && <IdeasTab />}
+          {activeTab === "settings" && <SettingsPage />}
         </div>
-        {chatPanelOpen && activeTab !== "sprint" && (
+        {chatPanelOpen && activeTab !== "sprint" && activeTab !== "settings" && (
           <>
             <div className="app-resize-handle" onMouseDown={onMouseDown} />
             <div className="app-side" style={{ width: sideWidth }}>

@@ -13,6 +13,7 @@ import { promisify } from "node:util";
 import { WebSocketServer, type WebSocket } from "ws";
 import type { SprintEventBus, SprintEngineEvents } from "../events.js";
 import type { SprintState } from "../runner.js";
+import type { ConfigFile } from "../config.js";
 import { logger } from "../logger.js";
 import { ChatManager, type ChatRole } from "./chat-manager.js";
 import { writeSessionLog } from "./session-logger.js";
@@ -85,6 +86,8 @@ export interface DashboardServerOptions {
   sprintSlug?: string;
   /** Max issues per sprint for capacity display (default: 8). */
   maxIssuesPerSprint?: number;
+  /** Full config for the settings page. */
+  config?: ConfigFile;
 }
 
 export interface TrackedSession {
@@ -937,6 +940,14 @@ export class DashboardWebServer {
       const requestedSprint = url.searchParams.get("sprint");
       const sprintNum = requestedSprint ? parseInt(requestedSprint, 10) : undefined;
       this.handleSprintBacklogRequest(res, sprintNum);
+      return;
+    }
+
+    // /api/config — full project config for the settings page
+    if (pathname === "/api/config") {
+      const config = this.options.config ?? null;
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(config));
       return;
     }
 

@@ -428,6 +428,7 @@ function registerWeb(program: Command): void {
           sprintPrefix: config.sprint.prefix,
           sprintSlug: prefixToSlug(config.sprint.prefix),
           maxIssuesPerSprint: config.sprint.max_issues,
+          config,
         });
         dashboardServer.sprintLimit = sprintLimit;
 

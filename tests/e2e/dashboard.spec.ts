@@ -101,4 +101,24 @@ test.describe("Dashboard API Endpoints", () => {
     const data = await res.json();
     expect(Array.isArray(data)).toBe(true);
   });
+
+  test("/api/config returns config object", async ({ request }) => {
+    const res = await request.get("/api/config");
+    expect(res.status()).toBe(200);
+    const data = (await res.json()) as Record<string, unknown>;
+    expect(data).toHaveProperty("project");
+    expect(data).toHaveProperty("sprint");
+    expect(data).toHaveProperty("quality_gates");
+  });
+});
+
+test.describe("Dashboard Settings Page", () => {
+  test("settings tab navigates to settings page", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector(".tab-nav", { timeout: 10_000 });
+    const settingsTab = page.locator("button.tab-btn", { hasText: "Settings" });
+    await settingsTab.click();
+    const heading = page.locator(".settings-page h1");
+    await expect(heading).toContainText("Settings", { timeout: 5000 });
+  });
 });
