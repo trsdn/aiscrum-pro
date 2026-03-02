@@ -2,20 +2,37 @@
  * Shared CLI helper functions — config builders, client factory, argument parsers.
  */
 
+import { execFileSync } from "node:child_process";
 import { InvalidArgumentError } from "commander";
 import { loadConfig, type ConfigFile, prefixToSlug } from "../config.js";
 import { AcpClient } from "../acp/client.js";
 import type { SprintConfig } from "../types.js";
 
+/** Parse owner/name from a git remote URL (HTTPS or SSH). */
+function parseGitRemote(cwd: string): { owner: string; name: string } {
+  try {
+    const url = execFileSync("git", ["remote", "get-url", "origin"], { cwd, encoding: "utf-8" }).trim();
+    // HTTPS: https://github.com/owner/repo.git
+    // SSH:   git@github.com:owner/repo.git
+    const match = url.match(/[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+    if (match) return { owner: match[1]!, name: match[2]! };
+  } catch { /* ignore — return empty */ }
+  return { owner: "", name: "" };
+}
+
 /** Build a SprintConfig from the parsed config file and a sprint number. */
 export function buildSprintConfig(config: ConfigFile, sprintNumber: number): SprintConfig {
   const prefix = config.sprint.prefix;
   const slug = prefixToSlug(prefix);
+  const cwd = process.cwd();
+  const remote = parseGitRemote(cwd);
   return {
     sprintNumber,
     sprintPrefix: prefix,
     sprintSlug: slug,
-    projectPath: process.cwd(),
+    projectPath: cwd,
+    repoOwner: remote.owner,
+    repoName: remote.name || config.project.name,
     baseBranch: config.project.base_branch,
     worktreeBase: config.git.worktree_base,
     branchPattern: config.git.branch_pattern,

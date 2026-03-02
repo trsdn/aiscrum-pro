@@ -111,8 +111,8 @@ export async function runSprintReview(
 
   const prompt = substitutePrompt(template, {
     PROJECT_NAME: path.basename(config.projectPath),
-    REPO_OWNER: "",
-    REPO_NAME: path.basename(config.projectPath),
+    REPO_OWNER: config.repoOwner,
+    REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     SPRINT_START_SHA: config.baseBranch,
     SPRINT_ISSUES: sanitizePromptInput(JSON.stringify(issuesSummary)),

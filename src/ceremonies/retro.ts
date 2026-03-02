@@ -87,8 +87,8 @@ export async function runSprintRetro(
 
   const prompt = substitutePrompt(template, {
     PROJECT_NAME: path.basename(config.projectPath),
-    REPO_OWNER: "",
-    REPO_NAME: path.basename(config.projectPath),
+    REPO_OWNER: config.repoOwner,
+    REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     SPRINT_REVIEW_DATA: sanitizePromptInput(JSON.stringify({ review, metrics })),
     VELOCITY_DATA: velocityStr,

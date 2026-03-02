@@ -46,8 +46,8 @@ export async function runRefinement(
 
   const prompt = substitutePrompt(template, {
     PROJECT_NAME: path.basename(config.projectPath),
-    REPO_OWNER: "",
-    REPO_NAME: path.basename(config.projectPath),
+    REPO_OWNER: config.repoOwner,
+    REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     VELOCITY_DATA: sanitizePromptInput(velocityStr),
     BASE_BRANCH: config.baseBranch,

@@ -619,8 +619,8 @@ function buildPromptVars(ctx: ExecutionContext): Record<string, string> {
   const { config, issue, branch, worktreePath } = ctx;
   return {
     PROJECT_NAME: path.basename(config.projectPath),
-    REPO_OWNER: "",
-    REPO_NAME: path.basename(config.projectPath),
+    REPO_OWNER: config.repoOwner,
+    REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     ISSUE_NUMBER: String(issue.number),
     ISSUE_TITLE: issue.title,

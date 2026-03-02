@@ -42,8 +42,8 @@ export async function runSprintPlanning(
 
   const prompt = substitutePrompt(template, {
     PROJECT_NAME: path.basename(config.projectPath),
-    REPO_OWNER: "",
-    REPO_NAME: path.basename(config.projectPath),
+    REPO_OWNER: config.repoOwner,
+    REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
     MAX_ISSUES: String(config.maxIssuesPerSprint),
     VELOCITY_DATA: sanitizePromptInput(velocityStr),

@@ -84,6 +84,10 @@ export interface SprintConfig extends GitConfig, SessionConfig, ExecutionLimits 
   sprintPrefix: string;
   sprintSlug: string;
   projectPath: string;
+  /** GitHub repository owner (org or user), derived from git remote. */
+  repoOwner: string;
+  /** GitHub repository name, derived from git remote. */
+  repoName: string;
   /** Quality gate settings from YAML config. Falls back to hardcoded defaults when absent. */
   qualityGate?: QualityGateSettings;
   /** ntfy push notification settings. */
