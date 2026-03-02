@@ -66,7 +66,7 @@ export function SidePanel() {
   const [input, setInput] = useState("");
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashFilter, setSlashFilter] = useState("");
-  const [showConfigDropdown, setShowConfigDropdown] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -218,35 +218,39 @@ export function SidePanel() {
             })()}
           </button>
         )}
-        {configs && configs.length > 0 && configs.map((cfg) => (
-          <div key={cfg.id} className="side-panel-config-wrapper">
+        {configs && configs.length > 0 && (
+          <div className="side-panel-config-wrapper">
             <button
-              className="side-panel-config-btn"
-              onClick={() => setShowConfigDropdown(showConfigDropdown === cfg.id ? null : cfg.id)}
-              title={cfg.name}
+              className="side-panel-settings-btn"
+              onClick={() => setShowSettings(!showSettings)}
+              title="Session settings"
             >
-              {cfg.name}: {cfg.options.find((o) => o.value === cfg.currentValue)?.name ?? cfg.currentValue}
+              ⚙️
             </button>
-            {showConfigDropdown === cfg.id && (
-              <div className="side-panel-config-dropdown">
-                {cfg.options.map((opt) => (
-                  <button
-                    key={opt.value}
-                    className={`side-panel-config-option${opt.value === cfg.currentValue ? " active" : ""}`}
-                    onClick={() => {
-                      if (activeChatId) {
-                        send({ type: "chat:set-config", sessionId: activeChatId, optionId: cfg.id, value: opt.value });
-                      }
-                      setShowConfigDropdown(null);
-                    }}
-                  >
-                    {opt.name}
-                  </button>
+            {showSettings && (
+              <div className="side-panel-settings-panel">
+                {configs.map((cfg) => (
+                  <div key={cfg.id} className="settings-group">
+                    <label className="settings-label">{cfg.name}</label>
+                    <select
+                      className="settings-select"
+                      value={cfg.currentValue}
+                      onChange={(e) => {
+                        if (activeChatId) {
+                          send({ type: "chat:set-config", sessionId: activeChatId, optionId: cfg.id, value: e.target.value });
+                        }
+                      }}
+                    >
+                      {cfg.options.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 ))}
               </div>
             )}
           </div>
-        ))}
+        )}
       </div>
 
       <div className="side-panel-messages">

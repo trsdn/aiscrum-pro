@@ -492,61 +492,63 @@
   white-space: nowrap;
 }
 
-/* Config dropdowns */
+/* Settings icon and panel */
 .side-panel-config-wrapper {
   position: relative;
+  margin-left: auto;
 }
-.side-panel-config-btn {
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text-dim);
+.side-panel-settings-btn {
+  font-size: 14px;
+  padding: 2px 4px;
+  border: none;
+  background: none;
   cursor: pointer;
-  font-family: var(--font);
-  transition: all 0.15s;
-  white-space: nowrap;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+  line-height: 1;
 }
-.side-panel-config-btn:hover {
-  color: var(--text);
-  border-color: var(--accent);
-  background: var(--bg-hover);
+.side-panel-settings-btn:hover {
+  opacity: 1;
 }
-.side-panel-config-dropdown {
+.side-panel-settings-panel {
   position: absolute;
   top: 100%;
   right: 0;
   margin-top: 4px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  min-width: 160px;
-  max-height: 240px;
-  overflow-y: auto;
+  border-radius: 8px;
+  min-width: 220px;
+  padding: 8px;
   z-index: 100;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.side-panel-config-option {
-  display: block;
-  width: 100%;
-  padding: 6px 12px;
-  border: none;
-  background: none;
-  color: var(--text-dim);
-  font-size: 11px;
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--font);
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
-.side-panel-config-option:hover {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.side-panel-config-option.active {
-  color: var(--accent);
+.settings-label {
+  font-size: 10px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+}
+.settings-select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-family: var(--font);
+  cursor: pointer;
+  outline: none;
+}
+.settings-select:focus {
+  border-color: var(--accent);
 }
