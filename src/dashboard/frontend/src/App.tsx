@@ -4,7 +4,7 @@ import { Header } from "./components/Header";
 import { SprintTab } from "./components/SprintTab";
 import { SprintBacklogTab } from "./components/SprintBacklogTab";
 import { BacklogTab, BlockedTab, DecisionsTab, IdeasTab } from "./components/Tabs";
-import { ChatPanel } from "./components/ChatPanel";
+import { SidePanel } from "./components/SidePanel";
 import "./index.css";
 
 type Tab = "sprint" | "sprint-backlog" | "backlog" | "blocked" | "decisions" | "ideas";
@@ -20,6 +20,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 export default function App() {
   const connect = useDashboardStore((s) => s.connect);
+  const chatPanelOpen = useDashboardStore((s) => s.chatPanelOpen);
   const [activeTab, setActiveTab] = useState<Tab>("sprint");
 
   useEffect(() => {
@@ -40,13 +41,21 @@ export default function App() {
           </button>
         ))}
       </nav>
-      {activeTab === "sprint" && <SprintTab />}
-      {activeTab === "sprint-backlog" && <SprintBacklogTab />}
-      {activeTab === "backlog" && <BacklogTab />}
-      {activeTab === "blocked" && <BlockedTab />}
-      {activeTab === "decisions" && <DecisionsTab />}
-      {activeTab === "ideas" && <IdeasTab />}
-      <ChatPanel />
+      <div className="app-layout">
+        <div className="app-main">
+          {activeTab === "sprint" && <SprintTab />}
+          {activeTab === "sprint-backlog" && <SprintBacklogTab />}
+          {activeTab === "backlog" && <BacklogTab />}
+          {activeTab === "blocked" && <BlockedTab />}
+          {activeTab === "decisions" && <DecisionsTab />}
+          {activeTab === "ideas" && <IdeasTab />}
+        </div>
+        {chatPanelOpen && (
+          <div className="app-side">
+            <SidePanel />
+          </div>
+        )}
+      </div>
     </>
   );
 }
