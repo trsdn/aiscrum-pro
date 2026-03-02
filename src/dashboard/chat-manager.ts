@@ -33,6 +33,9 @@ export interface ChatManagerOptions {
   permissions?: PermissionConfig;
   timeoutMs?: number;
   onStreamChunk?: (sessionId: string, text: string) => void;
+  onThinkingChunk?: (sessionId: string, text: string) => void;
+  onToolCall?: (sessionId: string, toolCall: { toolCallId: string; title: string; status?: string; kind?: string }) => void;
+  onUsageUpdate?: (sessionId: string, usage: { used: number; size: number }) => void;
 }
 
 export class ChatManager {
@@ -43,6 +46,14 @@ export class ChatManager {
 
   constructor(options: ChatManagerOptions) {
     this.options = options;
+  }
+
+  /** Find the chat ID for an ACP session ID. */
+  private findChatId(acpSessionId: string): string | undefined {
+    for (const [chatId, session] of this.sessions) {
+      if (session.acpSessionId === acpSessionId) return chatId;
+    }
+    return undefined;
   }
 
   /** Ensure ACP client is connected. Lazy-connects on first use. */
@@ -56,13 +67,20 @@ export class ChatManager {
         allowPatterns: [],
       },
       onStreamChunk: (acpSessionId, text) => {
-        // Find our chat session by ACP session ID and relay chunk
-        for (const [chatId, session] of this.sessions) {
-          if (session.acpSessionId === acpSessionId) {
-            this.options.onStreamChunk?.(chatId, text);
-            break;
-          }
-        }
+        const chatId = this.findChatId(acpSessionId);
+        if (chatId) this.options.onStreamChunk?.(chatId, text);
+      },
+      onThinkingChunk: (acpSessionId, text) => {
+        const chatId = this.findChatId(acpSessionId);
+        if (chatId) this.options.onThinkingChunk?.(chatId, text);
+      },
+      onToolCall: (acpSessionId, toolCall) => {
+        const chatId = this.findChatId(acpSessionId);
+        if (chatId) this.options.onToolCall?.(chatId, toolCall);
+      },
+      onUsageUpdate: (acpSessionId, usage) => {
+        const chatId = this.findChatId(acpSessionId);
+        if (chatId) this.options.onUsageUpdate?.(chatId, usage);
       },
     });
 

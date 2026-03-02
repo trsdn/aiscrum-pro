@@ -15,6 +15,9 @@ export interface ServerMessage {
     | "chat:done"
     | "chat:created"
     | "chat:error"
+    | "chat:thinking"
+    | "chat:tool-call"
+    | "chat:usage"
     | "pong";
   eventName?: string;
   payload?: unknown;

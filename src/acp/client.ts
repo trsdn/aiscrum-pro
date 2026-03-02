@@ -41,6 +41,26 @@ export interface AcpClientOptions {
   logger?: Logger;
   /** Callback for streaming text chunks from ACP sessions. */
   onStreamChunk?: (sessionId: string, text: string) => void;
+  /** Callback for agent thinking/reasoning chunks. */
+  onThinkingChunk?: (sessionId: string, text: string) => void;
+  /** Callback for tool call events. */
+  onToolCall?: (sessionId: string, toolCall: AcpToolCallEvent) => void;
+  /** Callback for usage/token updates. */
+  onUsageUpdate?: (sessionId: string, usage: AcpUsageEvent) => void;
+}
+
+export interface AcpToolCallEvent {
+  toolCallId: string;
+  title: string;
+  status?: string;
+  kind?: string;
+  locations?: Array<{ uri?: string; range?: unknown }>;
+}
+
+export interface AcpUsageEvent {
+  used: number;
+  size: number;
+  cost?: { amount?: number; currency?: string } | null;
 }
 
 export interface CreateSessionOptions {
@@ -84,6 +104,9 @@ export class AcpClient {
   ) => Promise<RequestPermissionResponse>;
   private readonly defaultTimeoutMs: number;
   private readonly onStreamChunk?: (sessionId: string, text: string) => void;
+  private readonly onThinkingChunk?: (sessionId: string, text: string) => void;
+  private readonly onToolCall?: (sessionId: string, toolCall: AcpToolCallEvent) => void;
+  private readonly onUsageUpdate?: (sessionId: string, usage: AcpUsageEvent) => void;
 
   // Accumulate streamed chunks per session
   private sessionChunks = new Map<string, string[]>();
@@ -103,6 +126,9 @@ export class AcpClient {
     this.extraArgs = options.args ?? [];
     this.defaultTimeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.onStreamChunk = options.onStreamChunk;
+    this.onThinkingChunk = options.onThinkingChunk;
+    this.onToolCall = options.onToolCall;
+    this.onUsageUpdate = options.onUsageUpdate;
     this.permissionHandler = createPermissionHandler(
       options.permissions ?? DEFAULT_PERMISSION_CONFIG,
       this.log,
@@ -194,6 +220,9 @@ export class AcpClient {
       const sessionChunks = this.sessionChunks;
       const log = this.log;
       const onChunk = this.onStreamChunk;
+      const onThinking = this.onThinkingChunk;
+      const onTool = this.onToolCall;
+      const onUsage = this.onUsageUpdate;
 
       this.connection = new ClientSideConnection(
         (_agent) => {
@@ -205,18 +234,41 @@ export class AcpClient {
             },
             async sessionUpdate(params: SessionNotification): Promise<void> {
               const update = params.update;
+              const sid = params.sessionId;
+
               if (update.sessionUpdate === "agent_message_chunk") {
                 const content = update.content;
                 if (content.type === "text") {
-                  const sid = params.sessionId;
                   const chunks = sessionChunks.get(sid) ?? [];
                   chunks.push(content.text);
                   sessionChunks.set(sid, chunks);
                   onChunk?.(sid, content.text);
                 }
+              } else if (update.sessionUpdate === "agent_thought_chunk") {
+                const content = (update as Record<string, unknown>).content as { type?: string; text?: string } | undefined;
+                if (content?.type === "text" && content.text) {
+                  onThinking?.(sid, content.text);
+                }
+              } else if (update.sessionUpdate === "tool_call" || update.sessionUpdate === "tool_call_update") {
+                const tc = update as Record<string, unknown>;
+                onTool?.(sid, {
+                  toolCallId: String(tc.toolCallId ?? ""),
+                  title: String(tc.title ?? ""),
+                  status: tc.status as string | undefined,
+                  kind: tc.kind as string | undefined,
+                  locations: tc.locations as Array<{ uri?: string; range?: unknown }> | undefined,
+                });
+              } else if (update.sessionUpdate === "usage_update") {
+                const u = update as Record<string, unknown>;
+                onUsage?.(sid, {
+                  used: Number(u.used ?? 0),
+                  size: Number(u.size ?? 0),
+                  cost: u.cost as AcpUsageEvent["cost"],
+                });
               }
+
               log.debug(
-                { sessionId: params.sessionId, type: update.sessionUpdate },
+                { sessionId: sid, type: update.sessionUpdate },
                 "session update",
               );
             },

@@ -31,7 +31,7 @@ export interface IssueEntry {
 
 /** Message sent from server to browser clients. */
 export interface ServerMessage {
-  type: "sprint:event" | "sprint:state" | "sprint:issues" | "sprint:switched" | "backlog:planned" | "backlog:removed" | "backlog:error" | "session:list" | "session:output" | "session:status" | "chat:chunk" | "chat:done" | "chat:created" | "chat:error" | "pong";
+  type: "sprint:event" | "sprint:state" | "sprint:issues" | "sprint:switched" | "backlog:planned" | "backlog:removed" | "backlog:error" | "session:list" | "session:output" | "session:status" | "chat:chunk" | "chat:done" | "chat:created" | "chat:error" | "chat:thinking" | "chat:tool-call" | "chat:usage" | "pong";
   eventName?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload?: any;
@@ -634,6 +634,24 @@ export class DashboardWebServer {
           this.broadcast({
             type: "chat:chunk",
             payload: { sessionId: chatId, text },
+          });
+        },
+        onThinkingChunk: (chatId, text) => {
+          this.broadcast({
+            type: "chat:thinking",
+            payload: { sessionId: chatId, text },
+          });
+        },
+        onToolCall: (chatId, toolCall) => {
+          this.broadcast({
+            type: "chat:tool-call",
+            payload: { sessionId: chatId, ...toolCall },
+          });
+        },
+        onUsageUpdate: (chatId, usage) => {
+          this.broadcast({
+            type: "chat:usage",
+            payload: { sessionId: chatId, ...usage },
           });
         },
       });

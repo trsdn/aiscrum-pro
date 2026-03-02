@@ -9,6 +9,13 @@ import type {
   ServerMessage,
 } from "./types";
 
+export interface ChatToolCall {
+  toolCallId: string;
+  title: string;
+  status?: string;
+  kind?: string;
+}
+
 export interface DashboardStore {
   // Connection
   connected: boolean;
@@ -36,6 +43,9 @@ export interface DashboardStore {
   generalChatId: string | null;
   chatMessages: Record<string, ChatMessage[]>;
   chatStreaming: Record<string, string>;
+  chatThinking: Record<string, string>;
+  chatToolCalls: Record<string, ChatToolCall[]>;
+  chatUsage: Record<string, { used: number; size: number }>;
   chatPanelOpen: boolean;
   sidePanelRole: string | null;
   pendingChatMessage: string | null;
@@ -250,7 +260,11 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
         set((prev) => {
           const msgs = prev.chatMessages[p.sessionId] ?? [];
           const streaming = { ...prev.chatStreaming };
+          const thinking = { ...prev.chatThinking };
+          const toolCalls = { ...prev.chatToolCalls };
           delete streaming[p.sessionId];
+          delete thinking[p.sessionId];
+          delete toolCalls[p.sessionId];
           return {
             ...prev,
             chatMessages: {
@@ -261,8 +275,69 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
               ],
             },
             chatStreaming: streaming,
+            chatThinking: thinking,
+            chatToolCalls: toolCalls,
           };
         });
+      }
+      break;
+    }
+
+    case "chat:thinking": {
+      const p = msg.payload as { sessionId: string; text: string } | undefined;
+      if (p) {
+        set((prev) => ({
+          ...prev,
+          chatThinking: {
+            ...prev.chatThinking,
+            [p.sessionId]: (prev.chatThinking[p.sessionId] ?? "") + p.text,
+          },
+        }));
+      }
+      break;
+    }
+
+    case "chat:tool-call": {
+      const p = msg.payload as {
+        sessionId: string;
+        toolCallId: string;
+        title: string;
+        status?: string;
+        kind?: string;
+      } | undefined;
+      if (p) {
+        set((prev) => {
+          const existing = prev.chatToolCalls[p.sessionId] ?? [];
+          const idx = existing.findIndex((t) => t.toolCallId === p.toolCallId);
+          const entry: ChatToolCall = {
+            toolCallId: p.toolCallId,
+            title: p.title,
+            status: p.status,
+            kind: p.kind,
+          };
+          const updated = idx >= 0
+            ? existing.map((t, i) => (i === idx ? entry : t))
+            : [...existing, entry];
+          return {
+            ...prev,
+            chatToolCalls: { ...prev.chatToolCalls, [p.sessionId]: updated },
+          };
+        });
+      }
+      break;
+    }
+
+    case "chat:usage": {
+      const p = msg.payload as {
+        sessionId: string;
+        used: number;
+        size: number;
+      } | undefined;
+      if (p) {
+        set((prev) => ({
+          ...prev,
+          chatUsage: { ...prev.chatUsage, [p.sessionId]: { used: p.used, size: p.size } },
+        }));
       }
       break;
     }
@@ -487,6 +562,9 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   generalChatId: null,
   chatMessages: {},
   chatStreaming: {},
+  chatThinking: {},
+  chatToolCalls: {},
+  chatUsage: {},
   chatPanelOpen: false,
   sidePanelRole: null,
   pendingChatMessage: null,

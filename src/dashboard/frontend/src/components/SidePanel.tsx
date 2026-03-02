@@ -18,6 +18,9 @@ export function SidePanel() {
   const generalChatId = useDashboardStore((s) => s.generalChatId);
   const chatMessages = useDashboardStore((s) => s.chatMessages);
   const chatStreaming = useDashboardStore((s) => s.chatStreaming);
+  const chatThinking = useDashboardStore((s) => s.chatThinking);
+  const chatToolCalls = useDashboardStore((s) => s.chatToolCalls);
+  const chatUsage = useDashboardStore((s) => s.chatUsage);
   const sidePanelRole = useDashboardStore((s) => s.sidePanelRole);
   const send = useDashboardStore((s) => s.send);
 
@@ -26,6 +29,9 @@ export function SidePanel() {
 
   const activeMessages = activeChatId ? chatMessages[activeChatId] ?? [] : [];
   const streaming = activeChatId ? chatStreaming[activeChatId] : undefined;
+  const thinking = activeChatId ? chatThinking[activeChatId] : undefined;
+  const toolCalls = activeChatId ? chatToolCalls[activeChatId] : undefined;
+  const usage = activeChatId ? chatUsage[activeChatId] : undefined;
   const activeSession = chatSessions.find((s) => s.id === activeChatId);
   const isLoading = !activeSession && activeChatId !== "__global__" && activeChatId !== null;
 
@@ -34,7 +40,7 @@ export function SidePanel() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeMessages, streaming]);
+  }, [activeMessages, streaming, thinking, toolCalls]);
 
   const handleClosePanel = () => {
     useDashboardStore.setState({ chatPanelOpen: false });
@@ -146,6 +152,29 @@ export function SidePanel() {
             <div className="chat-content"><Markdown text={m.content} /></div>
           </div>
         ))}
+
+        {/* Thinking indicator */}
+        {thinking && !streaming && (
+          <div className="chat-thinking">
+            <span className="chat-thinking-label">💭 Thinking…</span>
+            <div className="chat-thinking-content">{thinking.slice(-200)}</div>
+          </div>
+        )}
+
+        {/* Active tool calls */}
+        {toolCalls && toolCalls.length > 0 && (
+          <div className="chat-tool-calls">
+            {toolCalls.map((tc) => (
+              <div key={tc.toolCallId} className={`chat-tool-call chat-tool-${tc.status ?? "running"}`}>
+                <span className="chat-tool-icon">
+                  {tc.status === "completed" ? "✓" : tc.status === "failed" ? "✗" : "⟳"}
+                </span>
+                <span className="chat-tool-title">{tc.title}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {streaming && (
           <div className="chat-msg chat-assistant">
             <span className="chat-role">{meta.label}</span>
@@ -157,6 +186,21 @@ export function SidePanel() {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Usage bar */}
+      {usage && (
+        <div className="chat-usage-bar">
+          <span className="chat-usage-tokens">
+            Tokens: {usage.used.toLocaleString()} / {usage.size.toLocaleString()}
+          </span>
+          <div className="chat-usage-meter">
+            <div
+              className="chat-usage-fill"
+              style={{ width: `${Math.min(100, (usage.used / usage.size) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="side-panel-input-row">
         <textarea
