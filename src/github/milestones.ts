@@ -50,7 +50,7 @@ export async function getNextOpenMilestone(prefix: string = "Sprint"): Promise<{
     .sort((a, b) => a.sprintNumber - b.sprintNumber);
 
   if (sprintMilestones.length === 0) {
-    throw new Error(`No open milestone found matching sprint prefix. Create a milestone like "${prefix} 5" in GitHub.`);
+    return undefined;
   }
 
   logger.info({ sprint: sprintMilestones[0].sprintNumber, title: sprintMilestones[0].milestone.title }, "Found next open sprint milestone");
