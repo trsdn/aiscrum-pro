@@ -897,27 +897,23 @@ export class DashboardWebServer {
     }
   }
 
-  /** Return backlog issues (ready or refined, not assigned to an open sprint). */
+  /** Return backlog issues (open, no milestone, excluding ideas). */
   private handleBacklogRequest(res: http.ServerResponse): void {
     import("../github/issues.js").then(async ({ listIssues }) => {
       try {
-        // Fetch both ready and refined issues
-        const [ready, refined] = await Promise.all([
-          listIssues({ state: "open", labels: ["status:ready"] }),
-          listIssues({ state: "open", labels: ["status:refined"] }),
-        ]);
-        // Deduplicate by issue number
-        const seen = new Set<number>();
-        const all = [...ready, ...refined].filter((i) => {
-          if (seen.has(i.number)) return false;
-          seen.add(i.number);
-          return true;
-        });
-        const backlog = all.map((i) => ({
-          number: i.number,
-          title: i.title,
-          labels: i.labels.map((l) => l.name),
-        }));
+        const ghIssues = await listIssues({ state: "open" });
+        // Backlog = open issues without a sprint milestone, excluding ideas
+        const backlog = ghIssues
+          .filter((i) => {
+            if (i.milestone) return false;
+            if (i.labels.some((l) => l.name === "type:idea")) return false;
+            return true;
+          })
+          .map((i) => ({
+            number: i.number,
+            title: i.title,
+            labels: i.labels.map((l) => l.name),
+          }));
         res.writeHead(200);
         res.end(JSON.stringify(backlog));
       } catch {

@@ -71,6 +71,7 @@ export interface GitHubIssue {
   body: string;
   labels: { name: string }[];
   state: string;
+  milestone?: { title: string } | null;
 }
 
 /** Get issue details by number. */
@@ -80,7 +81,7 @@ export async function getIssue(number: number): Promise<GitHubIssue> {
     "view",
     String(number),
     "--json",
-    "number,title,body,labels,state",
+    "number,title,body,labels,state,milestone",
   ]);
   try {
     return JSON.parse(json) as GitHubIssue;
@@ -103,7 +104,7 @@ export async function listIssues(
     "issue",
     "list",
     "--json",
-    "number,title,body,labels,state",
+    "number,title,body,labels,state,milestone",
   ];
 
   if (options.labels && options.labels.length > 0) {
