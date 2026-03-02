@@ -1,12 +1,10 @@
 /**
  * Chat Manager — manages interactive ACP chat sessions for the web dashboard.
  *
- * Each chat session gets its own ACP session pre-primed with a role-specific
- * system prompt. Responses stream via callbacks.
+ * Each chat session gets its own ACP session. The agent loads role context
+ * from .aiscrum/roles/ automatically via copilot-instructions.md.
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
 import { AcpClient, ACP_MODES, type SessionInfo } from "../acp/client.js";
 import type { PermissionConfig } from "../acp/permissions.js";
 import { logger } from "../logger.js";
@@ -40,7 +38,6 @@ export interface ChatManagerOptions {
 export class ChatManager {
   private client: AcpClient | null = null;
   private sessions = new Map<string, ChatSession>();
-  private primingPromises = new Map<string, Promise<void>>();
   private readonly options: ChatManagerOptions;
   private connected = false;
 
@@ -98,18 +95,7 @@ export class ChatManager {
     };
 
     this.sessions.set(chatId, session);
-
-    // Prime with role system prompt in background — don't block session creation
-    const systemPrompt = this.buildSystemPrompt(role);
-    log.info({ chatId, role, acpSessionId: sessionInfo.sessionId }, "Chat session created, priming in background");
-
-    const primingPromise = client.sendPrompt(sessionInfo.sessionId, systemPrompt, 120_000)
-      .then(() => { this.primingPromises.delete(chatId); })
-      .catch((err) => {
-        log.error({ chatId, err }, "Failed to prime chat session with system prompt");
-        this.primingPromises.delete(chatId);
-      });
-    this.primingPromises.set(chatId, primingPromise);
+    log.info({ chatId, role, acpSessionId: sessionInfo.sessionId }, "Chat session created");
 
     return session;
   }
@@ -118,13 +104,6 @@ export class ChatManager {
   async sendMessage(chatId: string, message: string): Promise<string> {
     const session = this.sessions.get(chatId);
     if (!session) throw new Error(`Chat session ${chatId} not found`);
-
-    // Wait for system prompt priming to finish before sending user message
-    const priming = this.primingPromises.get(chatId);
-    if (priming) {
-      log.info({ chatId }, "Waiting for system prompt priming to complete");
-      await priming;
-    }
 
     const client = await this.ensureClient();
 
@@ -185,43 +164,5 @@ export class ChatManager {
       this.connected = false;
     }
     log.info("Chat manager shut down");
-  }
-
-  private buildSystemPrompt(role: ChatRole): string {
-    const roleDir = path.join(this.options.projectPath, ".aiscrum", "roles", role);
-    const roleContext = this.loadRoleContext(roleDir);
-
-    if (!roleContext) {
-      return `You are a ${role} assistant. Respond helpfully and concisely.`;
-    }
-
-    return `${roleContext}\n\nYou are in an interactive chat session. Respond helpfully and concisely.`;
-  }
-
-  /** Recursively load all .md files from a role directory. */
-  private loadRoleContext(dir: string): string | null {
-    try {
-      if (!fs.existsSync(dir)) return null;
-
-      const parts: string[] = [];
-      const walk = (d: string) => {
-        for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
-          const full = path.join(d, entry.name);
-          if (entry.isDirectory()) {
-            if (entry.name === "log") return;
-            walk(full);
-          } else if (entry.name.endsWith(".md")) {
-            parts.push(fs.readFileSync(full, "utf-8"));
-          }
-        }
-      };
-      walk(dir);
-
-      if (parts.length === 0) return null;
-      log.info({ dir, fileCount: parts.length }, "Loaded role context");
-      return parts.join("\n\n---\n\n");
-    } catch {
-      return null;
-    }
   }
 }

@@ -29,34 +29,14 @@ vi.mock("../../src/acp/client.js", () => {
   };
 });
 
-// Mock fs to avoid real file reads
-vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs")>();
-  return {
-    ...actual,
-    existsSync: vi.fn().mockReturnValue(true),
-    readFileSync: vi.fn().mockReturnValue("# Agent Instructions\nDefault role context for testing"),
-    readdirSync: vi.fn().mockReturnValue([
-      { name: "copilot-instructions.md", isDirectory: () => false, isFile: () => true },
-    ]),
-  };
-});
-
 import { ChatManager, type ChatRole } from "../../src/dashboard/chat-manager.js";
 import { AcpClient } from "../../src/acp/client.js";
-import * as fs from "node:fs";
 
 describe("ChatManager", () => {
   let manager: ChatManager;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: role folder exists with a copilot-instructions.md
-    vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.readdirSync).mockReturnValue([
-      { name: "copilot-instructions.md", isDirectory: () => false, isFile: () => true } as unknown as fs.Dirent,
-    ]);
-    vi.mocked(fs.readFileSync).mockReturnValue("# Agent Instructions\nDefault role context for testing");
     manager = new ChatManager({ projectPath: "/tmp/test-project" });
   });
 
@@ -92,74 +72,10 @@ describe("ChatManager", () => {
       );
     });
 
-    it("sends a role-specific system prompt from .aiscrum/roles/", async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.readdirSync).mockReturnValue([
-        { name: "copilot-instructions.md", isDirectory: () => false, isFile: () => true } as unknown as fs.Dirent,
-      ]);
-      vi.mocked(fs.readFileSync).mockReturnValue("# Reviewer Agent\nCode Review Agent instructions");
-
+    it("does not send any prompt on creation", async () => {
       await manager.createSession("reviewer");
 
-      const sendPromptCall = vi.mocked(AcpClient.prototype.sendPrompt).mock.calls[0];
-      expect(sendPromptCall[0]).toBe("acp-session-1");
-      expect(sendPromptCall[1]).toContain("Code Review Agent");
-      expect(sendPromptCall[1]).toContain("Respond helpfully and concisely");
-    });
-
-    it("loads all .md files from role directory", async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.readdirSync).mockReturnValue([
-        { name: "copilot-instructions.md", isDirectory: () => false, isFile: () => true } as unknown as fs.Dirent,
-      ]);
-      vi.mocked(fs.readFileSync).mockReturnValue("# Refiner Agent Instructions\nCustom refiner context");
-
-      await manager.createSession("refiner");
-
-      const prompt = vi.mocked(AcpClient.prototype.sendPrompt).mock.calls[0][1] as string;
-      expect(prompt).toContain("# Refiner Agent Instructions");
-      expect(prompt).toContain("Custom refiner context");
-    });
-
-    it("falls back to generic prompt when role folder does not exist", async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false);
-
-      const session = await manager.createSession("planner");
-      expect(session.role).toBe("planner");
-    });
-
-    it("excludes log/ directory from role context loading", async () => {
-      const callTracker: string[] = [];
-      vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.readdirSync).mockImplementation((dir) => {
-        const d = String(dir);
-        if (d.endsWith("refiner")) {
-          return [
-            { name: "copilot-instructions.md", isDirectory: () => false, isFile: () => true },
-            { name: "log", isDirectory: () => true, isFile: () => false },
-            { name: "skills", isDirectory: () => true, isFile: () => false },
-          ] as unknown as fs.Dirent[];
-        }
-        if (d.endsWith("skills")) {
-          return [
-            { name: "SKILL.md", isDirectory: () => false, isFile: () => true },
-          ] as unknown as fs.Dirent[];
-        }
-        // log/ should never be walked
-        if (d.includes("log")) {
-          callTracker.push(d);
-          return [] as unknown as fs.Dirent[];
-        }
-        return [] as unknown as fs.Dirent[];
-      });
-      vi.mocked(fs.readFileSync).mockReturnValue("# Instructions");
-
-      await manager.createSession("refiner");
-
-      // The log/ directory should NOT have been walked
-      expect(callTracker.filter((p) => p.includes("log"))).toHaveLength(0);
-      // skills/ should have been walked (readdirSync called for root + skills)
-      expect(fs.readFileSync).toHaveBeenCalled();
+      expect(AcpClient.prototype.sendPrompt).not.toHaveBeenCalled();
     });
 
     it("reuses the ACP client on second createSession call", async () => {
