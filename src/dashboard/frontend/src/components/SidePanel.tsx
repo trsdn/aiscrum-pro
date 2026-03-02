@@ -43,16 +43,17 @@ export function SidePanel() {
   };
 
   const handleSend = () => {
-    if (!input.trim()) return;
+    const trimmed = input.trim();
+    if (!trimmed) return;
     const chatId = useDashboardStore.getState().activeChatId;
     if (!chatId || chatId === "__global__") return;
-    send({ type: "chat:send", sessionId: chatId, message: input.trim() });
+    send({ type: "chat:send", sessionId: chatId, message: trimmed });
     const store = useDashboardStore.getState();
     const msgs = store.chatMessages[chatId] ?? [];
     useDashboardStore.setState({
       chatMessages: {
         ...store.chatMessages,
-        [chatId]: [...msgs, { role: "user", content: input.trim() }],
+        [chatId]: [...msgs, { role: "user", content: trimmed }],
       },
     });
     setInput("");

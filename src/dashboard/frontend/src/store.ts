@@ -183,8 +183,9 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
     }
 
     case "chat:created": {
-      const p = msg.payload as ChatSession | undefined;
-      if (p) {
+      const raw = msg.payload as { sessionId: string; role: string; model?: string } | undefined;
+      if (raw) {
+        const p: ChatSession = { id: raw.sessionId, role: raw.role, model: raw.model };
         set((prev) => ({
           ...prev,
           chatSessions: [...prev.chatSessions, p],
