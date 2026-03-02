@@ -40,6 +40,7 @@ export interface ChatManagerOptions {
 export class ChatManager {
   private client: AcpClient | null = null;
   private sessions = new Map<string, ChatSession>();
+  private primingPromises = new Map<string, Promise<void>>();
   private readonly options: ChatManagerOptions;
   private connected = false;
 
@@ -98,12 +99,17 @@ export class ChatManager {
 
     this.sessions.set(chatId, session);
 
-    // Prime with role system prompt + project context
+    // Prime with role system prompt in background — don't block session creation
     const systemPrompt = this.buildSystemPrompt(role);
-    log.info({ chatId, role, acpSessionId: sessionInfo.sessionId }, "Chat session created");
+    log.info({ chatId, role, acpSessionId: sessionInfo.sessionId }, "Chat session created, priming in background");
 
-    // Send system prompt as first message (but don't store it as a user message)
-    await client.sendPrompt(sessionInfo.sessionId, systemPrompt, 120_000);
+    const primingPromise = client.sendPrompt(sessionInfo.sessionId, systemPrompt, 120_000)
+      .then(() => { this.primingPromises.delete(chatId); })
+      .catch((err) => {
+        log.error({ chatId, err }, "Failed to prime chat session with system prompt");
+        this.primingPromises.delete(chatId);
+      });
+    this.primingPromises.set(chatId, primingPromise);
 
     return session;
   }
@@ -112,6 +118,13 @@ export class ChatManager {
   async sendMessage(chatId: string, message: string): Promise<string> {
     const session = this.sessions.get(chatId);
     if (!session) throw new Error(`Chat session ${chatId} not found`);
+
+    // Wait for system prompt priming to finish before sending user message
+    const priming = this.primingPromises.get(chatId);
+    if (priming) {
+      log.info({ chatId }, "Waiting for system prompt priming to complete");
+      await priming;
+    }
 
     const client = await this.ensureClient();
 
