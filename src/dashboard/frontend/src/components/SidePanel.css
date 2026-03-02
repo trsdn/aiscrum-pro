@@ -121,7 +121,21 @@
 }
 
 .app-side {
-  width: 420px;
   flex-shrink: 0;
   overflow: hidden;
+}
+
+/* Resize handle between main and side panel */
+.app-resize-handle {
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  transition: background 0.15s;
+}
+.app-resize-handle:hover,
+.app-resize-handle:active {
+  background: var(--accent);
 }
