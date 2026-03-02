@@ -32,7 +32,7 @@ copilot:
       model: "claude-sonnet-4.5"
 
 sprint:
-  prefix: "Test Sprint"
+  prefix: "Sprint"
   max_issues: 3
   max_drift_incidents: 2
   max_retries: 1
