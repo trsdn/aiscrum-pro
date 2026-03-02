@@ -897,12 +897,23 @@ export class DashboardWebServer {
     }
   }
 
-  /** Return backlog issues (refined, not assigned to an open sprint). */
+  /** Return backlog issues (ready or refined, not assigned to an open sprint). */
   private handleBacklogRequest(res: http.ServerResponse): void {
     import("../github/issues.js").then(async ({ listIssues }) => {
       try {
-        const ghIssues = await listIssues({ state: "open", labels: ["status:refined"] });
-        const backlog = ghIssues.map((i) => ({
+        // Fetch both ready and refined issues
+        const [ready, refined] = await Promise.all([
+          listIssues({ state: "open", labels: ["status:ready"] }),
+          listIssues({ state: "open", labels: ["status:refined"] }),
+        ]);
+        // Deduplicate by issue number
+        const seen = new Set<number>();
+        const all = [...ready, ...refined].filter((i) => {
+          if (seen.has(i.number)) return false;
+          seen.add(i.number);
+          return true;
+        });
+        const backlog = all.map((i) => ({
           number: i.number,
           title: i.title,
           labels: i.labels.map((l) => l.name),
