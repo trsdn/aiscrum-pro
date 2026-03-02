@@ -36,7 +36,9 @@ export function SidePanel() {
   }, [activeMessages, streaming]);
 
   const handleClose = () => {
-    if (activeChatId && activeChatId !== "__global__") {
+    const store = useDashboardStore.getState();
+    // Don't kill the persistent general session — just hide the panel
+    if (activeChatId && activeChatId !== "__global__" && activeChatId !== store.generalChatId) {
       send({ type: "chat:close", sessionId: activeChatId });
     }
     useDashboardStore.setState({ chatPanelOpen: false, activeChatId: null });

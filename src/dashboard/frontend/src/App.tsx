@@ -25,6 +25,8 @@ const DEFAULT_SIDE_WIDTH = 420;
 export default function App() {
   const connect = useDashboardStore((s) => s.connect);
   const chatPanelOpen = useDashboardStore((s) => s.chatPanelOpen);
+  const generalChatId = useDashboardStore((s) => s.generalChatId);
+  const activeChatId = useDashboardStore((s) => s.activeChatId);
   const [activeTab, setActiveTab] = useState<Tab>("sprint");
   const [sideWidth, setSideWidth] = useState(DEFAULT_SIDE_WIDTH);
   const dragging = useRef(false);
@@ -32,6 +34,21 @@ export default function App() {
   useEffect(() => {
     connect();
   }, [connect]);
+
+  const toggleGeneralChat = useCallback(() => {
+    const isShowingGeneral = chatPanelOpen && activeChatId === generalChatId;
+    if (isShowingGeneral) {
+      // Hide panel (keep session alive)
+      useDashboardStore.setState({ chatPanelOpen: false, activeChatId: null });
+    } else if (generalChatId) {
+      // Show/switch to general session
+      useDashboardStore.setState({
+        chatPanelOpen: true,
+        activeChatId: generalChatId,
+        sidePanelRole: "general",
+      });
+    }
+  }, [chatPanelOpen, activeChatId, generalChatId]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -87,6 +104,17 @@ export default function App() {
           </>
         )}
       </div>
+
+      {/* Floating chat bubble for persistent general agent */}
+      {generalChatId && (
+        <button
+          className={`chat-bubble${chatPanelOpen && activeChatId === generalChatId ? " chat-bubble-active" : ""}`}
+          onClick={toggleGeneralChat}
+          title="General Agent"
+        >
+          💬
+        </button>
+      )}
     </>
   );
 }

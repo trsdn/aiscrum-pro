@@ -33,6 +33,7 @@ export interface DashboardStore {
   // Chat / Side panel
   chatSessions: ChatSession[];
   activeChatId: string | null;
+  generalChatId: string | null;
   chatMessages: Record<string, ChatMessage[]>;
   chatStreaming: Record<string, string>;
   chatPanelOpen: boolean;
@@ -77,6 +78,7 @@ export interface LogEntry {
 
 let ws: WebSocket | null = null;
 const pendingMessages: ClientMessage[] = [];
+let pendingGeneralCreate = false;
 
 // Sprint caches (survive navigation between sprints)
 const stateCache = new Map<number, { state: SprintState; issues: SprintIssue[] }>();
@@ -92,6 +94,11 @@ function createWebSocket(set: SetFn, get: GetFn): void {
     while (pendingMessages.length > 0) {
       const msg = pendingMessages.shift();
       if (msg) ws?.send(JSON.stringify(msg));
+    }
+    // Auto-create persistent general session if none exists
+    if (!get().generalChatId) {
+      pendingGeneralCreate = true;
+      ws?.send(JSON.stringify({ type: "chat:create", role: "general" }));
     }
   };
 
@@ -187,6 +194,19 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
       const raw = msg.payload as { sessionId: string; role: string; model?: string } | undefined;
       if (raw) {
         const p: ChatSession = { id: raw.sessionId, role: raw.role, model: raw.model };
+
+        // Background general session — store silently, don't open panel
+        if (pendingGeneralCreate && raw.role === "general") {
+          pendingGeneralCreate = false;
+          set((prev) => ({
+            ...prev,
+            chatSessions: [...prev.chatSessions, p],
+            generalChatId: p.id,
+            chatMessages: { ...prev.chatMessages, [p.id]: [] },
+          }));
+          break;
+        }
+
         const pending = get().pendingChatMessage;
         const initialMessages: ChatMessage[] = pending
           ? [{ role: "user", content: pending }]
@@ -464,6 +484,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   sessionOutput: new Map(),
   chatSessions: [],
   activeChatId: null,
+  generalChatId: null,
   chatMessages: {},
   chatStreaming: {},
   chatPanelOpen: false,
