@@ -20,3 +20,9 @@
   margin-bottom: 12px;
   flex-shrink: 0;
 }
+
+.sprint-chat-pane {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}

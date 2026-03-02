@@ -88,14 +88,16 @@ export default function App() {
           </button>
         ))}
         <div className="tab-nav-spacer" />
-        <button
-          className={`tab-btn agent-toggle-btn ${chatPanelOpen ? "tab-active" : ""}`}
-          onClick={toggleAgentPanel}
-          title={chatPanelOpen ? "Hide Agent Panel" : "Show Agent Panel"}
-        >
-          🤖 Agents{sessionCount > 0 ? ` (${sessionCount})` : ""}
-          {chatPanelOpen ? " ◀" : " ▶"}
-        </button>
+        {activeTab !== "sprint" && (
+          <button
+            className={`tab-btn agent-toggle-btn ${chatPanelOpen ? "tab-active" : ""}`}
+            onClick={toggleAgentPanel}
+            title={chatPanelOpen ? "Hide Agent Panel" : "Show Agent Panel"}
+          >
+            🤖 Agents{sessionCount > 0 ? ` (${sessionCount})` : ""}
+            {chatPanelOpen ? " ◀" : " ▶"}
+          </button>
+        )}
       </nav>
       <div className="app-layout">
         <div className="app-main">
@@ -106,7 +108,7 @@ export default function App() {
           {activeTab === "decisions" && <DecisionsTab />}
           {activeTab === "ideas" && <IdeasTab />}
         </div>
-        {chatPanelOpen && (
+        {chatPanelOpen && activeTab !== "sprint" && (
           <>
             <div className="app-resize-handle" onMouseDown={onMouseDown} />
             <div className="app-side" style={{ width: sideWidth }}>

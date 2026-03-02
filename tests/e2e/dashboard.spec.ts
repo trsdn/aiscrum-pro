@@ -64,9 +64,9 @@ test.describe("Dashboard Sprint Navigation", () => {
     expect(["INIT", "PLAN", "EXECUTE", "REVIEW", "RETRO", "COMPLETE", "FAILED", "PAUSED"]).toContain(text);
   });
 
-  test("activity log exists in DOM", async ({ page }) => {
-    const activityList = page.locator("#activity-list");
-    await expect(activityList).toHaveCount(1);
+  test("chat panel exists in sprint view", async ({ page }) => {
+    const sidePanel = page.locator(".sprint-chat-pane .side-panel");
+    await expect(sidePanel).toHaveCount(1, { timeout: 5000 });
   });
 });
 
