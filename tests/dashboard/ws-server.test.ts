@@ -605,6 +605,21 @@ describe("DashboardWebServer", () => {
     expect(Array.isArray(data)).toBe(true);
   });
 
+  it("serves /api/blocked endpoint with blockedReason field", { timeout: 15000 }, async () => {
+    await server.start();
+    const port = getPort(server);
+    const res = await fetch(`http://127.0.0.1:${port}/api/blocked`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    // Each item should have the expected shape (blockedReason is optional)
+    for (const item of data) {
+      expect(item).toHaveProperty("number");
+      expect(item).toHaveProperty("title");
+      expect(typeof item.blockedReason === "string" || item.blockedReason === undefined).toBe(true);
+    }
+  });
+
   it("handles pause/resume/stop gracefully when callbacks not provided", async () => {
     // Default options have no onPause/onResume/onStop
     await server.start();
