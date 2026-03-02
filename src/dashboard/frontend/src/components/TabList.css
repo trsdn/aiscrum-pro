@@ -49,11 +49,52 @@
 }
 .tab-list-item:hover { border-color: var(--blue); }
 
+.item-expanded { border-color: var(--blue); }
+
 .tab-list-item-header {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.item-expand-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.item-title-clickable { cursor: pointer; }
+
+.item-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.item-detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.item-body-full {
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+.item-body-empty {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 8px;
 }
 
 .item-number {
