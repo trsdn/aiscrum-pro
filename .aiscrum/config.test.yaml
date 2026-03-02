@@ -1,6 +1,6 @@
 # Sprint Runner Test Configuration
 # Use this config to run test sprints that are isolated from production.
-# Usage: npx tsx src/index.ts run --config sprint-runner.test.yaml
+# Usage: npx tsx src/index.ts run --config .aiscrum/config.test.yaml
 #
 # Creates "Test Sprint N" milestones, "test-sprint-N-state.json" files,
 # and "test-sprint/N/issue-N" branches — fully isolated from production sprints.
@@ -40,6 +40,7 @@ sprint:
   auto_revert_drift: false
   backlog_labels: ["test-run"]
 
+# Inline quality gates override (test mode disables challenger)
 quality_gates:
   require_tests: true
   require_lint: true

@@ -227,7 +227,7 @@ describe("runSprintRetro", () => {
     expect(mockClient.sendPrompt).toHaveBeenCalledTimes(2);
     const applyCall = mockClient.sendPrompt.mock.calls[1];
     expect(applyCall[1]).toContain("Update deps");
-    expect(applyCall[1]).toContain("sprint-runner.config.yaml");
+    expect(applyCall[1]).toContain(".aiscrum/config.yaml");
   });
 
   it("skips improvements with empty title", async () => {
@@ -365,7 +365,7 @@ describe("runSprintRetro", () => {
     expect(mockClient.sendPrompt).toHaveBeenCalledTimes(2);
     const applyCall = mockClient.sendPrompt.mock.calls[1];
     expect(applyCall[1]).toContain("Update deps");
-    expect(applyCall[1]).toContain("sprint-runner.config.yaml");
+    expect(applyCall[1]).toContain(".aiscrum/config.yaml");
   });
 
   it("creates backlog issue for process improvement instead of auto-applying", async () => {

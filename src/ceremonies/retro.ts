@@ -197,7 +197,7 @@ async function applyImprovement(
         break;
       case "config":
         targetInstruction =
-          "Edit `sprint-runner.config.yaml` in the project root. " +
+          "Edit `.aiscrum/config.yaml` in the project root. " +
           "Preserve existing structure and comments. Only change the relevant settings.";
         break;
       case "process":

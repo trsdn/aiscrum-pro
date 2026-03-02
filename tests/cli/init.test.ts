@@ -43,10 +43,10 @@ describe("initProject", () => {
     }
   });
 
-  it("creates sprint-runner.config.yaml", () => {
+  it("creates .aiscrum/config.yaml", () => {
     const result = initProject({ targetPath: tmpDir });
 
-    const configPath = path.join(tmpDir, "sprint-runner.config.yaml");
+    const configPath = path.join(tmpDir, ".aiscrum", "config.yaml");
     expect(fs.existsSync(configPath)).toBe(true);
     expect(result.configPath).toBe(configPath);
 

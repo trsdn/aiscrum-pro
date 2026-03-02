@@ -1,0 +1,22 @@
+# Quality Gate Configuration
+# Checks run after each issue implementation to verify code quality.
+
+checks:
+  tests:
+    enabled: true
+    command: ["npm", "run", "test"]
+  lint:
+    enabled: true
+    command: ["npm", "run", "lint"]
+  types:
+    enabled: true
+    command: ["npx", "tsc", "--noEmit"]
+  build:
+    enabled: true
+    command: ["npm", "run", "build"]
+
+limits:
+  max_diff_lines: 300
+
+review:
+  require_challenger: true

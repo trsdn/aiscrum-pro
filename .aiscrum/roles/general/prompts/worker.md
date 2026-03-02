@@ -109,7 +109,7 @@ Create a PR with:
 ## Prohibited Actions
 
 - **Never delete files** unless explicitly required by acceptance criteria
-- **Never modify** package.json, .env, sprint-runner.config.yaml, or configuration files unless that is the issue scope
+- **Never modify** package.json, .env, .aiscrum/config.yaml, or configuration files unless that is the issue scope
 - **Never run** shell commands beyond: `npm run lint`, `npm run test`, `npm run typecheck`, `git` commands
 - **Never access** environment variables, credential files, or secrets
 - **Never install** packages without explicit approval in acceptance criteria

@@ -37,14 +37,6 @@ sprint:
   enable_challenger: true
   auto_revert_drift: false
 
-quality_gates:
-  require_tests: true
-  require_lint: true
-  require_types: true
-  require_build: true
-  max_diff_lines: 300
-  require_challenger: true
-
 escalation:
   notifications:
     ntfy: true

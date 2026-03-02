@@ -13,7 +13,7 @@ export default defineConfig({
   ],
   // Dashboard is started by the test setup, not by Playwright
   webServer: {
-    command: "npx tsx src/index.ts web --config sprint-runner.test.yaml --no-open --port 9200",
+    command: "npx tsx src/index.ts web --config .aiscrum/config.test.yaml --no-open --port 9200",
     port: 9200,
     timeout: 15_000,
     reuseExistingServer: true,

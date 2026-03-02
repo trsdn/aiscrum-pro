@@ -75,7 +75,7 @@ test-cleanup: ## Remove all test sprint artifacts
 	./scripts/test-cleanup.sh
 
 test-web: ## Run web dashboard in test mode
-	npx tsx src/index.ts web --config sprint-runner.test.yaml
+	npx tsx src/index.ts web --config .aiscrum/config.test.yaml
 
 test-e2e: ## Run Playwright E2E tests (requires test-setup first)
 	npx playwright test --reporter=list

@@ -244,7 +244,7 @@ SPRINT1=$(gh api "repos/${REPO}/milestones" -q '.[] | select(.title=="Sprint 1")
 echo "   ${TOTAL} total issues (${SPRINT1} in Sprint 1, rest in backlog)"
 echo ""
 echo "▶ Start test run:"
-echo "   npx tsx src/index.ts web --config sprint-runner.test.yaml"
+echo "   npx tsx src/index.ts web --config .aiscrum/config.test.yaml"
 echo ""
 echo "🧹 Clean up when done:"
 echo "   ./scripts/test-cleanup.sh"

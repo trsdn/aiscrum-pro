@@ -16,7 +16,7 @@ Fetch these yourself using the tools available:
 
 - **Velocity history**: Read `docs/sprints/velocity.md` if it exists
 - **Previous retro**: Read `docs/sprints/sprint-<N-1>-retro.md` where N-1 = previous sprint number
-- **Sprint runner config**: Read `sprint-runner.config.yaml` in the project root
+- **Sprint runner config**: Read `.aiscrum/config.yaml`
 - **Sprint log**: Read `docs/sprints/sprint-{{SPRINT_NUMBER}}-log.md`
 
 ## Your Task
@@ -85,7 +85,7 @@ For each problem identified, propose a specific, actionable improvement. Improve
 
 | Category | Example |
 |----------|---------|
-| **Config change** | Adjust `max_issues`, `session_timeout_ms`, `max_diff_lines` in sprint-runner.config.yaml |
+| **Config change** | Adjust `max_issues`, `session_timeout_ms`, `max_diff_lines` in `.aiscrum/config.yaml` or `.aiscrum/quality-gates.yaml` |
 | **Agent improvement** | Update agent instructions, add new checks, improve prompts |
 | **Skill improvement** | Enhance existing skills, create new skills for repeated tasks |
 | **Process change** | Modify ceremony flow, add/remove quality gates |
@@ -115,7 +115,7 @@ Each improvement will be **auto-applied** by the system after the retro complete
 | Target | What gets edited |
 |--------|-----------------|
 | `skill` / `agent` | Files under `.aiscrum/roles/` |
-| `config` | `sprint-runner.config.yaml` in the project root |
+| `config` | `.aiscrum/config.yaml` and `.aiscrum/quality-gates.yaml` |
 | `process` | Ceremony/enforcement code under `src/ceremonies/`, `src/enforcement/`, or prompts under `.aiscrum/roles/*/prompts/` |
 
 Improvements with `autoApplicable: false` will be logged but skipped — they will NOT create GitHub issues.
@@ -133,7 +133,7 @@ Before finalizing:
 ## Constraints
 
 - **Do NOT create GitHub issues for improvements** — all improvements are auto-applied by the system
-- **Config changes are encouraged** — quality gate commands (`test_command`, `lint_command`, `typecheck_command`), parallel session limits, timeouts, and other settings in `sprint-runner.config.yaml` can and should be tuned based on sprint data
+- **Config changes are encouraged** — quality gate commands in `.aiscrum/quality-gates.yaml`, parallel session limits, timeouts, and other settings in `.aiscrum/config.yaml` can and should be tuned based on sprint data
 - **Do NOT modify ADRs or the constitution** — those require stakeholder confirmation
 - **Data-driven only** — every insight must reference specific sprint metrics or incidents. No "we should probably..." without evidence
 - **Stakeholder Authority (Constitution §0)**: Process changes that affect what gets built require stakeholder approval

@@ -67,7 +67,7 @@ For each problem identified, propose a specific, actionable improvement. Improve
 
 | Category | Example |
 |----------|---------|
-| **Config change** | Adjust `max_issues`, `session_timeout_ms`, `max_diff_lines` in sprint-runner.config.yaml |
+| **Config change** | Adjust `max_issues`, `session_timeout_ms`, `max_diff_lines` in `.aiscrum/config.yaml` or `.aiscrum/quality-gates.yaml` |
 | **Agent improvement** | Update agent instructions, add new checks, improve prompts |
 | **Skill improvement** | Enhance existing skills, create new skills for repeated tasks |
 | **Process change** | Modify ceremony flow, add/remove quality gates |
@@ -113,7 +113,7 @@ Before finalizing:
 ## Constraints
 
 - **DO directly apply improvements** — the retro auto-applies all improvements via ACP sessions. Make each improvement specific enough to be applied as a code/config edit.
-- **Config changes are encouraged** — quality gate commands, parallel session limits, timeouts, and other settings in `sprint-runner.config.yaml` can and should be tuned based on sprint data.
+- **Config changes are encouraged** — quality gate commands in `.aiscrum/quality-gates.yaml`, parallel session limits, timeouts, and other settings in `.aiscrum/config.yaml` can and should be tuned based on sprint data.
 - **Do NOT modify ADRs or the constitution** — those require stakeholder confirmation
 - **Data-driven only** — every insight must reference specific sprint metrics or incidents. No "we should probably..." without evidence
 - **Stakeholder Authority (Constitution §0)**: Process changes that affect what gets built require stakeholder approval

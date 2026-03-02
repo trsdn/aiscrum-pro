@@ -6,7 +6,7 @@ import { loadConfig, substituteEnvVars } from "../src/config.js";
 
 function writeTmpConfig(content: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "config-test-"));
-  const file = path.join(dir, "sprint-runner.config.yaml");
+  const file = path.join(dir, "config.yaml");
   fs.writeFileSync(file, content, "utf-8");
   return file;
 }
@@ -184,6 +184,72 @@ copilot:
 `;
     const file = writeTmpConfig(invalid);
     expect(() => loadConfig(file)).toThrow();
+  });
+
+  it("loads quality gates from separate quality-gates.yaml", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "config-qg-"));
+    const configFile = path.join(dir, "config.yaml");
+    const qgFile = path.join(dir, "quality-gates.yaml");
+
+    fs.writeFileSync(configFile, `
+project:
+  name: "qg-test"
+`, "utf-8");
+
+    fs.writeFileSync(qgFile, `
+checks:
+  tests:
+    enabled: true
+    command: ["pytest"]
+  lint:
+    enabled: false
+  types:
+    enabled: true
+    command: "mypy src/"
+  build:
+    enabled: false
+limits:
+  max_diff_lines: 500
+review:
+  require_challenger: false
+`, "utf-8");
+
+    const config = loadConfig(configFile);
+    expect(config.quality_gates.require_tests).toBe(true);
+    expect(config.quality_gates.test_command).toEqual(["pytest"]);
+    expect(config.quality_gates.require_lint).toBe(false);
+    expect(config.quality_gates.require_types).toBe(true);
+    expect(config.quality_gates.typecheck_command).toBe("mypy src/");
+    expect(config.quality_gates.require_build).toBe(false);
+    expect(config.quality_gates.max_diff_lines).toBe(500);
+    expect(config.quality_gates.require_challenger).toBe(false);
+  });
+
+  it("inline quality_gates takes precedence over separate file", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "config-inline-"));
+    const configFile = path.join(dir, "config.yaml");
+    const qgFile = path.join(dir, "quality-gates.yaml");
+
+    fs.writeFileSync(configFile, `
+project:
+  name: "inline-test"
+quality_gates:
+  require_tests: false
+  max_diff_lines: 100
+`, "utf-8");
+
+    fs.writeFileSync(qgFile, `
+checks:
+  tests:
+    enabled: true
+limits:
+  max_diff_lines: 999
+`, "utf-8");
+
+    const config = loadConfig(configFile);
+    // Inline wins — separate file should NOT be loaded
+    expect(config.quality_gates.require_tests).toBe(false);
+    expect(config.quality_gates.max_diff_lines).toBe(100);
   });
 });
 

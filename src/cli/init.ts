@@ -1,5 +1,5 @@
 /**
- * Init — scaffolds .aiscrum/roles/ and sprint-runner.config.yaml into a target project.
+ * Init — scaffolds .aiscrum/ structure (roles, config) into a target project.
  *
  * Copies role templates from the Sprint Runner's own .aiscrum/roles/ directory
  * and generates a minimal config file for the target project.
@@ -68,7 +68,8 @@ export function initProject(options: InitOptions): InitResult {
   copyDirRecursive(templateRolesDir, targetRolesDir, force, result);
 
   // Generate config if it doesn't exist
-  const configPath = path.join(targetPath, "sprint-runner.config.yaml");
+  const configPath = path.join(targetPath, ".aiscrum", "config.yaml");
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
   if (!fs.existsSync(configPath)) {
     fs.writeFileSync(configPath, MINIMAL_CONFIG, "utf-8");
     result.created.push(configPath);

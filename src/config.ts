@@ -1,4 +1,4 @@
-// Config loader: parse sprint-runner.config.yaml with Zod validation
+// Config loader: parse .aiscrum/config.yaml + .aiscrum/quality-gates.yaml with Zod validation
 
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -75,6 +75,31 @@ const SprintSchema = z.object({
   backlog_labels: z.array(z.string()).default([]),
 });
 
+// --- Quality Gates (separate file: .aiscrum/quality-gates.yaml) ---
+
+const QualityCheckSchema = z.object({
+  enabled: z.boolean().default(true),
+  command: z.union([z.string(), z.array(z.string())]).optional(),
+});
+
+export const QualityGatesFileSchema = z.object({
+  checks: z.object({
+    tests: QualityCheckSchema.default({ enabled: true }),
+    lint: QualityCheckSchema.default({ enabled: true }),
+    types: QualityCheckSchema.default({ enabled: true }),
+    build: QualityCheckSchema.default({ enabled: true }),
+  }).default({}),
+  limits: z.object({
+    max_diff_lines: z.number().int().min(1).default(300),
+  }).default({}),
+  review: z.object({
+    require_challenger: z.boolean().default(true),
+  }).default({}),
+});
+
+export type QualityGatesFile = z.infer<typeof QualityGatesFileSchema>;
+
+// Legacy schema kept for backward compat in ConfigFileSchema (inline quality_gates still accepted)
 const QualityGatesSchema = z.object({
   require_tests: z.boolean().default(true),
   require_lint: z.boolean().default(true),
@@ -155,14 +180,13 @@ export function substituteEnvVars(text: string): string {
 // --- Loader ---
 
 /**
- * Load and validate sprint-runner.config.yaml.
- * @param configPath – absolute or relative path to YAML config file.
- *   Defaults to `sprint-runner.config.yaml` in the current working directory.
+ * Load and validate config from `.aiscrum/config.yaml`.
+ * Quality gates are loaded from `.aiscrum/quality-gates.yaml` (separate file).
+ * @param configPath – explicit path to YAML config file.
+ *   When omitted, uses `.aiscrum/config.yaml` in the current working directory.
  */
 export function loadConfig(configPath?: string): ConfigFile {
-  const resolvedPath = path.resolve(
-    configPath ?? "sprint-runner.config.yaml",
-  );
+  const resolvedPath = path.resolve(configPath ?? ".aiscrum/config.yaml");
 
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`Config file not found: ${resolvedPath}`);
@@ -172,5 +196,47 @@ export function loadConfig(configPath?: string): ConfigFile {
   const substituted = substituteEnvVars(raw);
   const parsed: unknown = parseYaml(substituted, { customTags: [] });
 
-  return ConfigFileSchema.parse(parsed);
+  const config = ConfigFileSchema.parse(parsed);
+
+  // Load quality gates from separate file if not inline
+  const hasInlineQualityGates = (parsed as Record<string, unknown>)?.quality_gates != null;
+  if (!hasInlineQualityGates) {
+    const qgPath = path.resolve(path.dirname(resolvedPath), "quality-gates.yaml");
+    if (fs.existsSync(qgPath)) {
+      const qgRaw = fs.readFileSync(qgPath, "utf-8");
+      const qgSubstituted = substituteEnvVars(qgRaw);
+      const qgParsed: unknown = parseYaml(qgSubstituted, { customTags: [] });
+      const qg = QualityGatesFileSchema.parse(qgParsed);
+      // Map new format to legacy flat format
+      config.quality_gates = {
+        require_tests: qg.checks.tests.enabled,
+        require_lint: qg.checks.lint.enabled,
+        require_types: qg.checks.types.enabled,
+        require_build: qg.checks.build.enabled,
+        max_diff_lines: qg.limits.max_diff_lines,
+        test_command: qg.checks.tests.command ?? ["npm", "run", "test"],
+        lint_command: qg.checks.lint.command ?? ["npm", "run", "lint"],
+        typecheck_command: qg.checks.types.command ?? ["npm", "run", "typecheck"],
+        build_command: qg.checks.build.command ?? ["npm", "run", "build"],
+        require_challenger: qg.review.require_challenger,
+      };
+    }
+  }
+
+  return config;
+}
+
+/**
+ * Load quality gates config directly (for standalone use).
+ */
+export function loadQualityGates(configDir?: string): QualityGatesFile {
+  const dir = configDir ?? ".aiscrum";
+  const qgPath = path.resolve(dir, "quality-gates.yaml");
+  if (!fs.existsSync(qgPath)) {
+    return QualityGatesFileSchema.parse({});
+  }
+  const raw = fs.readFileSync(qgPath, "utf-8");
+  const substituted = substituteEnvVars(raw);
+  const parsed: unknown = parseYaml(substituted, { customTags: [] });
+  return QualityGatesFileSchema.parse(parsed);
 }
