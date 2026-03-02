@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as cp from "node:child_process";
-import { getIssue, addComment, listIssues, createIssue, execGh } from "../../src/github/issues.js";
+import { getIssue, addComment, getComments, listIssues, createIssue, execGh } from "../../src/github/issues.js";
 
 vi.mock("node:child_process", () => ({
   execFile: vi.fn(),
@@ -119,6 +119,35 @@ describe("addComment", () => {
   it("throws on error", async () => {
     mockExecFileError("permission denied");
     await expect(addComment(10, "test")).rejects.toThrow("permission denied");
+  });
+});
+
+describe("getComments", () => {
+  it("returns parsed comments newest first", async () => {
+    const comments = [
+      { body: "Latest comment", createdAt: "2026-03-02T00:00:00Z" },
+      { body: "Older comment", createdAt: "2026-03-01T00:00:00Z" },
+    ];
+    mockExecFileSuccess(JSON.stringify(comments));
+    const result = await getComments(42, 5);
+    expect(result).toEqual(comments);
+    expect(mockExecFile).toHaveBeenCalledWith(
+      "gh",
+      ["issue", "view", "42", "--json", "comments", "--jq", ".comments | sort_by(.createdAt) | reverse | .[:5]"],
+      expect.any(Function),
+    );
+  });
+
+  it("returns empty array on invalid JSON", async () => {
+    mockExecFileSuccess("not-json");
+    const result = await getComments(1);
+    expect(result).toEqual([]);
+  });
+
+  it("returns empty array on error", async () => {
+    mockExecFileSuccess("");
+    const result = await getComments(1);
+    expect(result).toEqual([]);
   });
 });
 

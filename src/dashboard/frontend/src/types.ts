@@ -105,4 +105,5 @@ export interface GhIssueItem {
   body?: string;
   labels?: string[];
   state?: string;
+  blockedReason?: string;
 }

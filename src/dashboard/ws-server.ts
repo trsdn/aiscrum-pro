@@ -948,16 +948,28 @@ export class DashboardWebServer {
     });
   }
 
-  /** Return blocked issues (status:blocked label). */
+  /** Return blocked issues (status:blocked label) with block reason from comments. */
   private handleBlockedRequest(res: http.ServerResponse): void {
-    import("../github/issues.js").then(async ({ listIssues }) => {
+    import("../github/issues.js").then(async ({ listIssues, getComments }) => {
       try {
         const ghIssues = await listIssues({ state: "open", labels: ["status:blocked"] });
-        const blocked = ghIssues.map((i) => ({
-          number: i.number,
-          title: i.title,
-          body: (i.body ?? "").slice(0, 500),
-          labels: i.labels.map((l) => l.name),
+        const blocked = await Promise.all(ghIssues.map(async (i) => {
+          // Extract block reason from the latest "Block reason:" comment
+          let blockedReason: string | undefined;
+          try {
+            const comments = await getComments(i.number, 5);
+            const reasonComment = comments.find((c) => c.body.startsWith("**Block reason:**"));
+            if (reasonComment) {
+              blockedReason = reasonComment.body.replace("**Block reason:** ", "").trim();
+            }
+          } catch { /* best-effort */ }
+          return {
+            number: i.number,
+            title: i.title,
+            body: (i.body ?? "").slice(0, 500),
+            labels: i.labels.map((l) => l.name),
+            blockedReason,
+          };
         }));
         res.writeHead(200);
         res.end(JSON.stringify(blocked));
