@@ -369,9 +369,21 @@ export function SidePanel() {
           rows={2}
           autoFocus
         />
-        <button className="btn btn-primary btn-small" onClick={handleSend}>
-          Send
-        </button>
+        {(streaming || thinking) ? (
+          <button
+            className="btn btn-danger btn-icon"
+            onClick={() => {
+              if (activeChatId) send({ type: "chat:cancel", sessionId: activeChatId });
+            }}
+            title="Stop"
+          >
+            ■
+          </button>
+        ) : (
+          <button className="btn btn-primary btn-icon" onClick={handleSend} title="Send">
+            ▶
+          </button>
+        )}
       </div>
 
       {/* Mode & Model selectors */}

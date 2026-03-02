@@ -46,6 +46,7 @@ export interface ClientMessage {
     | "chat:create"
     | "chat:send"
     | "chat:close"
+    | "chat:cancel"
     | "chat:set-mode"
     | "chat:set-config"
     | "blocked:comment"
