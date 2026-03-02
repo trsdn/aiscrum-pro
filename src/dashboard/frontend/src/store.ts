@@ -325,7 +325,7 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
       const p = msg.payload as {
         sessionId: string;
         toolCallId: string;
-        title: string;
+        title?: string;
         status?: string;
         kind?: string;
         locations?: Array<{ uri?: string; path?: string; line?: number }>;
@@ -334,16 +334,17 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
         set((prev) => {
           const existing = prev.chatToolCalls[p.sessionId] ?? [];
           const idx = existing.findIndex((t) => t.toolCallId === p.toolCallId);
+          const prev_entry = idx >= 0 ? existing[idx] : undefined;
           const locs = p.locations?.map((l) => ({
             path: l.path ?? l.uri?.replace("file://", "") ?? "",
             line: l.line,
           }));
           const entry: ChatToolCall = {
             toolCallId: p.toolCallId,
-            title: p.title,
-            status: p.status,
-            kind: p.kind,
-            locations: locs,
+            title: p.title || prev_entry?.title || "",
+            status: p.status ?? prev_entry?.status,
+            kind: p.kind ?? prev_entry?.kind,
+            locations: locs ?? prev_entry?.locations,
           };
           const updated = idx >= 0
             ? existing.map((t, i) => (i === idx ? entry : t))

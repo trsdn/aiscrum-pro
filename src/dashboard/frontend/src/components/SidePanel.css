@@ -353,7 +353,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-dim);
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
