@@ -8,29 +8,44 @@ export function BacklogTab() {
   const [loading, setLoading] = useState(true);
   const send = useDashboardStore((s) => s.send);
   const repoUrl = useDashboardStore((s) => s.repoUrl);
+  const sprintNumber = useDashboardStore((s) => s.activeSprintNumber);
+  const backlogPending = useDashboardStore((s) => s.backlogPending);
+  const backlogPlanned = useDashboardStore((s) => s.backlogPlanned);
 
   const fetchItems = () => {
     setLoading(true);
     fetch("/api/backlog")
       .then((r) => r.json())
-      .then((d) => setItems(Array.isArray(d) ? d : []))
+      .then((d) => {
+        setItems(Array.isArray(d) ? d : []);
+        // Clear planned set on refresh since server data is fresh
+        useDashboardStore.setState({ backlogPlanned: new Set() });
+      })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { fetchItems(); }, []);
 
+  const planIssue = (num: number) => {
+    useDashboardStore.setState((s) => ({ backlogPending: new Set(s.backlogPending).add(num) }));
+    send({ type: "backlog:plan-issue", issueNumber: num });
+  };
+
+  // Hide items that were confirmed planned (until next refresh)
+  const visibleItems = items.filter((i) => !backlogPlanned.has(i.number));
+
   if (loading) return <div className="tab-loading">Loading backlog...</div>;
-  if (items.length === 0) return <div className="tab-empty">No backlog items.</div>;
+  if (visibleItems.length === 0) return <div className="tab-empty">No backlog items.</div>;
 
   return (
     <div className="tab-list-container">
       <div className="tab-list-header">
-        <h2>Backlog ({items.length})</h2>
+        <h2>Backlog ({visibleItems.length})</h2>
         <button className="btn btn-small" onClick={fetchItems}>↻ Refresh</button>
       </div>
       <ul className="tab-list">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <li key={item.number} className="tab-list-item">
             <div className="tab-list-item-header">
               {repoUrl ? (
@@ -40,10 +55,11 @@ export function BacklogTab() {
               )}
               <span className="item-title">{item.title}</span>
               <button
-                className="btn btn-small btn-primary"
-                onClick={() => send({ type: "backlog:plan-issue", issueNumber: item.number })}
+                className={`btn btn-small btn-primary${backlogPending.has(item.number) ? " btn-pending" : ""}`}
+                disabled={backlogPending.has(item.number)}
+                onClick={() => planIssue(item.number)}
               >
-                + Sprint
+                {backlogPending.has(item.number) ? "Adding…" : `→ Sprint ${sprintNumber || "?"}`}
               </button>
             </div>
             {item.labels && item.labels.length > 0 && (

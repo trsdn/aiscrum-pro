@@ -98,3 +98,8 @@
   color: #000;
 }
 .btn-success:hover { filter: brightness(1.1); }
+
+.btn-pending {
+  opacity: 0.6;
+  cursor: wait;
+}

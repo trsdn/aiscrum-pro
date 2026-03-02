@@ -40,6 +40,10 @@ export interface DashboardStore {
   executionMode: "autonomous" | "hitl";
   sprintLimit: number; // 0 = infinite
 
+  // Backlog planning feedback
+  backlogPending: Set<number>;   // currently being added
+  backlogPlanned: Set<number>;   // confirmed added (hide from list)
+
   // Actions
   send: (msg: ClientMessage) => void;
   connect: () => void;
@@ -259,15 +263,25 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
       const p = msg.payload as { issueNumber: number } | undefined;
       if (p) {
         const store = get();
+        const pendNext = new Set(store.backlogPending);
+        pendNext.delete(p.issueNumber);
+        const plannedNext = new Set(store.backlogPlanned);
+        plannedNext.add(p.issueNumber);
+        set({ backlogPending: pendNext, backlogPlanned: plannedNext });
         addActivity(set, store, "backlog", `#${p.issueNumber} added to sprint`, null, "done");
       }
       break;
     }
 
     case "backlog:error": {
-      const p = msg.payload as { error: string } | undefined;
+      const p = msg.payload as { issueNumber?: number; error: string } | undefined;
       if (p) {
         const store = get();
+        if (p.issueNumber) {
+          const next = new Set(store.backlogPending);
+          next.delete(p.issueNumber);
+          set({ backlogPending: next });
+        }
         addActivity(set, store, "error", `Backlog error: ${p.error}`, null, "failed");
       }
       break;
@@ -437,6 +451,8 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   chatStreaming: {},
   executionMode: "autonomous",
   sprintLimit: 0,
+  backlogPending: new Set<number>(),
+  backlogPlanned: new Set<number>(),
 
   // Actions
   send: (msg: ClientMessage) => {
