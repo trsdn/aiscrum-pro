@@ -42,6 +42,7 @@ const McpServerEntrySchema = z.discriminatedUnion("type", [
 
 const PhaseConfigSchema = z.object({
   model: z.string().optional(),
+  mode: z.enum(["autonomous", "manual"]).optional(),
   mcp_servers: z.array(McpServerEntrySchema).default([]),
   instructions: z.array(z.string()).default([]),
 });

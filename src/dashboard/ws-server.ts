@@ -980,15 +980,18 @@ export class DashboardWebServer {
     if (pathname === "/api/roles") {
       const projectPath = this.options.projectPath ?? process.cwd();
       const rolesDir = path.join(projectPath, ".aiscrum", "roles");
+      const phases = this.options.config?.copilot?.phases ?? {};
       if (req.method === "PUT" || req.method === "POST") {
         let body = "";
         req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
         req.on("end", () => {
           try {
-            const { name, instructions, prompts } = JSON.parse(body) as {
+            const { name, instructions, prompts, model, mode } = JSON.parse(body) as {
               name: string;
               instructions?: string;
               prompts?: Record<string, string>;
+              model?: string;
+              mode?: string;
             };
             const roleDir = path.join(rolesDir, name);
             if (!fs.existsSync(roleDir)) { res.writeHead(404); res.end(JSON.stringify({ error: "Role not found" })); return; }
@@ -1002,14 +1005,38 @@ export class DashboardWebServer {
                 if (fs.existsSync(target)) fs.writeFileSync(target, content, "utf-8");
               }
             }
+            // Save model/mode to config phases
+            if (model !== undefined || mode !== undefined) {
+              const configPath = path.join(projectPath, ".aiscrum", "config.yaml");
+              if (fs.existsSync(configPath)) {
+                import("yaml").then(({ parse: parseYaml, stringify }) => {
+                  const raw = fs.readFileSync(configPath, "utf-8");
+                  const cfg = parseYaml(raw) as Record<string, unknown>;
+                  const copilot = (cfg.copilot ?? {}) as Record<string, unknown>;
+                  const phasesObj = (copilot.phases ?? {}) as Record<string, Record<string, unknown>>;
+                  if (!phasesObj[name]) phasesObj[name] = {};
+                  if (model !== undefined) phasesObj[name].model = model || undefined;
+                  if (mode !== undefined) phasesObj[name].mode = mode || undefined;
+                  // Clean empty values
+                  if (!phasesObj[name].model) delete phasesObj[name].model;
+                  if (!phasesObj[name].mode) delete phasesObj[name].mode;
+                  if (Object.keys(phasesObj[name]).length === 0) delete phasesObj[name];
+                  copilot.phases = phasesObj;
+                  cfg.copilot = copilot;
+                  fs.writeFileSync(configPath, stringify(cfg, { lineWidth: 120 }), "utf-8");
+                  res.writeHead(200); res.end(JSON.stringify({ ok: true }));
+                }).catch((err) => { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); });
+                return;
+              }
+            }
             res.writeHead(200); res.end(JSON.stringify({ ok: true }));
           } catch (err) { res.writeHead(400); res.end(JSON.stringify({ error: String(err) })); }
         });
         return;
       }
-      // GET: list all roles
+      // GET: list all roles with model/mode from phases config
       try {
-        const roles: Array<{ name: string; instructions: string; prompts: Record<string, string> }> = [];
+        const roles: Array<{ name: string; instructions: string; prompts: Record<string, string>; model?: string; mode?: string }> = [];
         if (fs.existsSync(rolesDir)) {
           for (const entry of fs.readdirSync(rolesDir, { withFileTypes: true })) {
             if (!entry.isDirectory()) continue;
@@ -1023,7 +1050,14 @@ export class DashboardWebServer {
                 if (pf.endsWith(".md")) prompts[pf] = fs.readFileSync(path.join(promptsDir, pf), "utf-8");
               }
             }
-            roles.push({ name: entry.name, instructions, prompts });
+            const phaseConfig = phases[entry.name] as Record<string, unknown> | undefined;
+            roles.push({
+              name: entry.name,
+              instructions,
+              prompts,
+              model: (phaseConfig?.model as string) ?? undefined,
+              mode: (phaseConfig?.mode as string) ?? undefined,
+            });
           }
         }
         res.writeHead(200); res.end(JSON.stringify(roles));

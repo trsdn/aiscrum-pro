@@ -284,9 +284,13 @@
   font-size: 12px;
   font-family: "SF Mono", "Fira Code", monospace;
   resize: vertical;
-  min-height: 120px;
+  min-height: 200px;
   width: 100%;
   box-sizing: border-box;
+}
+
+.role-editor-body textarea.role-prompt-textarea {
+  min-height: 300px;
 }
 
 .role-editor-body textarea:focus {
@@ -296,4 +300,86 @@
 
 .role-editor-save {
   align-self: flex-end;
+}
+
+/* Placeholder Help */
+.placeholder-help {
+  margin-bottom: 4px;
+}
+
+.placeholder-help-toggle {
+  background: none;
+  border: none;
+  color: #58a6ff;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.placeholder-help-toggle:hover {
+  text-decoration: underline;
+}
+
+.placeholder-help-list {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+}
+
+.placeholder-help-item {
+  display: contents;
+}
+
+.placeholder-help-item code {
+  color: #d2a8ff;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.placeholder-help-item span {
+  color: var(--text-dim);
+}
+
+/* Role config row (model + mode) */
+.role-config-row {
+  display: flex;
+  gap: 16px;
+}
+
+.role-config-field {
+  flex: 1;
+}
+
+.role-config-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.role-config-field select {
+  width: 100%;
+}
+
+.role-editor-badges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.role-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  white-space: nowrap;
 }

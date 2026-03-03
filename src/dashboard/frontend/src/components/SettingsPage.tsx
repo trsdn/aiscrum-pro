@@ -97,6 +97,10 @@ function cmdStr(cmd: string | string[]): string {
   return Array.isArray(cmd) ? cmd.join(" ") : cmd;
 }
 
+function cmdArr(s: string): string[] {
+  return s.trim().split(/\s+/).filter(Boolean);
+}
+
 function Section({
   icon,
   title,
@@ -136,6 +140,8 @@ interface AgentRole {
   name: string;
   instructions: string;
   prompts: Record<string, string>;
+  model?: string;
+  mode?: string;
 }
 
 interface QualityGates {
@@ -160,9 +166,124 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   researcher: "Research — investigates technical topics and options",
 };
 
+const ROLE_PLACEHOLDERS: Record<string, { name: string; desc: string }[]> = {
+  planner: [
+    { name: "PROJECT_NAME", desc: "Project name from config" },
+    { name: "REPO_OWNER", desc: "GitHub repository owner" },
+    { name: "REPO_NAME", desc: "GitHub repository name" },
+    { name: "SPRINT_NUMBER", desc: "Current sprint number" },
+    { name: "MIN_ISSUES", desc: "Minimum issues required in sprint" },
+    { name: "MAX_ISSUES", desc: "Maximum issues allowed in sprint" },
+    { name: "BASE_BRANCH", desc: "Base git branch (e.g. main)" },
+  ],
+  general: [
+    { name: "PROJECT_NAME", desc: "Project name" },
+    { name: "REPO_OWNER", desc: "Repository owner" },
+    { name: "REPO_NAME", desc: "Repository name" },
+    { name: "SPRINT_NUMBER", desc: "Current sprint number" },
+    { name: "ISSUE_NUMBER", desc: "GitHub issue number being worked on" },
+    { name: "ISSUE_TITLE", desc: "Issue title" },
+    { name: "ISSUE_BODY", desc: "Full issue body text (sanitized)" },
+    { name: "BRANCH_NAME", desc: "Feature branch name" },
+    { name: "BASE_BRANCH", desc: "Base git branch" },
+    { name: "WORKTREE_PATH", desc: "Path to git worktree directory" },
+    { name: "MAX_DIFF_LINES", desc: "Max diff lines before extra review" },
+    { name: "IMPLEMENTATION_PLAN", desc: "Plan from item planner (if available)" },
+  ],
+  reviewer: [
+    { name: "PROJECT_NAME", desc: "Project name" },
+    { name: "REPO_OWNER", desc: "Repository owner" },
+    { name: "REPO_NAME", desc: "Repository name" },
+    { name: "SPRINT_NUMBER", desc: "Current sprint number" },
+    { name: "SPRINT_START_SHA", desc: "Git SHA at sprint start" },
+    { name: "SPRINT_ISSUES", desc: "Summary of all sprint issues (sanitized)" },
+    { name: "BASE_BRANCH", desc: "Base git branch" },
+    { name: "METRICS", desc: "Sprint velocity and quality metrics" },
+    { name: "FAILED_GATES", desc: "List of failed quality gates" },
+    { name: "FLAGGED_PRS", desc: "PRs flagged for extra review" },
+  ],
+  "quality-reviewer": [
+    { name: "ISSUE_NUMBER", desc: "Issue number under review" },
+    { name: "ISSUE_TITLE", desc: "Issue title" },
+    { name: "ACCEPTANCE_CRITERIA", desc: "Issue acceptance criteria" },
+    { name: "DIFF", desc: "Code diff of the PR" },
+    { name: "TEST_OUTPUT", desc: "Test execution output" },
+    { name: "QG_RESULT", desc: "Quality gate check results" },
+  ],
+  "test-engineer": [
+    { name: "PROJECT_NAME", desc: "Project name" },
+    { name: "REPO_OWNER", desc: "Repository owner" },
+    { name: "REPO_NAME", desc: "Repository name" },
+    { name: "SPRINT_NUMBER", desc: "Current sprint number" },
+    { name: "ISSUE_NUMBER", desc: "Issue number" },
+    { name: "ISSUE_TITLE", desc: "Issue title" },
+    { name: "ISSUE_BODY", desc: "Issue body (sanitized)" },
+    { name: "BRANCH_NAME", desc: "Feature branch name" },
+    { name: "BASE_BRANCH", desc: "Base git branch" },
+    { name: "WORKTREE_PATH", desc: "Worktree directory" },
+    { name: "MAX_DIFF_LINES", desc: "Max diff lines" },
+    { name: "IMPLEMENTATION_PLAN", desc: "Implementation plan" },
+  ],
+  refiner: [
+    { name: "PROJECT_NAME", desc: "Project name" },
+    { name: "REPO_OWNER", desc: "Repository owner" },
+    { name: "REPO_NAME", desc: "Repository name" },
+    { name: "SPRINT_NUMBER", desc: "Current sprint number" },
+    { name: "BASE_BRANCH", desc: "Base git branch" },
+  ],
+  retro: [
+    { name: "PROJECT_NAME", desc: "Project name" },
+    { name: "REPO_OWNER", desc: "Repository owner" },
+    { name: "REPO_NAME", desc: "Repository name" },
+    { name: "SPRINT_NUMBER", desc: "Current sprint number" },
+    { name: "SPRINT_REVIEW_DATA", desc: "Data from sprint review" },
+    { name: "FAILURE_DIAGNOSTICS", desc: "Diagnostics of failed items" },
+  ],
+};
+
+function PlaceholderHelp({ roleName }: { roleName: string }) {
+  const [open, setOpen] = useState(false);
+  const placeholders = ROLE_PLACEHOLDERS[roleName];
+  if (!placeholders) return null;
+  return (
+    <div className="placeholder-help">
+      <button className="placeholder-help-toggle" onClick={() => setOpen(!open)}>
+        {open ? "▾" : "▸"} Available placeholders ({placeholders.length})
+      </button>
+      {open && (
+        <div className="placeholder-help-list">
+          {placeholders.map((p) => (
+            <div key={p.name} className="placeholder-help-item">
+              <code>{"{{" + p.name + "}}"}</code>
+              <span>{p.desc}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const MODEL_OPTIONS: Array<{ value: string; label: string } | { group: string; options: { value: string; label: string }[] }> = [
+  { value: "", label: "Default (inherit from global)" },
+  { group: "High Tier", options: [
+    { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5" },
+    { value: "claude-opus-4", label: "Claude Opus 4" },
+    { value: "gpt-4.1", label: "GPT-4.1" },
+    { value: "o4-mini", label: "o4-mini" },
+  ]},
+  { group: "Low Tier", options: [
+    { value: "claude-haiku-3-5", label: "Claude Haiku 3.5" },
+    { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+    { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
+  ]},
+];
+
 function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) => void }) {
   const [instructions, setInstructions] = useState(role.instructions);
   const [prompts, setPrompts] = useState(role.prompts);
+  const [model, setModel] = useState(role.model ?? "");
+  const [mode, setMode] = useState(role.mode ?? "autonomous");
   const [dirty, setDirty] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -176,7 +297,7 @@ function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) 
   };
 
   const save = () => {
-    onSave({ ...role, instructions, prompts });
+    onSave({ ...role, instructions, prompts, model: model || undefined, mode: mode || undefined });
     setDirty(false);
   };
 
@@ -188,10 +309,38 @@ function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) 
           {role.name}
           <span className="role-editor-desc">{ROLE_DESCRIPTIONS[role.name] ?? "Agent role"}</span>
         </h4>
-        {dirty && <button className="btn btn-primary btn-small role-editor-save" onClick={(e) => { e.stopPropagation(); save(); }}>💾 Save</button>}
+        <div className="role-editor-badges">
+          {model && <span className="role-badge">🧠 {model}</span>}
+          {mode === "manual" && <span className="role-badge">🖐 manual</span>}
+          {dirty && <button className="btn btn-primary btn-small role-editor-save" onClick={(e) => { e.stopPropagation(); save(); }}>💾 Save</button>}
+        </div>
       </div>
       {open && (
         <div className="role-editor-body">
+          <div className="role-config-row">
+            <div className="role-config-field">
+              <label>Model</label>
+              <select className="settings-input" value={model} onChange={(e) => { setModel(e.target.value); setDirty(true); }}>
+                {MODEL_OPTIONS.map((opt) =>
+                  "group" in opt ? (
+                    <optgroup key={opt.group} label={opt.group}>
+                      {opt.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </optgroup>
+                  ) : (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  )
+                )}
+              </select>
+            </div>
+            <div className="role-config-field">
+              <label>Mode</label>
+              <select className="settings-input" value={mode} onChange={(e) => { setMode(e.target.value); setDirty(true); }}>
+                <option value="autonomous">🤖 Autonomous</option>
+                <option value="manual">🖐 Manual</option>
+              </select>
+            </div>
+          </div>
+          <PlaceholderHelp roleName={role.name} />
           <div>
             <label>Instructions (copilot-instructions.md)</label>
             <textarea value={instructions} onChange={(e) => update("instructions", e.target.value)} />
@@ -200,7 +349,7 @@ function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) 
             <div key={fname}>
               <label>Prompt: {fname}</label>
               <textarea
-                style={{ minHeight: 180 }}
+                className="role-prompt-textarea"
                 value={content}
                 onChange={(e) => update(fname, e.target.value)}
               />
@@ -418,25 +567,25 @@ export function SettingsPage() {
                 <Toggle value={qualityGates.checks.tests.enabled} onChange={(v) => upQgCheck("tests", { enabled: v })} />
               </Row>
               <Row label="Test Command" desc="Shell command to run tests">
-                <TextInput value={cmdStr(qualityGates.checks.tests.command ?? "")} onChange={(v) => upQgCheck("tests", { command: v })} />
+                <TextInput value={cmdStr(qualityGates.checks.tests.command ?? "")} onChange={(v) => upQgCheck("tests", { command: cmdArr(v) })} />
               </Row>
               <Row label="Lint" desc="Require linter to pass before merging">
                 <Toggle value={qualityGates.checks.lint.enabled} onChange={(v) => upQgCheck("lint", { enabled: v })} />
               </Row>
               <Row label="Lint Command" desc="Shell command to run linter">
-                <TextInput value={cmdStr(qualityGates.checks.lint.command ?? "")} onChange={(v) => upQgCheck("lint", { command: v })} />
+                <TextInput value={cmdStr(qualityGates.checks.lint.command ?? "")} onChange={(v) => upQgCheck("lint", { command: cmdArr(v) })} />
               </Row>
               <Row label="Type Check" desc="Require type checking to pass before merging">
                 <Toggle value={qualityGates.checks.types.enabled} onChange={(v) => upQgCheck("types", { enabled: v })} />
               </Row>
               <Row label="Type Command" desc="Shell command to run type checker">
-                <TextInput value={cmdStr(qualityGates.checks.types.command ?? "")} onChange={(v) => upQgCheck("types", { command: v })} />
+                <TextInput value={cmdStr(qualityGates.checks.types.command ?? "")} onChange={(v) => upQgCheck("types", { command: cmdArr(v) })} />
               </Row>
               <Row label="Build" desc="Require build to succeed before merging">
                 <Toggle value={qualityGates.checks.build.enabled} onChange={(v) => upQgCheck("build", { enabled: v })} />
               </Row>
               <Row label="Build Command" desc="Shell command to build the project">
-                <TextInput value={cmdStr(qualityGates.checks.build.command ?? "")} onChange={(v) => upQgCheck("build", { command: v })} />
+                <TextInput value={cmdStr(qualityGates.checks.build.command ?? "")} onChange={(v) => upQgCheck("build", { command: cmdArr(v) })} />
               </Row>
               <Row label="Max Diff Lines" desc="Maximum lines changed per PR before extra review is triggered">
                 <NumInput value={qualityGates.limits.max_diff_lines} onChange={(v) => upQgLimits({ max_diff_lines: v })} min={1} narrow />
