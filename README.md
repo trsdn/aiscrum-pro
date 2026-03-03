@@ -25,21 +25,22 @@ The AI agent acts as **PO + Scrum Master**. The human is the **Stakeholder** wit
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
+- **Node.js** ≥ 20
 - **GitHub Copilot CLI** with ACP support — `copilot --acp --stdio`
 - **`gh` CLI** authenticated — `gh auth login`
 
 ### Install & Run
 
 ```bash
-# Install dependencies
+# Install dependencies + setup git hooks
 npm install
+
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your NTFY_TOPIC (if using notifications)
 
 # Launch web dashboard (auto-detects sprint from milestones)
 npx tsx src/index.ts web
-
-# Or with a specific sprint
-npx tsx src/index.ts web --sprint 1
 ```
 
 The dashboard opens at `http://localhost:9100` with live sprint status, issue tracking, and agent chat.
@@ -60,6 +61,24 @@ make test-cleanup
 ```
 
 Test mode uses `sprint-runner.test.yaml` with `prefix: "Test Sprint"` — separate milestones, branches, state files, and dashboard view. See [Testing](#testing-the-sprint-runner) for details.
+
+### Quality Gates
+
+All code changes must pass quality gates before merge. Gates run locally — no CI dependency.
+
+```bash
+# Quick check (lint + types + tests)
+npm run check
+
+# Full gate (format + lint + types + tests + build) — runs on pre-push
+npm run gate
+```
+
+Git hooks are installed automatically on `npm install`:
+- **pre-commit**: format check + lint + typecheck (~15s)
+- **pre-push**: full gate including tests + build (~60s)
+
+To bypass in emergencies: `git commit --no-verify` / `git push --no-verify`
 
 ---
 

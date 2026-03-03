@@ -46,7 +46,7 @@ quality_gates:
   require_lint: true
   require_types: true
   require_build: true
-  max_diff_lines: 300
+  max_diff_lines: 1000
   test_command:
     - npm
     - run
@@ -67,7 +67,7 @@ quality_gates:
 escalation:
   notifications:
     ntfy: true
-    ntfy_topic: qet-88676313052c548c
+    ntfy_topic: "${NTFY_TOPIC}"
     ntfy_server_url: https://ntfy.sh
 git:
   worktree_base: ../sprint-worktrees

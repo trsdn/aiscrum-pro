@@ -9,6 +9,9 @@ help: ## Show this help
 install: ## Install dependencies
 	npm install
 
+setup: install ## Full setup (install + git hooks)
+	./scripts/setup-hooks.sh
+
 # === Quality ===
 
 lint: ## Run linter
@@ -25,6 +28,13 @@ typecheck: ## Run type checker
 	npx tsc --noEmit
 
 check: lint typecheck test ## Run lint + types + tests
+
+gate: ## Full gate: format + lint + types + tests + build (pre-push)
+	npx prettier --check 'src/**/*.ts' 'tests/**/*.ts'
+	npx eslint src/ tests/
+	npx tsc --noEmit
+	npx vitest run
+	npx tsc && cd src/dashboard/frontend && npm run build
 
 # === Build ===
 

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# pre-push hook — full gate (tests + build)
+# Installed by scripts/setup-hooks.sh
+
+set -euo pipefail
+
+echo "🚀 Pre-push: running full gate"
+npm run gate || {
+  echo "❌ Gate failed. Fix issues before pushing."
+  exit 1
+}
+
+echo "✅ Pre-push gate passed"

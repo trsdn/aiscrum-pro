@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# pre-commit hook — fast checks (format, lint, typecheck)
+# Installed by scripts/setup-hooks.sh
+
+set -euo pipefail
+
+echo "🔍 Pre-commit: format check + lint + typecheck"
+
+npx prettier --check 'src/**/*.ts' 'tests/**/*.ts' || {
+  echo "❌ Format check failed. Run: npm run format"
+  exit 1
+}
+
+npx eslint src/ tests/ --quiet || {
+  echo "❌ Lint failed. Run: npm run lint:fix"
+  exit 1
+}
+
+npx tsc --noEmit || {
+  echo "❌ Type check failed."
+  exit 1
+}
+
+echo "✅ Pre-commit checks passed"
