@@ -8,7 +8,7 @@ import { runSprintRetro } from "./ceremonies/retro.js";
 import { createSprintLog } from "./documentation/sprint-log.js";
 import { appendVelocity } from "./documentation/velocity.js";
 import { calculateSprintMetrics } from "./metrics.js";
-import { getIssue } from "./github/issues.js";
+import { getIssue, listIssues, execGh } from "./github/issues.js";
 import type { IssueCreationState } from "./github/issue-rate-limiter.js";
 import { closeMilestone, getNextOpenMilestone } from "./github/milestones.js";
 import { logger as defaultLogger } from "./logger.js";
@@ -39,6 +39,7 @@ export type SprintPhase =
   | "complete"
   | "paused"
   | "stopped"
+  | "cancelled"
   | "failed";
 
 /** Thrown when a sprint is aborted via stop(). */
@@ -506,6 +507,62 @@ export class SprintRunner {
       // Release the lock in case no fullCycle() is running to do it
       try { releaseLock(this.config); } catch { /* may not be locked */ }
     }
+  }
+
+  /**
+   * Cancel the sprint — stops execution and returns unfinished items to backlog.
+   * Removes milestone from open issues so they can be picked up by a future sprint.
+   */
+  async cancel(): Promise<{ returnedIssues: number[] }> {
+    // First, stop the runner
+    this.stop();
+
+    const returnedIssues: number[] = [];
+    const milestoneTitle = `${this.config.sprintPrefix} ${this.config.sprintNumber}`;
+
+    try {
+      // Get all open issues in this sprint's milestone
+      const issues = await listIssues({
+        milestone: milestoneTitle,
+        state: "open",
+      });
+
+      // Remove milestone from each open issue (returns them to backlog)
+      for (const issue of issues) {
+        try {
+          await execGh([
+            "api", "-X", "PATCH",
+            `repos/{owner}/{repo}/issues/${issue.number}`,
+            "-f", "milestone=null",
+          ]);
+          returnedIssues.push(issue.number);
+          this.log.info({ issueNumber: issue.number }, "Returned issue to backlog");
+        } catch (err) {
+          this.log.warn({ issueNumber: issue.number, err: String(err) }, "Failed to remove milestone from issue");
+        }
+      }
+
+      // Close the milestone as cancelled
+      try {
+        await closeMilestone(milestoneTitle);
+        this.log.info({ milestone: milestoneTitle }, "Cancelled milestone closed");
+      } catch (err) {
+        this.log.warn({ milestone: milestoneTitle, err: String(err) }, "Failed to close cancelled milestone");
+      }
+    } catch (err) {
+      this.log.warn({ err: String(err) }, "Failed to list sprint issues during cancel");
+    }
+
+    // Update phase to cancelled
+    this.state.phase = "cancelled";
+    this.state.error = "Sprint cancelled by user";
+    this.persistState();
+    this.events.emitTyped("sprint:cancelled", {
+      sprintNumber: this.config.sprintNumber,
+      returnedIssues,
+    });
+
+    return { returnedIssues };
   }
 
   /** Get current sprint state */

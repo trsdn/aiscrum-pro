@@ -40,7 +40,7 @@ export interface ServerMessage {
 
 /** Message sent from browser client to server. */
 export interface ClientMessage {
-  type: "sprint:start" | "sprint:stop" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "sprint:set-limit" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "chat:cancel" | "chat:set-mode" | "chat:set-config" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
+  type: "sprint:start" | "sprint:stop" | "sprint:cancel" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "sprint:set-limit" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "chat:cancel" | "chat:set-mode" | "chat:set-config" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
   sprintNumber?: number;
   issueNumber?: number;
   sessionId?: string;
@@ -73,6 +73,7 @@ export interface DashboardServerOptions {
   onPause?: () => void;
   onResume?: () => void;
   onStop?: () => void;
+  onCancel?: () => void | Promise<void>;
   onSwitchSprint?: (sprintNumber: number) => void | Promise<void>;
   onModeChange?: (mode: "autonomous" | "hitl") => void;
   onSetSprintLimit?: (limit: number) => void;
@@ -358,7 +359,7 @@ export class DashboardWebServer {
     const bus = this.options.eventBus;
     const eventNames: (keyof SprintEngineEvents)[] = [
       "phase:change", "issue:start", "issue:progress", "issue:done", "issue:fail",
-      "worker:output", "sprint:start", "sprint:planned", "sprint:complete", "sprint:stopped", "sprint:error",
+      "worker:output", "sprint:start", "sprint:planned", "sprint:complete", "sprint:stopped", "sprint:cancelled", "sprint:error",
       "sprint:paused", "sprint:resumed", "log",
       "heartbeat:tick", "heartbeat:stale", "heartbeat:recovered",
     ];
@@ -518,6 +519,10 @@ export class DashboardWebServer {
       case "sprint:stop":
         log.info("Dashboard client requested sprint stop");
         this.options.onStop?.();
+        break;
+      case "sprint:cancel":
+        log.info("Dashboard client requested sprint cancel");
+        this.options.onCancel?.();
         break;
       case "mode:set":
         if (msg.mode === "autonomous" || msg.mode === "hitl") {

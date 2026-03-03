@@ -529,6 +529,32 @@ describe("SprintRunner", { timeout: 15000 }, () => {
     });
   });
 
+  describe("cancel", () => {
+    it("sets phase to cancelled", async () => {
+      const runner = new SprintRunner(config);
+      (runner as any).state.phase = "execute";
+      (runner as any).state.sprintNumber = 1;
+
+      const result = await runner.cancel();
+      expect(runner.getState().phase).toBe("cancelled");
+      expect(runner.getState().error).toBe("Sprint cancelled by user");
+      expect(result.returnedIssues).toEqual([]);
+    });
+
+    it("emits sprint:cancelled event", async () => {
+      const events = new SprintEventBus();
+      const runner = new SprintRunner(config, events);
+      (runner as any).state.phase = "plan";
+
+      const cancelled: unknown[] = [];
+      events.onTyped("sprint:cancelled", (p) => cancelled.push(p));
+
+      await runner.cancel();
+      expect(cancelled).toHaveLength(1);
+      expect(cancelled[0]).toMatchObject({ sprintNumber: config.sprintNumber });
+    });
+  });
+
   describe("getState", () => {
     it("returns a copy of the state", () => {
       const runner = new SprintRunner(config);

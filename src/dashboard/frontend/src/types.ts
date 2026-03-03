@@ -32,6 +32,7 @@ export interface ClientMessage {
   type:
     | "sprint:start"
     | "sprint:stop"
+    | "sprint:cancel"
     | "sprint:pause"
     | "sprint:resume"
     | "sprint:switch"

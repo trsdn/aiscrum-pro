@@ -45,9 +45,9 @@ export function Header() {
   const totalCount = issues.length;
 
   const phase = state.phase;
-  const running = phase !== "init" && phase !== "complete" && phase !== "failed" && phase !== "stopped" && phase !== "paused";
+  const running = phase !== "init" && phase !== "complete" && phase !== "failed" && phase !== "stopped" && phase !== "cancelled" && phase !== "paused";
   const paused = phase === "paused";
-  const idle = phase === "init" || phase === "complete" || phase === "failed" || phase === "stopped";
+  const idle = phase === "init" || phase === "complete" || phase === "failed" || phase === "stopped" || phase === "cancelled";
 
   // Timer tracks autonomous mode runtime only
   const isAutonomousRunning = executionMode === "autonomous" && running;
@@ -146,6 +146,7 @@ export function Header() {
         {running && isViewingActive && <button className="btn btn-small" onClick={() => send({ type: "sprint:pause" })}>⏸ Pause</button>}
         {paused && isViewingActive && <button className="btn btn-small" onClick={() => send({ type: "sprint:resume" })}>▶ Resume</button>}
         {(running || paused) && isViewingActive && <button className="btn btn-danger btn-small" onClick={() => { if (confirm("Stop sprint?")) send({ type: "sprint:stop" }); }}>⏹ Stop</button>}
+        {(running || paused) && isViewingActive && <button className="btn btn-danger btn-small" onClick={() => { if (confirm("Cancel sprint and return items to backlog?")) send({ type: "sprint:cancel" }); }}>✕ Cancel</button>}
       </div>
 
       <div className="phase-stepper">
@@ -153,7 +154,7 @@ export function Header() {
           const idx = PHASES.indexOf(p);
           const currentIdx = PHASES.indexOf(phase);
           let cls = "step";
-          if (phase === "failed" || phase === "stopped") cls += " step-failed";
+          if (phase === "failed" || phase === "stopped" || phase === "cancelled") cls += " step-failed";
           else if (idx < currentIdx) cls += " step-done";
           else if (idx === currentIdx) cls += " step-active";
           return <div key={p} className={cls} data-phase={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</div>;

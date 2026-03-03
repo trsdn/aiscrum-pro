@@ -425,6 +425,10 @@ function registerWeb(program: Command): void {
           onPause: () => activeRunner.pause(),
           onResume: () => activeRunner.resume(),
           onStop: () => activeRunner.stop(),
+          onCancel: async () => {
+            const result = await activeRunner.cancel();
+            logger.info({ returnedIssues: result.returnedIssues }, "Sprint cancelled");
+          },
           onSwitchSprint: switchToSprint,
           onModeChange: (mode) => {
             activeRunner.setHitlMode(mode === "hitl");
