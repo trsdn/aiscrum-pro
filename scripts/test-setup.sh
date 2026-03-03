@@ -22,7 +22,7 @@ echo "🧪 Test Setup: ${REPO}"
 echo ""
 
 # Ensure labels exist
-for lbl in "status:ready" "status:refined" "type:idea" "type:enhancement" "type:chore" "bug"; do
+for lbl in "status:ready" "status:refined" "status:blocked" "human-decision-needed" "type:idea" "type:enhancement" "type:chore" "bug"; do
   gh label create "$lbl" --repo "${REPO}" --force 2>/dev/null || true
 done
 
@@ -36,6 +36,21 @@ for n in 1 2; do
     echo "📋 Created milestone: ${milestone}"
   fi
 done
+
+# --- Deploy .aiscrum config to test repo (early, so dashboard works even if script is interrupted) ---
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+RUNNER_DIR="$(dirname "$SCRIPT_DIR")"
+TEST_REPO_DIR="${HOME}/dev/GitHub/ai-scrum-test-project"
+
+if [ -d "$TEST_REPO_DIR" ]; then
+  mkdir -p "$TEST_REPO_DIR/.aiscrum"
+  cp "$RUNNER_DIR/.aiscrum/config.test.yaml" "$TEST_REPO_DIR/.aiscrum/config.yaml"
+  cp "$RUNNER_DIR/.aiscrum/quality-gates.yaml" "$TEST_REPO_DIR/.aiscrum/quality-gates.yaml"
+  if [ -d "$RUNNER_DIR/.aiscrum/roles" ]; then
+    cp -r "$RUNNER_DIR/.aiscrum/roles" "$TEST_REPO_DIR/.aiscrum/" 2>/dev/null || true
+  fi
+  echo "📁 Deployed .aiscrum/ config to ${TEST_REPO_DIR}"
+fi
 
 # --- Helper to create an issue ---
 create_issue() {
@@ -236,21 +251,73 @@ create_issue "idea: Agent performance leaderboard" \
 "Track which agent configurations (model, prompts) produce the best results over time. Visualize in dashboard metrics tab." \
 "type:idea"
 
-# --- Deploy .aiscrum config to test repo ---
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RUNNER_DIR="$(dirname "$SCRIPT_DIR")"
-TEST_REPO_DIR="${HOME}/dev/GitHub/ai-scrum-test-project"
+echo ""
+echo "━━━ Blocked Issues (3) ━━━"
 
-if [ -d "$TEST_REPO_DIR" ]; then
-  mkdir -p "$TEST_REPO_DIR/.aiscrum"
-  cp "$RUNNER_DIR/.aiscrum/config.test.yaml" "$TEST_REPO_DIR/.aiscrum/config.yaml"
-  cp "$RUNNER_DIR/.aiscrum/quality-gates.yaml" "$TEST_REPO_DIR/.aiscrum/quality-gates.yaml"
-  # Copy roles if not present
-  if [ -d "$RUNNER_DIR/.aiscrum/roles" ]; then
-    cp -r "$RUNNER_DIR/.aiscrum/roles" "$TEST_REPO_DIR/.aiscrum/" 2>/dev/null || true
-  fi
-  echo "📁 Deployed .aiscrum/ config to ${TEST_REPO_DIR}"
-fi
+create_issue "fix: ACP session pool exhaustion under load" \
+"**Block reason:** Cannot reproduce reliably — needs stress test harness first.
+
+## Acceptance Criteria
+- [ ] Identify root cause of session pool exhaustion
+- [ ] Add circuit breaker when pool is at capacity
+- [ ] Add metrics for pool utilization
+- [ ] Stress test with 10+ concurrent sessions" \
+"bug,status:blocked"
+
+create_issue "feat: GitHub App authentication for private repos" \
+"**Block reason:** Requires GitHub App registration and OAuth flow — waiting for stakeholder to create the app.
+
+## Acceptance Criteria
+- [ ] Support GitHub App installation token auth
+- [ ] Fallback to gh CLI auth when no app configured
+- [ ] Document App setup in README" \
+"type:enhancement,status:blocked"
+
+create_issue "refactor: Migrate from pino to structured OpenTelemetry logging" \
+"**Block reason:** Depends on OpenTelemetry SDK stabilization (v2.0) — not yet released.
+
+## Acceptance Criteria
+- [ ] Replace pino with @opentelemetry/api logging
+- [ ] Preserve existing log levels and redaction
+- [ ] Add trace context to sprint operations
+- [ ] All existing tests pass with new logger" \
+"type:chore,status:blocked"
+
+echo ""
+echo "━━━ Decision Issues (3) ━━━"
+
+create_issue "decision: Should sprint auto-advance without stakeholder confirmation?" \
+"Currently sprints auto-advance to the next milestone. Should we require explicit stakeholder confirmation between sprints?
+
+**Options:**
+1. Keep auto-advance (current behavior)
+2. Pause and wait for stakeholder to confirm next sprint
+3. Configurable per-project setting
+
+**Impact:** Affects autonomous operation flow and stakeholder trust." \
+"human-decision-needed"
+
+create_issue "decision: Default merge strategy — squash vs rebase?" \
+"We currently default to squash merge. Some teams prefer rebase for linear history.
+
+**Options:**
+1. Keep squash as default (current)
+2. Switch to rebase as default
+3. Auto-detect from repo settings
+
+**Trade-offs:** Squash = cleaner history but loses granular commits. Rebase = preserves commits but noisier." \
+"human-decision-needed"
+
+create_issue "decision: Maximum retry count for failed issues" \
+"Current default is 2 retries. Some complex issues need more attempts, but too many retries waste compute.
+
+**Options:**
+1. Keep max_retries=2 (current)
+2. Increase to 3 with backoff
+3. Make it per-issue based on complexity score
+
+**Data:** ~15% of issues succeed on retry 2, <5% would benefit from retry 3." \
+"human-decision-needed"
 
 echo ""
 echo "✅ Test setup complete! (${REPO})"
