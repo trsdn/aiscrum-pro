@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useDashboardStore } from "../store";
 import "./SessionPanel.css";
 
@@ -6,6 +7,15 @@ export function SessionPanel() {
   const viewingSessionId = useDashboardStore((s) => s.viewingSessionId);
   const openSession = useDashboardStore((s) => s.openSession);
   const send = useDashboardStore((s) => s.send);
+  const [now, setNow] = useState(Date.now());
+
+  // Tick every second so elapsed timers update
+  const hasActive = sessions.some((s) => !s.endedAt);
+  useEffect(() => {
+    if (!hasActive) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [hasActive]);
 
   // Group sessions by issue
   const grouped = new Map<string, typeof sessions>();
@@ -28,7 +38,7 @@ export function SessionPanel() {
             const isActive = !s.endedAt;
             const isViewing = viewingSessionId === s.sessionId;
             const elapsed = isActive
-              ? Math.floor((Date.now() - new Date(s.startedAt).getTime()) / 1000)
+              ? Math.floor((now - new Date(s.startedAt).getTime()) / 1000)
               : 0;
             return (
               <div

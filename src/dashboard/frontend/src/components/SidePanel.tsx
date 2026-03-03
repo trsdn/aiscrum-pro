@@ -263,7 +263,10 @@ export function SidePanel() {
             {acpOutput ? (
               <Markdown text={acpOutput} />
             ) : (
-              <div className="side-panel-empty">Waiting for output…</div>
+              <div className="side-panel-empty acp-loading">
+                <span className="acp-spinner" />
+                Waiting for output…
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>

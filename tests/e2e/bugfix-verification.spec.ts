@@ -296,8 +296,8 @@ test.describe("Header Controls Verification", () => {
 test.describe("WebSocket Health", () => {
   test("connection indicator shows green on load", async ({ page }) => {
     await page.goto("/");
-    const dot = page.locator(".status-connected");
-    await expect(dot).toBeVisible({ timeout: 10_000 });
+    const indicator = page.locator(".status-indicator.status-ok");
+    await expect(indicator).toBeVisible({ timeout: 10_000 });
   });
 
   test("phase badge is visible after connection", async ({ page }) => {

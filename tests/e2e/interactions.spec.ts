@@ -239,16 +239,16 @@ test.describe("WebSocket Connection", () => {
   test("connects and receives initial state", async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector(".phase-badge", { timeout: 10_000 });
-    // Connection dot should show connected
-    const dot = page.locator(".status-connected");
-    await expect(dot).toBeVisible({ timeout: 5_000 });
+    // Connection indicator should show ok
+    const indicator = page.locator(".status-indicator.status-ok");
+    await expect(indicator).toBeVisible({ timeout: 5_000 });
   });
 
   test("reconnects after page reload", async ({ page }) => {
     await page.goto("/");
-    await page.waitForSelector(".status-connected", { timeout: 10_000 });
+    await page.waitForSelector(".status-indicator.status-ok", { timeout: 10_000 });
     await page.reload();
-    await page.waitForSelector(".status-connected", { timeout: 10_000 });
+    await page.waitForSelector(".status-indicator.status-ok", { timeout: 10_000 });
   });
 });
 

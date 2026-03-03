@@ -100,9 +100,9 @@ test.describe("Header Controls", () => {
     expect(text).toMatch(/\d+\/\d+ done/);
   });
 
-  test("connection status dot is visible", async ({ page }) => {
-    const dot = page.locator(".status-connected, .status-disconnected").first();
-    await expect(dot).toBeVisible();
+  test("connection status indicator is visible", async ({ page }) => {
+    const indicator = page.locator(".status-indicator");
+    await expect(indicator).toBeVisible();
   });
 
   test("elapsed time is displayed", async ({ page }) => {

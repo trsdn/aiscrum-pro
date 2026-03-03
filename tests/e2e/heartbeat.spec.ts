@@ -10,28 +10,24 @@ async function waitForDashboard(page: Page) {
 }
 
 test.describe("Heartbeat Indicator", () => {
-  test("heartbeat dot is visible in header", async ({ page }) => {
+  test("status indicator is visible in header", async ({ page }) => {
     await waitForDashboard(page);
-    const dots = page.locator(".status-dot");
-    // Should have at least 2 dots: connection + heartbeat
-    await expect(dots.first()).toBeVisible();
-    const count = await dots.count();
-    expect(count).toBeGreaterThanOrEqual(2);
+    const indicator = page.locator(".status-indicator");
+    await expect(indicator).toBeVisible();
   });
 
-  test("heartbeat dot has correct class", async ({ page }) => {
+  test("status indicator shows ok state when connected", async ({ page }) => {
     await waitForDashboard(page);
-    // Wait for heartbeat tick to arrive (up to 35s for 30s interval)
     await page.waitForTimeout(3000);
-    const heartbeatDot = page.locator(".status-heartbeat-ok, .status-heartbeat-warn, .status-heartbeat-stale");
-    await expect(heartbeatDot.first()).toBeVisible({ timeout: 35_000 });
+    const indicator = page.locator(".status-indicator");
+    await expect(indicator).toHaveClass(/status-ok|status-warn/, { timeout: 35_000 });
   });
 
-  test("heartbeat dot has title attribute", async ({ page }) => {
+  test("status indicator has title attribute", async ({ page }) => {
     await waitForDashboard(page);
     await page.waitForTimeout(3000);
-    const heartbeatDot = page.locator(".status-heartbeat-ok, .status-heartbeat-warn, .status-heartbeat-stale");
-    const title = await heartbeatDot.first().getAttribute("title");
+    const indicator = page.locator(".status-indicator");
+    const title = await indicator.getAttribute("title");
     expect(title).toBeTruthy();
   });
 });
