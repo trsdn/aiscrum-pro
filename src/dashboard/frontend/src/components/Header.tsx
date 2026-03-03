@@ -105,19 +105,29 @@ export function Header() {
         </button>
         <span className="issue-count">{doneCount}/{totalCount} done</span>
         <span className="elapsed">{elapsed}</span>
-        <span className={`status-dot ${connected ? "status-connected" : "status-disconnected"}`} title={connected ? "Connected" : "Disconnected"} />
         <span
-          className={`status-dot ${heartbeat.healthy ? "status-heartbeat-ok" : heartbeat.staleWarning ? "status-heartbeat-stale" : "status-heartbeat-warn"}`}
+          className={`status-indicator ${
+            !connected
+              ? "status-offline"
+              : heartbeat.staleWarning
+                ? "status-stale"
+                : heartbeat.staleLock || !heartbeat.healthy
+                  ? "status-warn"
+                  : "status-ok"
+          }`}
           title={
-            heartbeat.staleWarning
-              ? "Sprint stale — no phase change detected"
-              : heartbeat.staleLock
-                ? "Orphaned lock detected"
-                : heartbeat.healthy
-                  ? "Heartbeat OK"
-                  : "Heartbeat warning"
+            !connected
+              ? "Disconnected from server"
+              : heartbeat.staleWarning
+                ? "Sprint stale — no phase change detected"
+                : heartbeat.staleLock
+                  ? "Orphaned lock detected"
+                  : "Connected"
           }
-        />
+        >
+          <span className="status-indicator-dot" />
+          {!connected ? "Offline" : heartbeat.staleWarning ? "Stale" : heartbeat.staleLock ? "Lock" : "Live"}
+        </span>
 
         <select
           className="btn btn-small"

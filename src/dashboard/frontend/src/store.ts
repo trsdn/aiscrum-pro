@@ -586,6 +586,7 @@ function handleSprintEvent(
         i.number === (p?.issueNumber as number) ? { ...i, step: p?.step as string } : i,
       );
       set({ issues });
+      addActivity(set, get(), "progress", `#${p?.issueNumber} → ${p?.step}`, null, "active");
       break;
     }
 
@@ -643,15 +644,55 @@ function handleSprintEvent(
       addActivity(set, get(), "error", `Sprint error: ${p?.error}`, null, "failed");
       break;
 
-    case "log":
+    case "session:start": {
+      const role = (p?.role as string) ?? "agent";
+      const issueNum = p?.issueNumber as number | undefined;
+      const model = (p?.model as string) ?? null;
+      const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+      const label = issueNum ? `${roleLabel} Agent #${issueNum}` : `${roleLabel} Agent`;
+      addActivity(set, get(), "session", label, model, "active");
+      break;
+    }
+
+    case "session:end": {
+      // Mark the most recent active session activity as done
+      const acts = get().activities;
+      const idx = [...acts].reverse().findIndex((a) => a.type === "session" && a.status === "active");
+      if (idx >= 0) {
+        const realIdx = acts.length - 1 - idx;
+        const updated = [...acts];
+        updated[realIdx] = { ...updated[realIdx]!, status: "done" };
+        set({ activities: updated });
+      }
+      break;
+    }
+
+    case "sprint:paused":
+      set((prev) => ({ ...prev, state: { ...prev.state, phase: "paused" } }));
+      addActivity(set, get(), "sprint", "Sprint paused", null, "done");
+      break;
+
+    case "sprint:resumed":
+      set((prev) => ({ ...prev, state: { ...prev.state, phase: p?.phase as string ?? "execute" } }));
+      addActivity(set, get(), "sprint", `Sprint resumed → ${p?.phase}`, null, "active");
+      break;
+
+    case "log": {
+      const logMsg = (p?.message as string) ?? "";
+      const logLevel = (p?.level as string) ?? "info";
       set((prev) => ({
         ...prev,
         logs: [
           ...prev.logs,
-          { level: (p?.level as string) ?? "info", message: (p?.message as string) ?? "", time: new Date() },
+          { level: logLevel, message: logMsg, time: new Date() },
         ],
       }));
+      // Also surface info+ log messages in the activity feed
+      if (logLevel !== "debug" && logMsg) {
+        addActivity(set, get(), "log", logMsg, null, logLevel === "error" ? "failed" : "done");
+      }
       break;
+    }
 
     case "mode:changed":
       if (p?.mode === "autonomous" || p?.mode === "hitl") {
