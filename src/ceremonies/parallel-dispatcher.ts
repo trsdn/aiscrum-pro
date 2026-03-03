@@ -118,9 +118,9 @@ export async function runParallelExecution(
   const issueMap = new Map(plan.sprint_issues.map((i) => [i.number, i]));
 
   for (const group of groups) {
-    log.info({ group: group.group, issues: group.issues }, "executing group");
-
-    const limit = pLimit(config.maxParallelSessions);
+    const concurrency = config.sequentialExecution ? 1 : config.maxParallelSessions;
+    const limit = pLimit(concurrency);
+    log.info({ group: group.group, issues: group.issues, concurrency }, "executing group");
 
     const settled = await Promise.allSettled(
       group.issues.map((issueNumber) =>

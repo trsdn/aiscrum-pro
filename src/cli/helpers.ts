@@ -43,6 +43,7 @@ export function buildSprintConfig(config: ConfigFile, sprintNumber: number): Spr
     maxRetries: config.sprint.max_retries,
     enableChallenger: config.sprint.enable_challenger,
     enableTdd: config.sprint.enable_tdd,
+    sequentialExecution: config.sprint.sequential_execution,
     autoRevertDrift: config.sprint.auto_revert_drift,
     backlogLabels: config.sprint.backlog_labels,
     autoMerge: config.git.auto_merge,

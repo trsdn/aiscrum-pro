@@ -31,6 +31,7 @@ interface Config {
     max_retries: number;
     enable_challenger: boolean;
     enable_tdd: boolean;
+    sequential_execution: boolean;
     auto_revert_drift: boolean;
     backlog_labels: string[];
   };
@@ -679,6 +680,9 @@ export function SettingsPage() {
             </Row>
             <Row label="TDD" desc="Require test-driven development workflow for all issues">
               <Toggle value={config.sprint.enable_tdd} onChange={(v) => upSprint({ enable_tdd: v })} />
+            </Row>
+            <Row label="Sequential Execution" desc="Run developer agents one at a time to avoid merge conflicts">
+              <Toggle value={config.sprint.sequential_execution} onChange={(v) => upSprint({ sequential_execution: v })} />
             </Row>
             <Row label="Auto-revert Drift" desc="Automatically revert changes that cause sprint scope drift">
               <Toggle value={config.sprint.auto_revert_drift} onChange={(v) => upSprint({ auto_revert_drift: v })} />
