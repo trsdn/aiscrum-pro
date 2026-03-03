@@ -119,6 +119,7 @@ let pendingGeneralCreate = false;
 // Sprint caches (survive navigation between sprints)
 const stateCache = new Map<number, { state: SprintState; issues: SprintIssue[] }>();
 const activityCache = new Map<number, Activity[]>();
+let sprintFetchVersion = 0;
 
 function createWebSocket(set: SetFn, get: GetFn): void {
   if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
@@ -483,6 +484,15 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
       break;
     }
 
+    case "backlog:removed": {
+      const p = msg.payload as { issueNumber: number } | undefined;
+      if (p) {
+        const store = get();
+        addActivity(set, store, "backlog", `#${p.issueNumber} removed from sprint`, null, "done");
+      }
+      break;
+    }
+
     case "backlog:error": {
       const p = msg.payload as { issueNumber?: number; error: string } | undefined;
       if (p) {
@@ -682,7 +692,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     } else {
-      pendingMessages.push(msg);
+      if (pendingMessages.length < 100) pendingMessages.push(msg);
     }
   },
 
@@ -746,16 +756,16 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
       store.send({ type: "sprint:switch", sprintNumber: n });
     } else if (!cached) {
       // Historical sprint — load from API
+      const fetchId = ++sprintFetchVersion;
       Promise.all([
         fetch(`/api/sprints/${n}/state`).then((r) => (r.ok ? r.json() : null)),
         fetch(`/api/sprints/${n}/issues`).then((r) => (r.ok ? r.json() : null)),
       ])
         .then(([stateData, issuesData]) => {
-          if (stateData) {
+          if (stateData && fetchId === sprintFetchVersion) {
             const s = stateData as SprintState;
             const iss = Array.isArray(issuesData) ? (issuesData as SprintIssue[]) : [];
             stateCache.set(n, { state: s, issues: iss });
-            // Only update if still viewing this sprint
             if (get().viewingSprintNumber === n) {
               set({ state: s, issues: iss });
             }

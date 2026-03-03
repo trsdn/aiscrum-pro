@@ -28,7 +28,7 @@ export function IssueCard({ item, actions, extraContent }: IssueCardProps) {
           <a
             href={`${repoUrl}/issues/${item.number}`}
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
             className="item-number"
             onClick={(e) => e.stopPropagation()}
           >

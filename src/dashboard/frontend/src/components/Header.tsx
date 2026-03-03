@@ -78,7 +78,7 @@ export function Header() {
   const currentSprint = availableSprints.find((s) => s.sprintNumber === viewingSprintNumber);
   const milestoneId = currentSprint?.milestoneNumber ?? displayNumber;
   const sprintLabel = repoUrl
-    ? <a href={`${repoUrl}/milestone/${milestoneId}`} target="_blank" rel="noopener">Sprint {displayNumber} ↗</a>
+    ? <a href={`${repoUrl}/milestone/${milestoneId}`} target="_blank" rel="noopener noreferrer">Sprint {displayNumber} ↗</a>
     : `Sprint ${displayNumber}`;
 
   return (

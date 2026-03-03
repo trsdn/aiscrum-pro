@@ -463,7 +463,7 @@ export class DashboardWebServer {
         this.options.onStart?.();
         break;
       case "sprint:switch":
-        if (msg.sprintNumber) {
+        if (msg.sprintNumber && typeof msg.sprintNumber === "number" && msg.sprintNumber > 0) {
           log.info({ sprintNumber: msg.sprintNumber }, "Dashboard client switched sprint");
           const sprintNum = msg.sprintNumber;
           // Await async callback before re-sending state
@@ -955,6 +955,9 @@ export class DashboardWebServer {
     if (pathname === "/api/sprint-backlog") {
       const requestedSprint = url.searchParams.get("sprint");
       const sprintNum = requestedSprint ? parseInt(requestedSprint, 10) : undefined;
+      if (sprintNum !== undefined && (isNaN(sprintNum) || sprintNum < 1)) {
+        res.writeHead(400); res.end(JSON.stringify({ error: "Invalid sprint number" })); return;
+      }
       this.handleSprintBacklogRequest(res, sprintNum);
       return;
     }

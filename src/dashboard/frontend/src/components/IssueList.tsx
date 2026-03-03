@@ -37,7 +37,7 @@ export function IssueList() {
         const icon = STATUS_ICON[issue.status] ?? "·";
         const statusClass = issue.status.replace("status:", "");
         const link = repoUrl ? (
-          <a href={`${repoUrl}/issues/${issue.number}`} target="_blank" rel="noopener" className="issue-number">
+          <a href={`${repoUrl}/issues/${issue.number}`} target="_blank" rel="noopener noreferrer" className="issue-number">
             #{issue.number}
           </a>
         ) : (
