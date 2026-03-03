@@ -142,8 +142,8 @@ interface AgentRole {
   prompts: Record<string, string>;
   model?: string;
   mode?: string;
-  skills: Array<{ name: string; description: string }>;
-  mcp_servers: Array<{ name: string; type: string; command?: string; url?: string }>;
+  skills: Array<{ name: string; description: string; content: string; dirName: string }>;
+  mcp_servers: Array<{ name: string; type: string; command?: string; url?: string; args?: string[] }>;
 }
 
 interface QualityGates {
@@ -295,6 +295,10 @@ function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) 
   const [prompts, setPrompts] = useState(role.prompts);
   const [model, setModel] = useState(role.model ?? "");
   const [mode, setMode] = useState(role.mode ?? "autonomous");
+  const [skills, setSkills] = useState<Record<string, string>>(
+    Object.fromEntries(role.skills.map((s) => [s.dirName, s.content]))
+  );
+  const [mcpServers, setMcpServers] = useState(role.mcp_servers);
   const [dirty, setDirty] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -307,8 +311,36 @@ function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) 
     setDirty(true);
   };
 
+  const updateSkill = (dirName: string, content: string) => {
+    setSkills((prev) => ({ ...prev, [dirName]: content }));
+    setDirty(true);
+  };
+
+  const addMcp = () => {
+    setMcpServers((prev) => [...prev, { name: "", type: "stdio", command: "" }]);
+    setDirty(true);
+  };
+
+  const removeMcp = (idx: number) => {
+    setMcpServers((prev) => prev.filter((_, i) => i !== idx));
+    setDirty(true);
+  };
+
+  const updateMcp = (idx: number, patch: Partial<AgentRole["mcp_servers"][0]>) => {
+    setMcpServers((prev) => prev.map((m, i) => i === idx ? { ...m, ...patch } : m));
+    setDirty(true);
+  };
+
   const save = () => {
-    onSave({ ...role, instructions, prompts, model: model || undefined, mode: mode || undefined });
+    onSave({
+      ...role,
+      instructions,
+      prompts,
+      model: model || undefined,
+      mode: mode || undefined,
+      skills: role.skills.map((s) => ({ ...s, content: skills[s.dirName] ?? s.content })),
+      mcp_servers: mcpServers,
+    });
     setDirty(false);
   };
 
@@ -323,6 +355,8 @@ function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) 
         <div className="role-editor-badges">
           {model && <span className="role-badge">🧠 {model}</span>}
           {mode === "manual" && <span className="role-badge">🖐 manual</span>}
+          {role.skills.length > 0 && <span className="role-badge">🛠 {role.skills.length} skills</span>}
+          {mcpServers.length > 0 && <span className="role-badge">🔌 {mcpServers.length} MCP</span>}
           {dirty && <button className="btn btn-primary btn-small role-editor-save" onClick={(e) => { e.stopPropagation(); save(); }}>💾 Save</button>}
         </div>
       </div>
@@ -351,30 +385,47 @@ function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) 
               </select>
             </div>
           </div>
-          {role.skills.length > 0 && (
-            <div className="role-skills-section">
-              <label>Skills ({role.skills.length})</label>
-              <div className="role-skills-list">
-                {role.skills.map((s) => (
-                  <div key={s.name} className="role-skill-item">
-                    <span className="role-skill-name">🛠 {s.name}</span>
-                    <span className="role-skill-desc">{s.description}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+
+          {/* Skills — editable */}
+          <div className="role-section-label">🛠 Skills ({role.skills.length})</div>
+          {role.skills.length === 0 && (
+            <div className="role-empty-hint">No skills configured for this agent. Add skill files to <code>.aiscrum/roles/{role.name}/skills/</code></div>
           )}
-          {role.mcp_servers.length > 0 && (
-            <div className="role-mcp-section">
-              <label>MCP Servers ({role.mcp_servers.length})</label>
-              {role.mcp_servers.map((m, i) => (
-                <div key={i} className="role-mcp-item">
-                  <span className="role-mcp-name">🔌 {m.name}</span>
-                  <span className="role-mcp-detail">{m.type}{m.command ? ` · ${m.command}` : ""}{m.url ? ` · ${m.url}` : ""}</span>
-                </div>
-              ))}
+          {role.skills.map((s) => (
+            <div key={s.dirName}>
+              <label>{s.name} — <span style={{ fontWeight: 400, color: "var(--text-dim)" }}>{s.description}</span></label>
+              <textarea
+                className="role-skill-textarea"
+                value={skills[s.dirName] ?? s.content}
+                onChange={(e) => updateSkill(s.dirName, e.target.value)}
+              />
             </div>
+          ))}
+
+          {/* MCP Servers — editable */}
+          <div className="role-section-label">🔌 MCP Servers ({mcpServers.length})
+            <button className="btn btn-small" style={{ marginLeft: 8 }} onClick={addMcp}>+ Add</button>
+          </div>
+          {mcpServers.length === 0 && (
+            <div className="role-empty-hint">No MCP servers configured for this agent.</div>
           )}
+          {mcpServers.map((m, i) => (
+            <div key={i} className="role-mcp-edit-row">
+              <input className="settings-input" placeholder="Name" value={m.name} onChange={(e) => updateMcp(i, { name: e.target.value })} />
+              <select className="settings-input" value={m.type} onChange={(e) => updateMcp(i, { type: e.target.value })}>
+                <option value="stdio">stdio</option>
+                <option value="sse">sse</option>
+                <option value="streamable-http">streamable-http</option>
+              </select>
+              {m.type === "stdio" ? (
+                <input className="settings-input" style={{ flex: 2 }} placeholder="Command (e.g. npx server)" value={m.command ?? ""} onChange={(e) => updateMcp(i, { command: e.target.value })} />
+              ) : (
+                <input className="settings-input" style={{ flex: 2 }} placeholder="URL" value={m.url ?? ""} onChange={(e) => updateMcp(i, { url: e.target.value })} />
+              )}
+              <button className="btn btn-small btn-danger" onClick={() => removeMcp(i)}>✕</button>
+            </div>
+          ))}
+
           <PlaceholderHelp roleName={role.name} />
           <div>
             <label>Instructions (copilot-instructions.md)</label>
@@ -462,10 +513,20 @@ export function SettingsPage() {
 
   const saveRole = useCallback(async (role: AgentRole) => {
     try {
+      const skillsMap: Record<string, string> = {};
+      for (const s of role.skills) skillsMap[s.dirName] = s.content;
       const res = await fetch("/api/roles", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(role),
+        body: JSON.stringify({
+          name: role.name,
+          instructions: role.instructions,
+          prompts: role.prompts,
+          model: role.model,
+          mode: role.mode,
+          skills: skillsMap,
+          mcp_servers: role.mcp_servers,
+        }),
       });
       if (res.ok) {
         setRoles((prev) => prev.map((r) => r.name === role.name ? role : r));
@@ -596,40 +657,37 @@ export function SettingsPage() {
 
       <Section icon="🛡️" title="Quality Gates">
         {qualityGates ? (
-          <table className="settings-table">
-            <tbody>
-              <Row label="Tests" desc="Require tests to pass before merging">
-                <Toggle value={qualityGates.checks.tests.enabled} onChange={(v) => upQgCheck("tests", { enabled: v })} />
-              </Row>
-              <Row label="Test Command" desc="Shell command to run tests">
-                <TextInput value={cmdStr(qualityGates.checks.tests.command ?? "")} onChange={(v) => upQgCheck("tests", { command: cmdArr(v) })} />
-              </Row>
-              <Row label="Lint" desc="Require linter to pass before merging">
-                <Toggle value={qualityGates.checks.lint.enabled} onChange={(v) => upQgCheck("lint", { enabled: v })} />
-              </Row>
-              <Row label="Lint Command" desc="Shell command to run linter">
-                <TextInput value={cmdStr(qualityGates.checks.lint.command ?? "")} onChange={(v) => upQgCheck("lint", { command: cmdArr(v) })} />
-              </Row>
-              <Row label="Type Check" desc="Require type checking to pass before merging">
-                <Toggle value={qualityGates.checks.types.enabled} onChange={(v) => upQgCheck("types", { enabled: v })} />
-              </Row>
-              <Row label="Type Command" desc="Shell command to run type checker">
-                <TextInput value={cmdStr(qualityGates.checks.types.command ?? "")} onChange={(v) => upQgCheck("types", { command: cmdArr(v) })} />
-              </Row>
-              <Row label="Build" desc="Require build to succeed before merging">
-                <Toggle value={qualityGates.checks.build.enabled} onChange={(v) => upQgCheck("build", { enabled: v })} />
-              </Row>
-              <Row label="Build Command" desc="Shell command to build the project">
-                <TextInput value={cmdStr(qualityGates.checks.build.command ?? "")} onChange={(v) => upQgCheck("build", { command: cmdArr(v) })} />
-              </Row>
-              <Row label="Max Diff Lines" desc="Maximum lines changed per PR before extra review is triggered">
-                <NumInput value={qualityGates.limits.max_diff_lines} onChange={(v) => upQgLimits({ max_diff_lines: v })} min={1} narrow />
-              </Row>
-              <Row label="Challenger" desc="Require adversarial review agent to challenge every PR">
+          <div className="qg-grid">
+            {(["tests", "lint", "types", "build"] as const).map((check) => (
+              <div key={check} className="qg-card">
+                <div className="qg-card-header">
+                  <Toggle value={qualityGates.checks[check].enabled} onChange={(v) => upQgCheck(check, { enabled: v })} />
+                  <span className="qg-card-title">{check.charAt(0).toUpperCase() + check.slice(1)}</span>
+                </div>
+                <label>Command</label>
+                <textarea
+                  className="qg-command-textarea"
+                  value={cmdStr(qualityGates.checks[check].command ?? "")}
+                  onChange={(e) => upQgCheck(check, { command: cmdArr(e.target.value) })}
+                  placeholder={`e.g. npm run ${check}`}
+                />
+              </div>
+            ))}
+            <div className="qg-card">
+              <div className="qg-card-header">
+                <span className="qg-card-title">Max Diff Lines</span>
+              </div>
+              <NumInput value={qualityGates.limits.max_diff_lines} onChange={(v) => upQgLimits({ max_diff_lines: v })} min={1} narrow />
+              <div style={{ fontSize: 12, color: "var(--text-dim)", marginTop: 4 }}>Lines changed per PR before extra review</div>
+            </div>
+            <div className="qg-card">
+              <div className="qg-card-header">
                 <Toggle value={qualityGates.review.require_challenger} onChange={(v) => upQgReview({ require_challenger: v })} />
-              </Row>
-            </tbody>
-          </table>
+                <span className="qg-card-title">Challenger Review</span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-dim)" }}>Adversarial review agent challenges every PR</div>
+            </div>
+          </div>
         ) : (
           <table className="settings-table">
             <tbody>

@@ -7,9 +7,10 @@ import { BacklogTab, BlockedTab, DecisionsTab, IdeasTab } from "./components/Tab
 import { SidePanel } from "./components/SidePanel";
 import { SettingsPage } from "./components/SettingsPage";
 import { SprintReport } from "./components/SprintReport";
+import { LogTerminal } from "./components/LogTerminal";
 import "./index.css";
 
-type Tab = "sprint" | "sprint-backlog" | "backlog" | "blocked" | "decisions" | "ideas" | "report" | "settings";
+type Tab = "sprint" | "sprint-backlog" | "backlog" | "blocked" | "decisions" | "ideas" | "report" | "settings" | "logs";
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "sprint", label: "Sprint", icon: "🏃" },
@@ -19,6 +20,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "decisions", label: "Decisions", icon: "⚖️" },
   { id: "ideas", label: "Ideas", icon: "💡" },
   { id: "report", label: "Report", icon: "📊" },
+  { id: "logs", label: "Logs", icon: "📜" },
   { id: "settings", label: "Settings", icon: "⚙️" },
 ];
 
@@ -92,7 +94,7 @@ export default function App() {
           </button>
         ))}
         <div className="tab-nav-spacer" />
-        {activeTab !== "sprint" && activeTab !== "settings" && (
+        {activeTab !== "sprint" && activeTab !== "settings" && activeTab !== "logs" && (
           <button
             className={`tab-btn agent-toggle-btn ${chatPanelOpen ? "tab-active" : ""}`}
             onClick={toggleAgentPanel}
@@ -112,9 +114,10 @@ export default function App() {
           {activeTab === "decisions" && <DecisionsTab />}
           {activeTab === "ideas" && <IdeasTab />}
           {activeTab === "report" && <SprintReport />}
+          {activeTab === "logs" && <div style={{ height: "100%", display: "flex", flexDirection: "column" }}><LogTerminal /></div>}
           {activeTab === "settings" && <SettingsPage />}
         </div>
-        {chatPanelOpen && activeTab !== "sprint" && activeTab !== "settings" && (
+        {chatPanelOpen && activeTab !== "sprint" && activeTab !== "settings" && activeTab !== "logs" && (
           <>
             <div className="app-resize-handle" onMouseDown={onMouseDown} />
             <div className="app-side" style={{ width: sideWidth }}>

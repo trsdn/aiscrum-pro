@@ -986,12 +986,14 @@ export class DashboardWebServer {
         req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
         req.on("end", () => {
           try {
-            const { name, instructions, prompts, model, mode } = JSON.parse(body) as {
+            const { name, instructions, prompts, model, mode, skills, mcp_servers: mcpServers } = JSON.parse(body) as {
               name: string;
               instructions?: string;
               prompts?: Record<string, string>;
               model?: string;
               mode?: string;
+              skills?: Record<string, string>;
+              mcp_servers?: Array<{ name: string; type: string; command?: string; args?: string[]; url?: string }>;
             };
             const roleDir = path.join(rolesDir, name);
             if (!fs.existsSync(roleDir)) { res.writeHead(404); res.end(JSON.stringify({ error: "Role not found" })); return; }
@@ -1005,8 +1007,16 @@ export class DashboardWebServer {
                 if (fs.existsSync(target)) fs.writeFileSync(target, content, "utf-8");
               }
             }
-            // Save model/mode to config phases
-            if (model !== undefined || mode !== undefined) {
+            // Save skills content
+            if (skills) {
+              const skillsDir = path.join(roleDir, "skills");
+              for (const [skillName, content] of Object.entries(skills)) {
+                const skillFile = path.join(skillsDir, skillName, "SKILL.md");
+                if (fs.existsSync(skillFile)) fs.writeFileSync(skillFile, content, "utf-8");
+              }
+            }
+            // Save model/mode/mcp to config phases
+            if (model !== undefined || mode !== undefined || mcpServers !== undefined) {
               const configPath = path.join(projectPath, ".aiscrum", "config.yaml");
               if (fs.existsSync(configPath)) {
                 import("yaml").then(({ parse: parseYaml, stringify }) => {
@@ -1017,9 +1027,10 @@ export class DashboardWebServer {
                   if (!phasesObj[name]) phasesObj[name] = {};
                   if (model !== undefined) phasesObj[name].model = model || undefined;
                   if (mode !== undefined) phasesObj[name].mode = mode || undefined;
-                  // Clean empty values
+                  if (mcpServers !== undefined) phasesObj[name].mcp_servers = mcpServers.length > 0 ? mcpServers : undefined;
                   if (!phasesObj[name].model) delete phasesObj[name].model;
                   if (!phasesObj[name].mode) delete phasesObj[name].mode;
+                  if (!phasesObj[name].mcp_servers || (phasesObj[name].mcp_servers as unknown[]).length === 0) delete phasesObj[name].mcp_servers;
                   if (Object.keys(phasesObj[name]).length === 0) delete phasesObj[name];
                   copilot.phases = phasesObj;
                   cfg.copilot = copilot;
@@ -1039,8 +1050,8 @@ export class DashboardWebServer {
         const roles: Array<{
           name: string; instructions: string; prompts: Record<string, string>;
           model?: string; mode?: string;
-          skills: Array<{ name: string; description: string }>;
-          mcp_servers: Array<{ name: string; type: string; command?: string; url?: string }>;
+          skills: Array<{ name: string; description: string; content: string; dirName: string }>;
+          mcp_servers: Array<{ name: string; type: string; command?: string; url?: string; args?: string[] }>;
         }> = [];
         if (fs.existsSync(rolesDir)) {
           for (const entry of fs.readdirSync(rolesDir, { withFileTypes: true })) {
@@ -1055,8 +1066,8 @@ export class DashboardWebServer {
                 if (pf.endsWith(".md")) prompts[pf] = fs.readFileSync(path.join(promptsDir, pf), "utf-8");
               }
             }
-            // Read skills
-            const skills: Array<{ name: string; description: string }> = [];
+            // Read skills with full content
+            const skills: Array<{ name: string; description: string; content: string; dirName: string }> = [];
             const skillsDir = path.join(roleDir, "skills");
             if (fs.existsSync(skillsDir)) {
               for (const sd of fs.readdirSync(skillsDir, { withFileTypes: true })) {
@@ -1065,13 +1076,15 @@ export class DashboardWebServer {
                 if (fs.existsSync(skillFile)) {
                   const raw = fs.readFileSync(skillFile, "utf-8");
                   const fmMatch = raw.match(/^---\n([\s\S]*?)\n---/);
+                  let skillName = sd.name;
+                  let desc = "";
                   if (fmMatch) {
                     const nameMatch = fmMatch[1].match(/name:\s*["']?(.+?)["']?\s*$/m);
                     const descMatch = fmMatch[1].match(/description:\s*["']?(.+?)["']?\s*$/m);
-                    skills.push({ name: nameMatch?.[1] ?? sd.name, description: descMatch?.[1] ?? "" });
-                  } else {
-                    skills.push({ name: sd.name, description: "" });
+                    skillName = nameMatch?.[1] ?? sd.name;
+                    desc = descMatch?.[1] ?? "";
                   }
+                  skills.push({ name: skillName, description: desc, content: raw, dirName: sd.name });
                 }
               }
             }

@@ -284,13 +284,13 @@
   font-size: 12px;
   font-family: "SF Mono", "Fira Code", monospace;
   resize: vertical;
-  min-height: 200px;
+  min-height: 350px;
   width: 100%;
   box-sizing: border-box;
 }
 
 .role-editor-body textarea.role-prompt-textarea {
-  min-height: 300px;
+  min-height: 500px;
 }
 
 .role-editor-body textarea:focus {
@@ -417,4 +417,99 @@
 .role-skill-desc,
 .role-mcp-detail {
   color: var(--text-dim);
+}
+
+/* Quality Gates grid */
+.qg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 4px;
+}
+
+.qg-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.qg-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.qg-card-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.qg-command-textarea {
+  width: 100%;
+  min-height: 60px;
+  background: #0d1117;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 12px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.qg-command-textarea:focus {
+  border-color: #58a6ff;
+  outline: none;
+}
+
+/* Role section labels */
+.role-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 8px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.role-empty-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.role-empty-hint code {
+  color: #d2a8ff;
+}
+
+/* Skill textarea */
+.role-skill-textarea {
+  min-height: 200px !important;
+}
+
+/* MCP edit row */
+.role-mcp-edit-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  align-items: center;
+}
+
+.role-mcp-edit-row .settings-input {
+  flex: 1;
+}
+
+.btn-danger {
+  background: rgba(248, 81, 73, 0.15);
+  color: #f85149;
+  border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(248, 81, 73, 0.3);
 }
