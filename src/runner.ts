@@ -481,6 +481,8 @@ export class SprintRunner {
       this.state.error = "Sprint stopped by user";
       this.persistState();
       this.events.emitTyped("sprint:stopped", { sprintNumber: this.config.sprintNumber });
+      // Release the lock in case no fullCycle() is running to do it
+      try { releaseLock(this.config); } catch { /* may not be locked */ }
     }
   }
 

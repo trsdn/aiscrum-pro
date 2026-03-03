@@ -361,6 +361,15 @@ function registerWeb(program: Command): void {
         // Start/loop functions
         let sprintLimit = (opts.maxSprints as number | undefined) ?? config.sprint.max_sprints ?? 0;
         let activeRunner: SprintRunner = runner;
+
+        // Create a fresh runner for each start (the previous one may be aborted/stopped)
+        const createFreshRunner = () => {
+          const fresh = new SprintRunner(buildSprintConfig(config, initialSprint), eventBus);
+          fresh.loadSavedState();
+          activeRunner = fresh;
+          return fresh;
+        };
+
         const startLoop = () => {
           SprintRunner.sprintLoop(
             (sprintNumber) => buildSprintConfig(config, sprintNumber),
@@ -375,8 +384,8 @@ function registerWeb(program: Command): void {
         };
 
         const startOnce = () => {
-          activeRunner = runner;
-          runner.fullCycle().catch((err: unknown) => {
+          const fresh = createFreshRunner();
+          fresh.fullCycle().catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             eventBus.emitTyped("sprint:error", { error: msg });
             eventBus.emitTyped("log", { level: "error", message: `Sprint crashed: ${msg}` });
