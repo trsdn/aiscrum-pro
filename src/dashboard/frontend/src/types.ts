@@ -96,6 +96,7 @@ export interface AcpSession {
   model?: string;
   startedAt: string;
   endedAt?: string | null;
+  outcome?: "completed" | "approved" | "changes_requested" | "failed" | null;
 }
 
 /** Chat session. */

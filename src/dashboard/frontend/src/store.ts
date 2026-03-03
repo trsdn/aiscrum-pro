@@ -652,6 +652,7 @@ function handleSprintEvent(
         planner: "Planning implementation",
         "test-engineer": "Writing tests (TDD)",
         developer: "Implementing changes",
+        reviewer: "Code review",
         "quality-reviewer": "Reviewing acceptance criteria",
         review: "Sprint review",
         retro: "Sprint retrospective",
@@ -671,13 +672,19 @@ function handleSprintEvent(
     }
 
     case "session:end": {
-      // Mark the most recent active session activity as done
+      const outcome = (p?.outcome as string) ?? "completed";
       const acts = get().activities;
       const idx = [...acts].reverse().findIndex((a) => a.type === "session" && a.status === "active");
       if (idx >= 0) {
         const realIdx = acts.length - 1 - idx;
         const updated = [...acts];
-        updated[realIdx] = { ...updated[realIdx]!, status: "done" };
+        const endStatus = outcome === "failed" || outcome === "changes_requested" ? "failed" : "done";
+        const suffix = outcome === "changes_requested" ? " — changes requested" : outcome === "failed" ? " — failed" : "";
+        updated[realIdx] = {
+          ...updated[realIdx]!,
+          status: endStatus,
+          label: updated[realIdx]!.label + suffix,
+        };
         set({ activities: updated });
       }
       break;

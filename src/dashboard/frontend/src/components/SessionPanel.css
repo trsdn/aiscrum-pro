@@ -30,6 +30,13 @@
 .session-item:hover { background: var(--bg-hover); }
 
 .session-icon { flex-shrink: 0; font-size: 14px; }
+.session-icon-active {
+  animation: pulse-icon 1.5s ease-in-out infinite;
+}
+@keyframes pulse-icon {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 .session-role { font-weight: 500; }
 .session-model {
   font-size: 11px;
@@ -46,6 +53,7 @@
 }
 
 .session-ended { opacity: 0.5; }
+.session-active { background: rgba(var(--green-rgb, 46, 160, 67), 0.08); }
 .session-viewing { background: var(--bg-hover); border-left: 2px solid var(--blue); }
 .session-viewing-badge {
   font-size: 10px;
