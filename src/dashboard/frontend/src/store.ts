@@ -648,9 +648,25 @@ function handleSprintEvent(
       const role = (p?.role as string) ?? "agent";
       const issueNum = p?.issueNumber as number | undefined;
       const model = (p?.model as string) ?? null;
-      const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
-      const label = issueNum ? `${roleLabel} Agent #${issueNum}` : `${roleLabel} Agent`;
-      addActivity(set, get(), "session", label, model, "active");
+      const ROLE_DESCRIPTIONS: Record<string, string> = {
+        planner: "Planning implementation",
+        "test-engineer": "Writing tests (TDD)",
+        developer: "Implementing changes",
+        "quality-reviewer": "Reviewing acceptance criteria",
+        review: "Sprint review",
+        retro: "Sprint retrospective",
+        "retro-apply": "Applying retro improvements",
+        refinement: "Refining backlog issues",
+        planning: "Planning sprint scope",
+      };
+      const desc = ROLE_DESCRIPTIONS[role] ?? `${role.charAt(0).toUpperCase() + role.slice(1)} Agent`;
+      // Look up issue title from store
+      const issueTitle = issueNum
+        ? get().issues.find((i) => i.number === issueNum)?.title ?? null
+        : null;
+      const label = issueNum ? `${desc} — #${issueNum}` : desc;
+      const detail = [issueTitle, model].filter(Boolean).join(" · ") || null;
+      addActivity(set, get(), "session", label, detail, "active");
       break;
     }
 
