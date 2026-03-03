@@ -470,13 +470,13 @@ describe("SprintRunner", { timeout: 15000 }, () => {
       expect(runner.getState().phase).toBe("execute");
     });
 
-    it("checkPaused blocks until resumed", async () => {
+    it("checkInterrupted blocks until resumed", async () => {
       const runner = new SprintRunner(config);
       (runner as any).state.phase = "execute";
       runner.pause();
 
       let resolved = false;
-      const promise = (runner as any).checkPaused().then(() => {
+      const promise = (runner as any).checkInterrupted().then(() => {
         resolved = true;
       });
 
@@ -487,6 +487,45 @@ describe("SprintRunner", { timeout: 15000 }, () => {
       runner.resume();
       await promise;
       expect(resolved).toBe(true);
+    });
+  });
+
+  describe("stop", () => {
+    it("sets phase to stopped and disconnects ACP", async () => {
+      const { runSprintPlanning } = await import("../src/ceremonies/planning.js");
+      vi.mocked(runSprintPlanning).mockImplementation(async () => {
+        // Simulate a slow planning phase — stop will fire during this
+        await new Promise((r) => setTimeout(r, 200));
+        return { sprint_issues: [] };
+      });
+
+      const runner = new SprintRunner(config);
+      const cyclePromise = runner.fullCycle();
+
+      // Give it time to start, then stop
+      await new Promise((r) => setTimeout(r, 50));
+      runner.stop();
+
+      const finalState = await cyclePromise;
+      expect(finalState.phase).toBe("stopped");
+      expect(finalState.error).toBe("Sprint stopped by user");
+    });
+
+    it("stop unblocks a paused runner", async () => {
+      const runner = new SprintRunner(config);
+      (runner as any).state.phase = "execute";
+      runner.pause();
+
+      let threw = false;
+      const promise = (runner as any).checkInterrupted().catch((err: Error) => {
+        threw = true;
+        expect(err.name).toBe("SprintAbortedError");
+      });
+
+      await new Promise((r) => setTimeout(r, 50));
+      runner.stop();
+      await promise;
+      expect(threw).toBe(true);
     });
   });
 

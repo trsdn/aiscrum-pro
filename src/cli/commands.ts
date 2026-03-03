@@ -360,11 +360,13 @@ function registerWeb(program: Command): void {
 
         // Start/loop functions
         let sprintLimit = (opts.maxSprints as number | undefined) ?? config.sprint.max_sprints ?? 0;
+        let activeRunner: SprintRunner = runner;
         const startLoop = () => {
           SprintRunner.sprintLoop(
             (sprintNumber) => buildSprintConfig(config, sprintNumber),
             eventBus,
             () => sprintLimit,
+            (r) => { activeRunner = r; },
           ).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             eventBus.emitTyped("sprint:error", { error: msg });
@@ -373,6 +375,7 @@ function registerWeb(program: Command): void {
         };
 
         const startOnce = () => {
+          activeRunner = runner;
           runner.fullCycle().catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             eventBus.emitTyped("sprint:error", { error: msg });
@@ -406,18 +409,15 @@ function registerWeb(program: Command): void {
           port: opts.port as number,
           host: "localhost",
           eventBus,
-          getState: () => runner.getState(),
+          getState: () => activeRunner.getState(),
           getIssues: () => currentIssues,
           onStart,
-          onPause: () => runner.pause(),
-          onResume: () => runner.resume(),
-          onStop: () => {
-            runner.pause();
-            eventBus.emitTyped("log", { level: "warn", message: "Sprint stopped by user" });
-          },
+          onPause: () => activeRunner.pause(),
+          onResume: () => activeRunner.resume(),
+          onStop: () => activeRunner.stop(),
           onSwitchSprint: switchToSprint,
           onModeChange: (mode) => {
-            runner.setHitlMode(mode === "hitl");
+            activeRunner.setHitlMode(mode === "hitl");
             logger.info({ mode }, "execution mode changed");
           },
           onSetSprintLimit: (limit) => {

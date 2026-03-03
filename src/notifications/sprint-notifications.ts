@@ -34,4 +34,14 @@ export function attachSprintNotifications(
       ["rotating_light"],
     );
   });
+
+  eventBus.onTyped("sprint:stopped", ({ sprintNumber }) => {
+    sendNotification(
+      ntfyConfig,
+      "⏹ Sprint Stopped",
+      `Sprint ${sprintNumber} was stopped by user`,
+      "default",
+      ["stop_sign"],
+    );
+  });
 }

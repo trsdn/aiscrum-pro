@@ -39,7 +39,7 @@
 .phase-execute { background: var(--yellow); color: #000; }
 .phase-review, .phase-retro { background: var(--purple); color: #000; }
 .phase-complete { background: var(--green); color: #000; }
-.phase-failed { background: var(--red); color: #fff; }
+.phase-failed, .phase-stopped { background: var(--red); color: #fff; }
 .phase-paused { background: var(--yellow); color: #000; }
 
 .viewing-indicator {

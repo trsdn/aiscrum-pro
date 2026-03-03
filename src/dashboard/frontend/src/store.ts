@@ -605,6 +605,11 @@ function handleSprintEvent(
       addActivity(set, get(), "sprint", "Sprint complete", null, "done");
       break;
 
+    case "sprint:stopped":
+      set((prev) => ({ ...prev, state: { ...prev.state, phase: "stopped" } }));
+      addActivity(set, get(), "sprint", "Sprint stopped by user", null, "done");
+      break;
+
     case "sprint:error":
       set((prev) => ({ ...prev, state: { ...prev.state, phase: "failed" } }));
       addActivity(set, get(), "error", `Sprint error: ${p?.error}`, null, "failed");

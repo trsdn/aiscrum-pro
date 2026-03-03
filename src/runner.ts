@@ -38,7 +38,16 @@ export type SprintPhase =
   | "retro"
   | "complete"
   | "paused"
+  | "stopped"
   | "failed";
+
+/** Thrown when a sprint is aborted via stop(). */
+export class SprintAbortedError extends Error {
+  constructor() {
+    super("Sprint stopped by user");
+    this.name = "SprintAbortedError";
+  }
+}
 
 export interface SprintState {
   version: string;
@@ -63,6 +72,7 @@ export class SprintRunner {
   private client: AcpClient;
   private config: SprintConfig;
   private paused = false;
+  private aborted = false;
   private hitlMode = false;
   private phaseBeforePause: SprintPhase | null = null;
   private readonly log;
@@ -143,21 +153,21 @@ export class SprintRunner {
             this.events.emitTyped("log", { level: "info", message: "⏸ HITL: Pausing before execution — review the plan and resume in dashboard to continue" });
             this.pause();
           }
-          await this.checkPaused();
+          await this.checkInterrupted();
           const workerModel = (await resolveSessionConfig(this.config, "worker")).model;
           this.transition("execute", workerModel, "Worker Agent");
           result = await this.runExecute(plan);
         }
 
         if (!review || previous.phase === "review") {
-          await this.checkPaused();
+          await this.checkInterrupted();
           const reviewerModel = (await resolveSessionConfig(this.config, "reviewer")).model;
           this.transition("review", reviewerModel, "Review Agent");
           review = await this.runReview(result);
         }
 
         if (!previous.retro || previous.phase === "retro") {
-          await this.checkPaused();
+          await this.checkInterrupted();
           this.transition("retro", undefined, "Retro Agent");
           const retro = await this.runRetro(result, review);
           this.state.retro = retro;
@@ -179,7 +189,7 @@ export class SprintRunner {
       await this.client.connect();
 
       // 2. plan
-      await this.checkPaused();
+      await this.checkInterrupted();
       const plannerModel = (await resolveSessionConfig(this.config, "planner")).model;
       this.transition("plan", plannerModel, "Planning Agent");
       const plan = await this.runPlan();
@@ -201,19 +211,19 @@ export class SprintRunner {
         this.events.emitTyped("log", { level: "info", message: "⏸ HITL: Pausing before execution — review the plan and resume in dashboard to continue" });
         this.pause();
       }
-      await this.checkPaused();
+      await this.checkInterrupted();
       const workerModel = (await resolveSessionConfig(this.config, "worker")).model;
       this.transition("execute", workerModel, "Worker Agent");
       const result = await this.runExecute(plan);
 
       // 4. review
-      await this.checkPaused();
+      await this.checkInterrupted();
       const reviewerModel = (await resolveSessionConfig(this.config, "reviewer")).model;
       this.transition("review", reviewerModel, "Review Agent");
       const review = await this.runReview(result);
 
       // 5. retro
-      await this.checkPaused();
+      await this.checkInterrupted();
       this.transition("retro", undefined, "Retro Agent");
       const retro = await this.runRetro(result, review);
 
@@ -226,11 +236,18 @@ export class SprintRunner {
 
       return this.state;
     } catch (err: unknown) {
+      const isStopped = err instanceof SprintAbortedError;
       const message = err instanceof Error ? err.message : String(err);
-      this.state.phase = "failed";
+      this.state.phase = isStopped ? "stopped" : "failed";
       this.state.error = message;
-      this.log.error({ error: message }, "Sprint cycle failed");
-      this.events.emitTyped("sprint:error", { error: message });
+
+      if (isStopped) {
+        this.log.info("Sprint stopped by user");
+        this.events.emitTyped("sprint:stopped", { sprintNumber: this.config.sprintNumber });
+      } else {
+        this.log.error({ error: message }, "Sprint cycle failed");
+        this.events.emitTyped("sprint:error", { error: message });
+      }
 
       try {
         await this.client.disconnect();
@@ -256,6 +273,7 @@ export class SprintRunner {
     configBuilder: (sprintNumber: number) => SprintConfig,
     eventBus?: SprintEventBus,
     maxSprints: number | (() => number) = 0,
+    onRunner?: (runner: SprintRunner) => void,
   ): Promise<SprintState[]> {
     const log = defaultLogger.child({ component: "sprint-loop" });
     const results: SprintState[] = [];
@@ -292,6 +310,7 @@ export class SprintRunner {
 
       const config = configBuilder(sprintNumber);
       const runner = new SprintRunner(config, bus);
+      onRunner?.(runner);
       const state = await runner.fullCycle();
       results.push(state);
 
@@ -443,6 +462,17 @@ export class SprintRunner {
     }
   }
 
+  /** Stop the sprint — aborts execution, disconnects ACP, releases lock. */
+  stop(): void {
+    if (this.aborted) return;
+    this.aborted = true;
+    // Unblock the pause loop so checkInterrupted() can throw
+    this.paused = false;
+    this.phaseBeforePause = null;
+    this.log.info("Sprint stop requested — aborting");
+    this.events.emitTyped("log", { level: "warn", message: "Sprint stopped by user" });
+  }
+
   /** Get current sprint state */
   getState(): SprintState {
     return { ...this.state };
@@ -507,9 +537,12 @@ export class SprintRunner {
     }
   }
 
-  private async checkPaused(): Promise<void> {
+  /** Block while paused; throw if aborted. Called at every phase boundary. */
+  private async checkInterrupted(): Promise<void> {
+    if (this.aborted) throw new SprintAbortedError();
     while (this.paused) {
       await new Promise((resolve) => setTimeout(resolve, 500));
+      if (this.aborted) throw new SprintAbortedError();
     }
   }
 

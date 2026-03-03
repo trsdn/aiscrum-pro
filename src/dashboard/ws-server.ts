@@ -358,7 +358,7 @@ export class DashboardWebServer {
     const bus = this.options.eventBus;
     const eventNames: (keyof SprintEngineEvents)[] = [
       "phase:change", "issue:start", "issue:progress", "issue:done", "issue:fail",
-      "worker:output", "sprint:start", "sprint:planned", "sprint:complete", "sprint:error",
+      "worker:output", "sprint:start", "sprint:planned", "sprint:complete", "sprint:stopped", "sprint:error",
       "sprint:paused", "sprint:resumed", "log",
     ];
 
