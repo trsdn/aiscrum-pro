@@ -7,11 +7,11 @@ export const SprintPlanSchema = z.object({
       z.object({
         number: z.coerce.number(),
         title: z.string().default(""),
-        ice_score: z.number().default(0),
+        ice_score: z.number().nullable().default(0).transform((v) => v ?? 0),
         depends_on: z.array(z.coerce.number()).default([]),
         acceptanceCriteria: z.string().default(""),
         expectedFiles: z.array(z.string()).default([]),
-        points: z.number().default(0),
+        points: z.number().nullable().default(0).transform((v) => v ?? 0),
       }),
     )
     .min(1),
