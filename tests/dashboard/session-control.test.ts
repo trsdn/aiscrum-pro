@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../src/logger.js", () => {
   const noop = vi.fn();
-  return { logger: { child: () => ({ info: noop, warn: noop, error: noop, debug: noop }) } };
+  return { logger: { child: () => ({ info: noop, warn: noop, error: noop, debug: noop }) }, appendErrorLog: noop, getErrorLogDir: () => undefined };
 });
 
 import { SessionController } from "../../src/dashboard/session-control.js";

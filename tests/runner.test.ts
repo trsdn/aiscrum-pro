@@ -132,6 +132,7 @@ vi.mock("../src/logger.js", () => {
       child: vi.fn().mockReturnValue(childLogger),
     },
     createLogger: vi.fn().mockReturnValue(childLogger),
+    appendErrorLog: noop,
   };
 });
 

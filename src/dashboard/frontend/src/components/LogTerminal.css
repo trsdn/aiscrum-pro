@@ -15,6 +15,60 @@
   flex-shrink: 0;
 }
 
+.log-terminal-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.log-mode-toggle {
+  display: flex;
+  gap: 2px;
+  background: #0d1117;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.log-mode-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.log-mode-btn:hover {
+  background: #21262d;
+}
+
+.log-mode-btn.active {
+  background: #21262d;
+  color: var(--text);
+}
+
+.log-file-select {
+  background: #0d1117;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.log-file-select:focus {
+  outline: none;
+  border-color: var(--blue);
+}
+
+.log-context {
+  color: #484f58;
+  font-size: 11px;
+}
+
 .log-terminal-title {
   font-size: 12px;
   font-weight: 600;

@@ -14,7 +14,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import type { SprintEventBus, SprintEngineEvents } from "../events.js";
 import type { SprintState } from "../runner.js";
 import type { ConfigFile } from "../config.js";
-import { logger } from "../logger.js";
+import { logger, appendErrorLog, getErrorLogDir } from "../logger.js";
 import { ChatManager, type ChatRole } from "./chat-manager.js";
 import { writeSessionLog } from "./session-logger.js";
 import { sessionController } from "./session-control.js";
@@ -370,6 +370,17 @@ export class DashboardWebServer {
         this.eventBuffer.push({ eventName, payload });
         if (this.eventBuffer.length > EVENT_BUFFER_MAX) {
           this.eventBuffer.shift();
+        }
+        // Write errors and warnings to daily log file
+        if (eventName === "sprint:error" || eventName === "issue:fail") {
+          const p = payload as Record<string, unknown>;
+          appendErrorLog("error", `${eventName}: ${p.message ?? p.error ?? JSON.stringify(p)}`, { event: eventName });
+        }
+        if (eventName === "log") {
+          const p = payload as { level: string; message: string };
+          if (p.level === "error" || p.level === "warn") {
+            appendErrorLog(p.level as "error" | "warn", p.message, { event: eventName });
+          }
         }
       });
     }
@@ -808,7 +819,12 @@ export class DashboardWebServer {
 
     // API routes
     if (url.pathname.startsWith("/api/")) {
-      this.handleApi(url, req, res);
+      try {
+        this.handleApi(url, req, res);
+      } catch (err) {
+        appendErrorLog("error", `API error: ${url.pathname} — ${String(err)}`, { path: url.pathname });
+        if (!res.headersSent) { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); }
+      }
       return;
     }
 
@@ -1140,6 +1156,41 @@ export class DashboardWebServer {
           res.writeHead(200); res.end(JSON.stringify(null));
         }
       } catch (err) { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); }
+      return;
+    }
+
+    // /api/logs — list log files and read log content
+    if (pathname === "/api/logs") {
+      const logsDir = getErrorLogDir();
+      if (!logsDir || !fs.existsSync(logsDir)) {
+        res.writeHead(200); res.end(JSON.stringify({ files: [], entries: [] }));
+        return;
+      }
+      const file = url.searchParams.get("file");
+      const tail = parseInt(url.searchParams.get("tail") ?? "200", 10);
+      if (file) {
+        // Read specific log file
+        const safeName = path.basename(file);
+        const filePath = path.join(logsDir, safeName);
+        if (!fs.existsSync(filePath)) { res.writeHead(404); res.end(JSON.stringify({ error: "Log file not found" })); return; }
+        const raw = fs.readFileSync(filePath, "utf-8");
+        const lines = raw.trim().split("\n").filter(Boolean);
+        const entries = lines.slice(-tail).map((line) => {
+          try { return JSON.parse(line); } catch { return { time: "", level: "info", message: line }; }
+        });
+        res.writeHead(200); res.end(JSON.stringify({ file: safeName, entries }));
+      } else {
+        // List log files
+        const files = fs.readdirSync(logsDir)
+          .filter((f) => f.endsWith(".log"))
+          .sort()
+          .reverse()
+          .map((f) => {
+            const stat = fs.statSync(path.join(logsDir, f));
+            return { name: f, size: stat.size, modified: stat.mtime.toISOString() };
+          });
+        res.writeHead(200); res.end(JSON.stringify({ files }));
+      }
       return;
     }
 

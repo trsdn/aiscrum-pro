@@ -83,6 +83,7 @@ vi.mock("../../src/logger.js", () => {
   });
   return {
     logger: { child },
+    appendErrorLog: noop,
   };
 });
 

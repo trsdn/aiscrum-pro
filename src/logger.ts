@@ -7,10 +7,6 @@ export type { Logger };
 
 /**
  * Configuration options for creating a pino logger instance.
- *
- * @property level - Log severity threshold. Messages below this level are suppressed.
- * @property name - Logger name included in every log entry.
- * @property pretty - Enable pino-pretty for human-readable output. Defaults to true in non-production.
  */
 export interface LoggerOptions {
   level?: "debug" | "info" | "warn" | "error";
@@ -20,10 +16,6 @@ export interface LoggerOptions {
 
 /**
  * Contextual metadata attached to child loggers for sprint-scoped logging.
- *
- * @property sprint - Sprint number.
- * @property issue - Issue number being worked on.
- * @property ceremony - Active ceremony name (e.g., "planning", "review").
  */
 export interface SprintContext {
   sprint?: number;
@@ -32,6 +24,49 @@ export interface SprintContext {
 }
 
 let logDestination: DestinationStream | undefined;
+let errorLogDir: string | undefined;
+
+/**
+ * Get the directory where daily error logs are stored.
+ */
+export function getErrorLogDir(): string | undefined {
+  return errorLogDir;
+}
+
+/**
+ * Initialize daily error log file. Creates a logs/ directory and writes
+ * errors/warnings to a date-stamped file (e.g. logs/2026-03-03.log).
+ * Call once at startup.
+ */
+export function initErrorLogFile(projectPath: string): void {
+  errorLogDir = path.join(projectPath, "logs");
+  fs.mkdirSync(errorLogDir, { recursive: true });
+}
+
+function getErrorLogPath(): string | undefined {
+  if (!errorLogDir) return undefined;
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return path.join(errorLogDir, `${date}.log`);
+}
+
+/**
+ * Append a structured log entry to today's error log file.
+ */
+export function appendErrorLog(level: "error" | "warn" | "info", message: string, context?: Record<string, unknown>): void {
+  const logPath = getErrorLogPath();
+  if (!logPath) return;
+  const entry = {
+    time: new Date().toISOString(),
+    level,
+    message,
+    ...context,
+  };
+  try {
+    fs.appendFileSync(logPath, JSON.stringify(entry) + "\n", "utf-8");
+  } catch {
+    // Can't log a logging failure — silently skip
+  }
+}
 
 /**
  * Redirect all logger output to a file. Call this before rendering the TUI
@@ -40,7 +75,6 @@ let logDestination: DestinationStream | undefined;
 export function redirectLogToFile(filePath: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   logDestination = pino.destination({ dest: filePath, sync: false });
-  // Recreate the default logger with the new destination
   const opts = {
     name: logger.bindings().name ?? "sprint-runner",
     level: logger.level,
@@ -56,19 +90,11 @@ export function redirectLogToFile(filePath: string): void {
     },
   };
   const newLogger = pino(opts, logDestination);
-  // Copy child loggers will inherit the new destination via the parent
   Object.assign(logger, newLogger);
 }
 
 /**
  * Create a new pino logger with the given options.
- *
- * Sensitive fields (password, token, secret, apiKey, authorization) are
- * automatically redacted. If {@link redirectLogToFile} was called, the
- * logger writes to the file destination instead of stdout.
- *
- * @param options - Logger configuration. Defaults to info level with pretty output in non-production.
- * @returns A configured pino Logger instance.
  */
 export function createLogger(options: LoggerOptions = {}): Logger {
   const {

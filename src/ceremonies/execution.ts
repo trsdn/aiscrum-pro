@@ -27,7 +27,7 @@ import { setLabel } from "../github/labels.js";
 import { getChangedFiles } from "../git/diff-analysis.js";
 import { getPRStats } from "../git/merge.js";
 import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
-import { logger } from "../logger.js";
+import { logger, appendErrorLog } from "../logger.js";
 import type { SprintEventBus } from "../events.js";
 import { buildBranch, buildQualityGateConfig } from "./quality-retry.js";
 import { sessionController } from "../dashboard/session-control.js";
@@ -721,6 +721,7 @@ export async function executeIssue(
     }
   } catch (err: unknown) {
     errorMessage = err instanceof Error ? err.message : String(err);
+    appendErrorLog("error", `Issue #${issue.number} execution failed: ${errorMessage}`, { issue: issue.number });
     log.error({ err: errorMessage, issue: issue.number }, "issue execution failed");
     status = "failed";
   } finally {

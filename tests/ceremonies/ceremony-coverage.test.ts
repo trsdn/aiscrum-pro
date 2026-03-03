@@ -37,7 +37,7 @@ vi.mock("../../src/logger.js", () => {
     debug: vi.fn(),
     child: vi.fn().mockReturnThis(),
   };
-  return { logger: mock };
+  return { logger: mock, appendErrorLog: vi.fn() };
 });
 
 vi.mock("../../src/metrics.js", () => ({

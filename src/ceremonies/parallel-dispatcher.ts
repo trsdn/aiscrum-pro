@@ -20,7 +20,7 @@ import { buildQualityGateConfig } from "./quality-retry.js";
 import { escalateToStakeholder } from "../enforcement/escalation.js";
 import { setLabel } from "../github/labels.js";
 import { addComment } from "../github/issues.js";
-import { logger } from "../logger.js";
+import { logger, appendErrorLog } from "../logger.js";
 
 import type { SprintEventBus } from "../events.js";
 
@@ -86,12 +86,14 @@ async function runPreMergeVerification(
     return { passed: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    appendErrorLog("error", `Pre-merge verification error: ${msg}`, { tmpDir });
     return { passed: false, reason: `Pre-merge verification error: ${msg}` };
   } finally {
     // 5. Cleanup
     try {
       await removeWorktree(tmpDir);
     } catch {
+      appendErrorLog("warn", "failed to cleanup pre-merge worktree", { tmpDir });
       log.warn({ tmpDir }, "failed to cleanup pre-merge worktree");
     }
   }
@@ -153,6 +155,7 @@ export async function runParallelExecution(
             rebaseSucceeded = false;
             // Rebase failed (conflicts) — abort and let pre-merge catch it
             try { await execFile("git", ["rebase", "--abort"], { cwd: rebaseTmpDir }); } catch { /* ignore */ }
+            appendErrorLog("warn", `rebase on latest main failed — issue #${result.issueNumber}`, { issue: result.issueNumber, err: String(rebaseErr) });
             log.warn({ issue: result.issueNumber, err: String(rebaseErr) }, "rebase on latest main failed — proceeding to pre-merge");
           } finally {
             try { await removeWorktree(rebaseTmpDir); } catch { /* ignore */ }
@@ -196,6 +199,7 @@ export async function runParallelExecution(
                             }, { ntfyEnabled: !!config.ntfy?.enabled, ntfyTopic: config.ntfy?.topic }, eventBus);
                           }
                         } catch (verifyErr: unknown) {
+                          appendErrorLog("error", `post-merge verification failed (retry) — issue #${retryResult.issueNumber}`, { issue: retryResult.issueNumber, err: String(verifyErr) });
                           log.error({ err: verifyErr, issue: retryResult.issueNumber }, "post-merge verification could not run");
                         }
                         continue;
@@ -253,12 +257,14 @@ export async function runParallelExecution(
                   }, { ntfyEnabled: !!config.ntfy?.enabled, ntfyTopic: config.ntfy?.topic }, eventBus);
                 }
               } catch (verifyErr: unknown) {
+                appendErrorLog("error", `post-merge verification FAILED — issue #${result.issueNumber}, halting merges`, { issue: result.issueNumber, err: String(verifyErr) });
                 log.error({ err: verifyErr, issue: result.issueNumber }, "post-merge verification could not run — halting further merges");
                 break;
               }
             }
           } catch (err: unknown) {
             mergeConflicts++;
+            appendErrorLog("error", `merge error — issue #${result.issueNumber}`, { issue: result.issueNumber, err: String(err) });
             log.error({ issue: result.issueNumber, err }, "merge error");
             result.status = "failed";
             result.qualityGatePassed = false;

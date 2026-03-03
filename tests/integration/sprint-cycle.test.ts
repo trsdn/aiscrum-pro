@@ -61,7 +61,7 @@ vi.mock("../../src/enforcement/escalation.js", () => ({ escalateToStakeholder: v
 vi.mock("../../src/logger.js", () => {
   const noop = vi.fn();
   const childLogger = { info: noop, warn: noop, error: noop, debug: noop, child: vi.fn().mockReturnThis() };
-  return { logger: { info: noop, warn: noop, error: noop, debug: noop, child: vi.fn().mockReturnValue(childLogger) }, createLogger: vi.fn().mockReturnValue(childLogger) };
+  return { logger: { info: noop, warn: noop, error: noop, debug: noop, child: vi.fn().mockReturnValue(childLogger) }, createLogger: vi.fn().mockReturnValue(childLogger), appendErrorLog: noop };
 });
 
 // --- Helpers ---

@@ -28,7 +28,7 @@ vi.mock("../../src/logger.js", () => {
     error: noop,
     child: () => childLogger,
   };
-  return { logger: childLogger };
+  return { logger: childLogger, appendErrorLog: noop };
 });
 
 const { mergeBranch } = await import("../../src/git/merge.js");

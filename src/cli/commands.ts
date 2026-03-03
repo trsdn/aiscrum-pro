@@ -17,7 +17,7 @@ import { holisticDriftCheck } from "../enforcement/drift-control.js";
 import { getNextOpenMilestone } from "../github/milestones.js";
 import { SprintRunner } from "../runner.js";
 import { SprintEventBus } from "../events.js";
-import { logger, redirectLogToFile } from "../logger.js";
+import { logger, redirectLogToFile, initErrorLogFile } from "../logger.js";
 import type { SprintIssue } from "../types.js";
 import {
   buildSprintConfig,
@@ -283,6 +283,7 @@ function registerWeb(program: Command): void {
         }
 
         redirectLogToFile(opts.logFile as string);
+        initErrorLogFile(process.cwd());
         logger.info({ sprint: initialSprint }, "Launching web dashboard");
 
         const eventBus = new SprintEventBus();
