@@ -2,7 +2,7 @@ import { Allotment } from "allotment";
 import "allotment/dist/style.css";
 import { IssueList } from "./IssueList";
 import { SessionPanel } from "./SessionPanel";
-import { LogTerminal } from "./LogTerminal";
+import { ActivityFeed } from "./ActivityFeed";
 import { SidePanel } from "./SidePanel";
 import "./SprintTab.css";
 
@@ -10,7 +10,7 @@ export function SprintTab() {
   return (
     <main className="sprint-main">
       <Allotment>
-        {/* Left + Center: Issues, Sessions, Log */}
+        {/* Left + Center: Issues, Sessions, Activity */}
         <Allotment.Pane minSize={400}>
           <Allotment vertical>
             <Allotment.Pane minSize={150}>
@@ -32,7 +32,9 @@ export function SprintTab() {
             </Allotment.Pane>
 
             <Allotment.Pane minSize={80} preferredSize={180}>
-              <LogTerminal />
+              <div className="panel activity-panel">
+                <ActivityFeed />
+              </div>
             </Allotment.Pane>
           </Allotment>
         </Allotment.Pane>

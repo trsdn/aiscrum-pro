@@ -785,7 +785,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   },
 
   openSession: (id: string) => {
-    set({ viewingSessionId: id });
+    set({ viewingSessionId: id, activeChatId: `acp:${id}` });
     const store = get();
     store.send({ type: "session:subscribe", sessionId: id });
   },
@@ -795,6 +795,6 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     if (store.viewingSessionId) {
       store.send({ type: "session:unsubscribe", sessionId: store.viewingSessionId });
     }
-    set({ viewingSessionId: null });
+    set({ viewingSessionId: null, activeChatId: store.generalChatId });
   },
 }));

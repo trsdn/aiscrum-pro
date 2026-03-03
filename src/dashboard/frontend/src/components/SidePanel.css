@@ -97,6 +97,28 @@
   opacity: 1;
 }
 
+.session-tab-acp {
+  border-left: 2px solid var(--yellow, #e5c07b);
+}
+
+.acp-session-model {
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg-hover);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin-left: auto;
+}
+
+.acp-output {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.activity-panel {
+  overflow-y: auto;
+}
+
 .side-panel-close {
   margin-left: auto;
   font-size: 12px;

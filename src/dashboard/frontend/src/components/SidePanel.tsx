@@ -65,6 +65,17 @@ export function SidePanel() {
   const sidePanelRole = useDashboardStore((s) => s.sidePanelRole);
   const send = useDashboardStore((s) => s.send);
 
+  // ACP session viewer state
+  const acpSessions = useDashboardStore((s) => s.acpSessions);
+  const viewingSessionId = useDashboardStore((s) => s.viewingSessionId);
+  const sessionOutput = useDashboardStore((s) => s.sessionOutput);
+  const closeAcpSession = useDashboardStore((s) => s.closeSession);
+
+  const isAcpView = activeChatId?.startsWith("acp:") ?? false;
+  const acpSessionId = isAcpView ? activeChatId!.slice(4) : null;
+  const acpSession = acpSessionId ? acpSessions.find((s) => s.sessionId === acpSessionId) : null;
+  const acpOutput = acpSessionId ? (sessionOutput.get(acpSessionId) ?? "") : "";
+
   const [input, setInput] = useState("");
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashFilter, setSlashFilter] = useState("");
@@ -89,14 +100,14 @@ export function SidePanel() {
   })();
   const configs = activeChatId ? chatConfig[activeChatId] : undefined;
   const activeSession = chatSessions.find((s) => s.id === activeChatId);
-  const isLoading = !activeSession && activeChatId !== "__global__" && activeChatId !== null;
+  const isLoading = !activeSession && !isAcpView && activeChatId !== "__global__" && activeChatId !== null;
 
   const role = activeSession?.role ?? sidePanelRole ?? "agent";
   const meta = ROLE_META[role] ?? { icon: "🤖", label: role };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [activeMessages, streaming, thinking, toolCalls, plan]);
+  }, [activeMessages, streaming, thinking, toolCalls, plan, acpOutput]);
 
   const switchToSession = (sessionId: string) => {
     const session = chatSessions.find((s) => s.id === sessionId);
@@ -218,8 +229,83 @@ export function SidePanel() {
             </div>
           );
         })}
+        {/* ACP session tab */}
+        {acpSession && (
+          <div
+            className={`session-tab session-tab-acp${isAcpView ? " session-tab-active" : ""}`}
+            onClick={() => useDashboardStore.setState({ activeChatId: `acp:${acpSession.sessionId}` })}
+          >
+            <span className="session-tab-label">
+              ⚡ {(ROLE_META[acpSession.role] ?? { label: acpSession.role }).label}
+              {acpSession.issueNumber ? ` #${acpSession.issueNumber}` : ""}
+            </span>
+            <button
+              className="session-tab-close"
+              onClick={(e) => { e.stopPropagation(); closeAcpSession(); }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* ACP session output view */}
+      {isAcpView ? (
+        <>
+          <div className="side-panel-header">
+            <span className="side-panel-status connected">
+              {acpSession && !acpSession.endedAt ? "⚡ Running" : "✅ Completed"}
+            </span>
+            {acpSession?.model && (
+              <span className="acp-session-model">{acpSession.model}</span>
+            )}
+          </div>
+          <div className="side-panel-messages acp-output">
+            {acpOutput ? (
+              <Markdown text={acpOutput} />
+            ) : (
+              <div className="side-panel-empty">Waiting for output…</div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          {acpSession && !acpSession.endedAt && (
+            <div className="side-panel-input-row">
+              <textarea
+                ref={inputRef}
+                className="side-panel-input"
+                placeholder="Send context or instructions to this session…"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    const text = input.trim();
+                    if (text && acpSessionId) {
+                      send({ type: "session:send-message", sessionId: acpSessionId, message: text });
+                      setInput("");
+                    }
+                  }
+                }}
+                rows={2}
+              />
+              <button
+                className="btn btn-primary btn-icon"
+                onClick={() => {
+                  const text = input.trim();
+                  if (text && acpSessionId) {
+                    send({ type: "session:send-message", sessionId: acpSessionId, message: text });
+                    setInput("");
+                  }
+                }}
+                title="Send"
+              >
+                ▶
+              </button>
+            </div>
+          )}
+        </>
+      ) : (
+      <>
       {/* Status bar */}
       <div className="side-panel-header">
         {isLoading && <span className="side-panel-status loading">Connecting…</span>}
@@ -499,6 +585,8 @@ export function SidePanel() {
           })()}
           <span className="mode-hint">Shift+Tab</span>
         </div>
+      )}
+      </>
       )}
     </div>
   );

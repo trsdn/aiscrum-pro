@@ -46,6 +46,20 @@
 }
 
 .session-ended { opacity: 0.5; }
+.session-viewing { background: var(--bg-hover); border-left: 2px solid var(--blue); }
+.session-viewing-badge {
+  font-size: 10px;
+  color: var(--blue);
+  background: rgba(var(--blue-rgb, 66, 133, 244), 0.15);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: auto;
+}
+.btn-tiny {
+  padding: 2px 6px;
+  font-size: 10px;
+  line-height: 1.2;
+}
 
 /* Session viewer */
 .session-viewer {
