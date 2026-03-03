@@ -17,6 +17,7 @@ export interface SprintEngineEvents {
   "sprint:planned": { issues: { number: number; title: string }[] };
   "sprint:complete": { sprintNumber: number };
   "sprint:stopped": { sprintNumber: number };
+  "sprint:cancelled": { sprintNumber: number; returnedIssues: number[] };
   "sprint:error": { error: string };
   "sprint:paused": Record<string, never>;
   "sprint:resumed": { phase: SprintPhase };

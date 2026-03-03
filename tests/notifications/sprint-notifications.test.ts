@@ -45,7 +45,7 @@ describe("attachSprintNotifications", () => {
     expect(mockSendNotification).toHaveBeenCalledOnce();
     expect(mockSendNotification).toHaveBeenCalledWith(
       ntfyConfig,
-      "🚫 Issue Blocked",
+      "Issue Blocked",
       "Issue #42 failed: lint failed",
       "high",
       ["warning"],
@@ -58,7 +58,7 @@ describe("attachSprintNotifications", () => {
     expect(mockSendNotification).toHaveBeenCalledOnce();
     expect(mockSendNotification).toHaveBeenCalledWith(
       ntfyConfig,
-      "✅ Sprint Complete",
+      "Sprint Complete",
       "Sprint 5 finished successfully",
       "default",
       ["tada"],
@@ -71,7 +71,7 @@ describe("attachSprintNotifications", () => {
     expect(mockSendNotification).toHaveBeenCalledOnce();
     expect(mockSendNotification).toHaveBeenCalledWith(
       ntfyConfig,
-      "❌ Sprint Error",
+      "Sprint Error",
       "something broke",
       "urgent",
       ["rotating_light"],

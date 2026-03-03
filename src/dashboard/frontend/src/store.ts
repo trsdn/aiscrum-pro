@@ -627,6 +627,17 @@ function handleSprintEvent(
       addActivity(set, get(), "sprint", "Sprint stopped by user", null, "done");
       break;
 
+    case "sprint:cancelled": {
+      const returned = Array.isArray(p?.returnedIssues) ? (p.returnedIssues as number[]) : [];
+      set((prev) => ({ ...prev, state: { ...prev.state, phase: "cancelled" } }));
+      addActivity(set, get(), "sprint",
+        `Sprint cancelled — ${returned.length} issue(s) returned to backlog`,
+        returned.length > 0 ? `Issues: ${returned.join(", ")}` : null,
+        "done",
+      );
+      break;
+    }
+
     case "sprint:error":
       set((prev) => ({ ...prev, state: { ...prev.state, phase: "failed" } }));
       addActivity(set, get(), "error", `Sprint error: ${p?.error}`, null, "failed");
