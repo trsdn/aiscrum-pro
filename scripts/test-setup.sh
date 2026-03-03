@@ -52,21 +52,61 @@ if [ -d "$TEST_REPO_DIR" ]; then
   echo "📁 Deployed .aiscrum/ config to ${TEST_REPO_DIR}"
 fi
 
-# --- Helper to create an issue ---
+# --- Resolve milestone numbers for API ---
+MS1_NUM=$(gh api "repos/${REPO}/milestones" -q '.[] | select(.title=="Sprint 1") | .number' 2>/dev/null || echo "")
+MS2_NUM=$(gh api "repos/${REPO}/milestones" -q '.[] | select(.title=="Sprint 2") | .number' 2>/dev/null || echo "")
+
+# --- Fast issue creation via gh api (parallel, max 4 concurrent) ---
+RESULTS_DIR=$(mktemp -d)
+ISSUE_COUNT=0
+MAX_PARALLEL=3
+RUNNING=0
+
 create_issue() {
-  local title="$1" body="$2" labels="$3" milestone="${4:-}"
-  local args=(--repo "${REPO}" --title "$title" --body "$body")
-  IFS=',' read -ra lbl_arr <<< "$labels"
+  local title="$1" body="$2" labels_csv="$3" milestone_num="${4:-}"
+  ((ISSUE_COUNT++)) || true
+  local idx=$ISSUE_COUNT
+
+  # Build label args: -f "labels[]=label1" -f "labels[]=label2"
+  local label_args=()
+  IFS=',' read -ra lbl_arr <<< "$labels_csv"
   for l in "${lbl_arr[@]}"; do
-    args+=(--label "$l")
+    label_args+=(-f "labels[]=$l")
   done
-  if [[ -n "$milestone" ]]; then
-    args+=(--milestone "$milestone")
+
+  (
+    local api_args=(-X POST -f "title=${title}" -f "body=${body}" "${label_args[@]}")
+    if [[ -n "$milestone_num" ]]; then
+      api_args+=(-F "milestone=${milestone_num}")
+    fi
+    local num=""
+    for attempt in 1 2 3; do
+      num=$(gh api "repos/${REPO}/issues" "${api_args[@]}" -q '.number' 2>/dev/null) && break
+      sleep $(( attempt * 2 ))
+    done
+    echo "${idx}|${num:-ERR}|${title}" > "${RESULTS_DIR}/${idx}.txt"
+  ) &
+
+  ((RUNNING++)) || true
+  if (( RUNNING >= MAX_PARALLEL )); then
+    wait
+    RUNNING=0
+    sleep 0.3
   fi
-  local url
-  url=$(gh issue create "${args[@]}" 2>/dev/null)
-  local num="${url##*/}"
-  echo "  ✅ #${num}: ${title}"
+}
+
+# Flush remaining background jobs and print results
+flush_batch() {
+  wait
+  RUNNING=0
+  for f in $(ls "${RESULTS_DIR}"/*.txt 2>/dev/null | sort -V); do
+    local line
+    line=$(cat "$f")
+    local num="${line#*|}" ; num="${num%%|*}"
+    local title="${line##*|}"
+    echo "  ✅ #${num}: ${title}"
+    rm "$f"
+  done
 }
 
 echo ""
@@ -78,7 +118,7 @@ create_issue "test: Add input validation to config loader" \
 - [ ] Validate that \`session_timeout_ms\` is positive
 - [ ] Return clear error message on invalid config
 - [ ] Add unit tests for validation edge cases" \
-"bug,status:ready" "Sprint 1"
+"bug,status:ready" "$MS1_NUM"
 
 create_issue "test: Add retry count to sprint log output" \
 "## Acceptance Criteria
@@ -86,7 +126,7 @@ create_issue "test: Add retry count to sprint log output" \
 - [ ] Format: \`Retries: N\` in huddle entry
 - [ ] Zero retries shows \`Retries: 0\`
 - [ ] Add test covering retry count display" \
-"type:chore,status:ready" "Sprint 1"
+"type:chore,status:ready" "$MS1_NUM"
 
 create_issue "test: Improve error message for missing milestone" \
 "## Acceptance Criteria
@@ -94,7 +134,7 @@ create_issue "test: Improve error message for missing milestone" \
 - [ ] Suggests creating the milestone with correct naming
 - [ ] Error is logged at warn level, not error
 - [ ] Add test for error message format" \
-"bug,status:ready" "Sprint 1"
+"bug,status:ready" "$MS1_NUM"
 
 create_issue "test: Add elapsed time to quality gate output" \
 "## Acceptance Criteria
@@ -102,7 +142,7 @@ create_issue "test: Add elapsed time to quality gate output" \
 - [ ] Each individual check has its own duration
 - [ ] Total duration is sum of all checks
 - [ ] Add tests for timing data" \
-"type:enhancement,status:ready" "Sprint 1"
+"type:enhancement,status:ready" "$MS1_NUM"
 
 create_issue "test: Export sprint metrics as JSON" \
 "## Acceptance Criteria
@@ -110,7 +150,7 @@ create_issue "test: Export sprint metrics as JSON" \
 - [ ] JSON includes: velocity, first_pass_rate, avg_duration_ms
 - [ ] JSON output is valid and parseable
 - [ ] Add test for JSON output format" \
-"type:enhancement,status:ready" "Sprint 1"
+"type:enhancement,status:ready" "$MS1_NUM"
 
 create_issue "test: Add issue title to branch name" \
 "## Acceptance Criteria
@@ -118,7 +158,9 @@ create_issue "test: Add issue title to branch name" \
 - [ ] Title is slugified (lowercase, hyphens, max 40 chars)
 - [ ] Special characters are stripped
 - [ ] Add tests for title slugification" \
-"type:chore,status:ready" "Sprint 1"
+"type:chore,status:ready" "$MS1_NUM"
+
+flush_batch
 
 echo ""
 echo "━━━ Backlog Issues (15) ━━━"
@@ -228,6 +270,8 @@ create_issue "refactor: Replace string event names with typed enum" \
 - [ ] No behavior changes, all tests pass" \
 "type:chore,status:ready"
 
+flush_batch
+
 echo ""
 echo "━━━ Idea Issues (5) ━━━"
 
@@ -250,6 +294,8 @@ create_issue "idea: Visual diff preview in dashboard before merge" \
 create_issue "idea: Agent performance leaderboard" \
 "Track which agent configurations (model, prompts) produce the best results over time. Visualize in dashboard metrics tab." \
 "type:idea"
+
+flush_batch
 
 echo ""
 echo "━━━ Blocked Issues (3) ━━━"
@@ -282,6 +328,8 @@ create_issue "refactor: Migrate from pino to structured OpenTelemetry logging" \
 - [ ] Add trace context to sprint operations
 - [ ] All existing tests pass with new logger" \
 "type:chore,status:blocked"
+
+flush_batch
 
 echo ""
 echo "━━━ Decision Issues (3) ━━━"
@@ -318,6 +366,11 @@ create_issue "decision: Maximum retry count for failed issues" \
 
 **Data:** ~15% of issues succeed on retry 2, <5% would benefit from retry 3." \
 "human-decision-needed"
+
+flush_batch
+
+# Cleanup temp dir
+rm -rf "${RESULTS_DIR}"
 
 echo ""
 echo "✅ Test setup complete! (${REPO})"
