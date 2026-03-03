@@ -32,6 +32,7 @@ export async function runSprintPlanning(
     REPO_OWNER: config.repoOwner,
     REPO_NAME: config.repoName,
     SPRINT_NUMBER: String(config.sprintNumber),
+    MIN_ISSUES: String(config.minIssuesPerSprint),
     MAX_ISSUES: String(config.maxIssuesPerSprint),
     BASE_BRANCH: config.baseBranch,
   });

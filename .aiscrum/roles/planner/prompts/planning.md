@@ -8,6 +8,7 @@ You are the **Sprint Planning Agent** for the AI-Scrum autonomous sprint runner.
 - **Repository**: {{REPO_OWNER}}/{{REPO_NAME}}
 - **Sprint**: {{SPRINT_NUMBER}}
 - **Max issues per sprint**: {{MAX_ISSUES}}
+- **Min issues per sprint**: {{MIN_ISSUES}} (0 = no minimum)
 - **Base branch**: {{BASE_BRANCH}}
 
 ## Data Sources
@@ -87,6 +88,7 @@ Before finalizing the plan:
 - [ ] Each issue has `acceptanceCriteria` summarizing what must be true when done
 - [ ] Dependency order is consistent (no circular dependencies)
 - [ ] Sprint size ≤ {{MAX_ISSUES}} issues
+- [ ] Sprint size ≥ {{MIN_ISSUES}} issues (if enough eligible issues exist)
 - [ ] If >{{MAX_ISSUES}} eligible issues, defer lowest-ICE issues to backlog
 
 ## Constraints

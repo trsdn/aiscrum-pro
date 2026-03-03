@@ -23,6 +23,7 @@ interface Config {
   };
   sprint: {
     prefix: string;
+    min_issues: number;
     max_issues: number;
     max_issues_created_per_sprint: number;
     max_sprints: number;
@@ -131,23 +132,115 @@ function Row({ label, desc, children }: { label: string; desc: string; children:
   );
 }
 
+interface AgentRole {
+  name: string;
+  instructions: string;
+  prompts: Record<string, string>;
+}
+
+interface QualityGates {
+  checks: {
+    tests: { enabled: boolean; command?: string | string[] };
+    lint: { enabled: boolean; command?: string | string[] };
+    types: { enabled: boolean; command?: string | string[] };
+    build: { enabled: boolean; command?: string | string[] };
+  };
+  limits: { max_diff_lines: number };
+  review: { require_challenger: boolean };
+}
+
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+  planner: "Sprint planning — selects and sequences backlog issues",
+  general: "Issue execution — implements code changes for each issue",
+  reviewer: "Code review — reviews PRs for quality and correctness",
+  "quality-reviewer": "Acceptance review — validates acceptance criteria",
+  "test-engineer": "TDD — generates tests before implementation",
+  refiner: "Refinement — enriches idea issues with details and ICE scores",
+  retro: "Retrospective — analyzes sprint and suggests improvements",
+  researcher: "Research — investigates technical topics and options",
+};
+
+function RoleEditor({ role, onSave }: { role: AgentRole; onSave: (r: AgentRole) => void }) {
+  const [instructions, setInstructions] = useState(role.instructions);
+  const [prompts, setPrompts] = useState(role.prompts);
+  const [dirty, setDirty] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const update = (field: "instructions" | string, value: string) => {
+    if (field === "instructions") {
+      setInstructions(value);
+    } else {
+      setPrompts((prev) => ({ ...prev, [field]: value }));
+    }
+    setDirty(true);
+  };
+
+  const save = () => {
+    onSave({ ...role, instructions, prompts });
+    setDirty(false);
+  };
+
+  return (
+    <div className="role-editor">
+      <div className="role-editor-header" onClick={() => setOpen(!open)}>
+        <h4>
+          <span>{open ? "▾" : "▸"}</span>
+          {role.name}
+          <span className="role-editor-desc">{ROLE_DESCRIPTIONS[role.name] ?? "Agent role"}</span>
+        </h4>
+        {dirty && <button className="btn btn-primary btn-small role-editor-save" onClick={(e) => { e.stopPropagation(); save(); }}>💾 Save</button>}
+      </div>
+      {open && (
+        <div className="role-editor-body">
+          <div>
+            <label>Instructions (copilot-instructions.md)</label>
+            <textarea value={instructions} onChange={(e) => update("instructions", e.target.value)} />
+          </div>
+          {Object.entries(prompts).map(([fname, content]) => (
+            <div key={fname}>
+              <label>Prompt: {fname}</label>
+              <textarea
+                style={{ minHeight: 180 }}
+                value={content}
+                onChange={(e) => update(fname, e.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SettingsPage() {
   const [config, setConfig] = useState<Config | null>(null);
   const [savedConfig, setSavedConfig] = useState<string>("");
+  const [roles, setRoles] = useState<AgentRole[]>([]);
+  const [qualityGates, setQualityGates] = useState<QualityGates | null>(null);
+  const [savedQg, setSavedQg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
-    fetch("/api/config")
-      .then((r) => r.json())
-      .then((data) => {
-        setConfig(data as Config);
-        setSavedConfig(JSON.stringify(data));
-      })
-      .catch((e) => setError(String(e)));
+    Promise.all([
+      fetch("/api/config").then((r) => r.json()),
+      fetch("/api/roles").then((r) => r.json()),
+      fetch("/api/quality-gates").then((r) => r.json()),
+    ]).then(([cfg, rls, qg]) => {
+      setConfig(cfg as Config);
+      setSavedConfig(JSON.stringify(cfg));
+      setRoles((rls as AgentRole[]) ?? []);
+      if (qg) { setQualityGates(qg as QualityGates); setSavedQg(JSON.stringify(qg)); }
+    }).catch((e) => setError(String(e)));
   }, []);
 
   const isDirty = config ? JSON.stringify(config) !== savedConfig : false;
+  const qgDirty = qualityGates ? JSON.stringify(qualityGates) !== savedQg : false;
+
+  const showToast = useCallback((msg: string, type: "success" | "error") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2500);
+  }, []);
 
   const save = useCallback(async () => {
     if (!config) return;
@@ -159,20 +252,47 @@ export function SettingsPage() {
       });
       if (res.ok) {
         setSavedConfig(JSON.stringify(config));
-        setToast({ msg: "✅ Settings saved", type: "success" });
+        // Also save quality gates if dirty
+        if (qualityGates && qgDirty) {
+          const qgRes = await fetch("/api/quality-gates", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(qualityGates),
+          });
+          if (qgRes.ok) setSavedQg(JSON.stringify(qualityGates));
+        }
+        showToast("✅ Settings saved", "success");
       } else {
         const data = await res.json();
-        setToast({ msg: `❌ ${data.error ?? "Save failed"}`, type: "error" });
+        showToast(`❌ ${data.error ?? "Save failed"}`, "error");
       }
     } catch (e) {
-      setToast({ msg: `❌ ${String(e)}`, type: "error" });
+      showToast(`❌ ${String(e)}`, "error");
     }
-    setTimeout(() => setToast(null), 2500);
-  }, [config]);
+  }, [config, qualityGates, qgDirty, showToast]);
 
   const reset = useCallback(() => {
     if (savedConfig) setConfig(JSON.parse(savedConfig));
-  }, [savedConfig]);
+    if (savedQg) setQualityGates(JSON.parse(savedQg));
+  }, [savedConfig, savedQg]);
+
+  const saveRole = useCallback(async (role: AgentRole) => {
+    try {
+      const res = await fetch("/api/roles", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(role),
+      });
+      if (res.ok) {
+        setRoles((prev) => prev.map((r) => r.name === role.name ? role : r));
+        showToast(`✅ ${role.name} saved`, "success");
+      } else {
+        showToast(`❌ Failed to save ${role.name}`, "error");
+      }
+    } catch (e) {
+      showToast(`❌ ${String(e)}`, "error");
+    }
+  }, [showToast]);
 
   // Updater helpers
   const up = useCallback(<K extends keyof Config>(section: K, patch: Partial<Config[K]>) => {
@@ -186,6 +306,15 @@ export function SettingsPage() {
   const upNotif = useCallback((patch: Partial<Config["escalation"]["notifications"]>) => {
     setConfig((prev) => prev ? { ...prev, escalation: { ...prev.escalation, notifications: { ...prev.escalation.notifications, ...patch } } } : prev);
   }, []);
+  const upQgCheck = useCallback((check: keyof QualityGates["checks"], patch: Partial<{ enabled: boolean; command: string | string[] }>) => {
+    setQualityGates((prev) => prev ? { ...prev, checks: { ...prev.checks, [check]: { ...prev.checks[check], ...patch } } } : prev);
+  }, []);
+  const upQgLimits = useCallback((patch: Partial<QualityGates["limits"]>) => {
+    setQualityGates((prev) => prev ? { ...prev, limits: { ...prev.limits, ...patch } } : prev);
+  }, []);
+  const upQgReview = useCallback((patch: Partial<QualityGates["review"]>) => {
+    setQualityGates((prev) => prev ? { ...prev, review: { ...prev.review, ...patch } } : prev);
+  }, []);
 
   if (error) return <div className="settings-loading">❌ Failed to load config: {error}</div>;
   if (!config) return <div className="settings-loading">Loading configuration…</div>;
@@ -195,13 +324,13 @@ export function SettingsPage() {
       <h1>⚙️ Settings</h1>
 
       <div className="settings-actions">
-        <button className="btn btn-primary btn-small" onClick={save} disabled={!isDirty}>
+        <button className="btn btn-primary btn-small" onClick={save} disabled={!isDirty && !qgDirty}>
           💾 Save
         </button>
-        <button className="btn btn-small" onClick={reset} disabled={!isDirty}>
+        <button className="btn btn-small" onClick={reset} disabled={!isDirty && !qgDirty}>
           ↩ Reset
         </button>
-        {isDirty && <span className="settings-dirty">● Unsaved changes</span>}
+        {(isDirty || qgDirty) && <span className="settings-dirty">● Unsaved changes</span>}
       </div>
 
       <Section icon="📁" title="Project" defaultOpen={true}>
@@ -250,6 +379,9 @@ export function SettingsPage() {
             <Row label="Prefix" desc="Milestone title prefix for sprint naming (e.g. 'Sprint' → 'Sprint 1')">
               <TextInput value={config.sprint.prefix} onChange={(v) => upSprint({ prefix: v })} />
             </Row>
+            <Row label="Min Issues" desc="Minimum issues to plan per sprint (0 = no minimum)">
+              <NumInput value={config.sprint.min_issues} onChange={(v) => upSprint({ min_issues: v })} min={0} narrow />
+            </Row>
             <Row label="Max Issues" desc="Maximum issues to plan per sprint">
               <NumInput value={config.sprint.max_issues} onChange={(v) => upSprint({ max_issues: v })} min={1} narrow />
             </Row>
@@ -279,40 +411,77 @@ export function SettingsPage() {
       </Section>
 
       <Section icon="🛡️" title="Quality Gates">
-        <table className="settings-table">
-          <tbody>
-            <Row label="Tests" desc="Require tests to pass before merging">
-              <Toggle value={config.quality_gates.require_tests} onChange={(v) => upQg({ require_tests: v })} />
-            </Row>
-            <Row label="Test Command" desc="Command to run tests">
-              <TextInput value={cmdStr(config.quality_gates.test_command)} onChange={(v) => upQg({ test_command: v })} />
-            </Row>
-            <Row label="Lint" desc="Require linter to pass before merging">
-              <Toggle value={config.quality_gates.require_lint} onChange={(v) => upQg({ require_lint: v })} />
-            </Row>
-            <Row label="Lint Command" desc="Command to run linter">
-              <TextInput value={cmdStr(config.quality_gates.lint_command)} onChange={(v) => upQg({ lint_command: v })} />
-            </Row>
-            <Row label="Type Check" desc="Require type checking to pass before merging">
-              <Toggle value={config.quality_gates.require_types} onChange={(v) => upQg({ require_types: v })} />
-            </Row>
-            <Row label="Type Command" desc="Command to run type checker">
-              <TextInput value={cmdStr(config.quality_gates.typecheck_command)} onChange={(v) => upQg({ typecheck_command: v })} />
-            </Row>
-            <Row label="Build" desc="Require build to succeed before merging">
-              <Toggle value={config.quality_gates.require_build} onChange={(v) => upQg({ require_build: v })} />
-            </Row>
-            <Row label="Build Command" desc="Command to build the project">
-              <TextInput value={cmdStr(config.quality_gates.build_command)} onChange={(v) => upQg({ build_command: v })} />
-            </Row>
-            <Row label="Max Diff Lines" desc="Maximum lines changed per PR (exceeding triggers review)">
-              <NumInput value={config.quality_gates.max_diff_lines} onChange={(v) => upQg({ max_diff_lines: v })} min={1} narrow />
-            </Row>
-            <Row label="Challenger" desc="Require adversarial code review on every PR">
-              <Toggle value={config.quality_gates.require_challenger} onChange={(v) => upQg({ require_challenger: v })} />
-            </Row>
-          </tbody>
-        </table>
+        {qualityGates ? (
+          <table className="settings-table">
+            <tbody>
+              <Row label="Tests" desc="Require tests to pass before merging">
+                <Toggle value={qualityGates.checks.tests.enabled} onChange={(v) => upQgCheck("tests", { enabled: v })} />
+              </Row>
+              <Row label="Test Command" desc="Shell command to run tests">
+                <TextInput value={cmdStr(qualityGates.checks.tests.command ?? "")} onChange={(v) => upQgCheck("tests", { command: v })} />
+              </Row>
+              <Row label="Lint" desc="Require linter to pass before merging">
+                <Toggle value={qualityGates.checks.lint.enabled} onChange={(v) => upQgCheck("lint", { enabled: v })} />
+              </Row>
+              <Row label="Lint Command" desc="Shell command to run linter">
+                <TextInput value={cmdStr(qualityGates.checks.lint.command ?? "")} onChange={(v) => upQgCheck("lint", { command: v })} />
+              </Row>
+              <Row label="Type Check" desc="Require type checking to pass before merging">
+                <Toggle value={qualityGates.checks.types.enabled} onChange={(v) => upQgCheck("types", { enabled: v })} />
+              </Row>
+              <Row label="Type Command" desc="Shell command to run type checker">
+                <TextInput value={cmdStr(qualityGates.checks.types.command ?? "")} onChange={(v) => upQgCheck("types", { command: v })} />
+              </Row>
+              <Row label="Build" desc="Require build to succeed before merging">
+                <Toggle value={qualityGates.checks.build.enabled} onChange={(v) => upQgCheck("build", { enabled: v })} />
+              </Row>
+              <Row label="Build Command" desc="Shell command to build the project">
+                <TextInput value={cmdStr(qualityGates.checks.build.command ?? "")} onChange={(v) => upQgCheck("build", { command: v })} />
+              </Row>
+              <Row label="Max Diff Lines" desc="Maximum lines changed per PR before extra review is triggered">
+                <NumInput value={qualityGates.limits.max_diff_lines} onChange={(v) => upQgLimits({ max_diff_lines: v })} min={1} narrow />
+              </Row>
+              <Row label="Challenger" desc="Require adversarial review agent to challenge every PR">
+                <Toggle value={qualityGates.review.require_challenger} onChange={(v) => upQgReview({ require_challenger: v })} />
+              </Row>
+            </tbody>
+          </table>
+        ) : (
+          <table className="settings-table">
+            <tbody>
+              <Row label="Tests" desc="Require tests to pass before merging">
+                <Toggle value={config.quality_gates.require_tests} onChange={(v) => upQg({ require_tests: v })} />
+              </Row>
+              <Row label="Test Command" desc="Command to run tests">
+                <TextInput value={cmdStr(config.quality_gates.test_command)} onChange={(v) => upQg({ test_command: v })} />
+              </Row>
+              <Row label="Lint" desc="Require linter to pass before merging">
+                <Toggle value={config.quality_gates.require_lint} onChange={(v) => upQg({ require_lint: v })} />
+              </Row>
+              <Row label="Lint Command" desc="Command to run linter">
+                <TextInput value={cmdStr(config.quality_gates.lint_command)} onChange={(v) => upQg({ lint_command: v })} />
+              </Row>
+              <Row label="Type Check" desc="Require type checking to pass before merging">
+                <Toggle value={config.quality_gates.require_types} onChange={(v) => upQg({ require_types: v })} />
+              </Row>
+              <Row label="Type Command" desc="Command to run type checker">
+                <TextInput value={cmdStr(config.quality_gates.typecheck_command)} onChange={(v) => upQg({ typecheck_command: v })} />
+              </Row>
+              <Row label="Build" desc="Require build to succeed before merging">
+                <Toggle value={config.quality_gates.require_build} onChange={(v) => upQg({ require_build: v })} />
+              </Row>
+              <Row label="Build Command" desc="Command to build the project">
+                <TextInput value={cmdStr(config.quality_gates.build_command)} onChange={(v) => upQg({ build_command: v })} />
+              </Row>
+              <Row label="Max Diff Lines" desc="Maximum lines changed per PR">
+                <NumInput value={config.quality_gates.max_diff_lines} onChange={(v) => upQg({ max_diff_lines: v })} min={1} narrow />
+              </Row>
+              <Row label="Challenger" desc="Require adversarial code review on every PR">
+                <Toggle value={config.quality_gates.require_challenger} onChange={(v) => upQg({ require_challenger: v })} />
+              </Row>
+            </tbody>
+          </table>
+        )}
       </Section>
 
       {config.copilot.mcp_servers.length > 0 && (
@@ -394,6 +563,17 @@ export function SettingsPage() {
           </tbody>
         </table>
       </Section>
+
+      {roles.length > 0 && (
+        <Section icon="🤖" title={`Agent Roles (${roles.length})`}>
+          <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 12 }}>
+            Each agent role has system instructions and prompt templates. Edit the content below and save per role.
+          </div>
+          {roles.map((role) => (
+            <RoleEditor key={role.name} role={role} onSave={saveRole} />
+          ))}
+        </Section>
+      )}
 
       {toast && <div className={`settings-toast ${toast.type}`}>{toast.msg}</div>}
     </div>

@@ -976,6 +976,93 @@ export class DashboardWebServer {
       return;
     }
 
+    // /api/roles — list agent roles with instructions and prompts
+    if (pathname === "/api/roles") {
+      const projectPath = this.options.projectPath ?? process.cwd();
+      const rolesDir = path.join(projectPath, ".aiscrum", "roles");
+      if (req.method === "PUT" || req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("end", () => {
+          try {
+            const { name, instructions, prompts } = JSON.parse(body) as {
+              name: string;
+              instructions?: string;
+              prompts?: Record<string, string>;
+            };
+            const roleDir = path.join(rolesDir, name);
+            if (!fs.existsSync(roleDir)) { res.writeHead(404); res.end(JSON.stringify({ error: "Role not found" })); return; }
+            if (instructions !== undefined) {
+              fs.writeFileSync(path.join(roleDir, "copilot-instructions.md"), instructions, "utf-8");
+            }
+            if (prompts) {
+              const promptsDir = path.join(roleDir, "prompts");
+              for (const [fname, content] of Object.entries(prompts)) {
+                const target = path.join(promptsDir, fname);
+                if (fs.existsSync(target)) fs.writeFileSync(target, content, "utf-8");
+              }
+            }
+            res.writeHead(200); res.end(JSON.stringify({ ok: true }));
+          } catch (err) { res.writeHead(400); res.end(JSON.stringify({ error: String(err) })); }
+        });
+        return;
+      }
+      // GET: list all roles
+      try {
+        const roles: Array<{ name: string; instructions: string; prompts: Record<string, string> }> = [];
+        if (fs.existsSync(rolesDir)) {
+          for (const entry of fs.readdirSync(rolesDir, { withFileTypes: true })) {
+            if (!entry.isDirectory()) continue;
+            const roleDir = path.join(rolesDir, entry.name);
+            const instrPath = path.join(roleDir, "copilot-instructions.md");
+            const instructions = fs.existsSync(instrPath) ? fs.readFileSync(instrPath, "utf-8") : "";
+            const prompts: Record<string, string> = {};
+            const promptsDir = path.join(roleDir, "prompts");
+            if (fs.existsSync(promptsDir)) {
+              for (const pf of fs.readdirSync(promptsDir)) {
+                if (pf.endsWith(".md")) prompts[pf] = fs.readFileSync(path.join(promptsDir, pf), "utf-8");
+              }
+            }
+            roles.push({ name: entry.name, instructions, prompts });
+          }
+        }
+        res.writeHead(200); res.end(JSON.stringify(roles));
+      } catch (err) { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); }
+      return;
+    }
+
+    // /api/quality-gates — read/write quality-gates.yaml
+    if (pathname === "/api/quality-gates") {
+      const projectPath = this.options.projectPath ?? process.cwd();
+      const qgPath = path.join(projectPath, ".aiscrum", "quality-gates.yaml");
+      if (req.method === "PUT" || req.method === "POST") {
+        let body = "";
+        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("end", () => {
+          try {
+            const data = JSON.parse(body);
+            import("yaml").then(({ stringify }) => {
+              fs.writeFileSync(qgPath, stringify(data, { lineWidth: 120 }), "utf-8");
+              res.writeHead(200); res.end(JSON.stringify({ ok: true }));
+            }).catch((err) => { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); });
+          } catch (err) { res.writeHead(400); res.end(JSON.stringify({ error: String(err) })); }
+        });
+        return;
+      }
+      // GET
+      try {
+        if (fs.existsSync(qgPath)) {
+          const raw = fs.readFileSync(qgPath, "utf-8");
+          import("yaml").then(({ parse: parseYaml }) => {
+            res.writeHead(200); res.end(JSON.stringify(parseYaml(raw)));
+          }).catch((err) => { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); });
+        } else {
+          res.writeHead(200); res.end(JSON.stringify(null));
+        }
+      } catch (err) { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); }
+      return;
+    }
+
     res.writeHead(404);
     res.end(JSON.stringify({ error: "Not found" }));
   }

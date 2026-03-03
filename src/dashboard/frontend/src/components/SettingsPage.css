@@ -226,3 +226,74 @@
   0%, 70% { opacity: 1; }
   100% { opacity: 0; }
 }
+
+/* Role Editor */
+.role-editor {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.role-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg);
+  cursor: pointer;
+  user-select: none;
+}
+
+.role-editor-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-editor-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.role-editor-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.role-editor-body label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.role-editor-body textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  resize: vertical;
+  min-height: 120px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.role-editor-body textarea:focus {
+  border-color: #58a6ff;
+  outline: none;
+}
+
+.role-editor-save {
+  align-self: flex-end;
+}

@@ -55,6 +55,7 @@ export interface SessionConfig {
 }
 
 export interface ExecutionLimits {
+  minIssuesPerSprint: number;
   maxIssuesPerSprint: number;
   maxIssuesCreatedPerSprint?: number;
   maxRetries: number;

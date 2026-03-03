@@ -37,6 +37,7 @@ export function buildSprintConfig(config: ConfigFile, sprintNumber: number): Spr
     worktreeBase: config.git.worktree_base,
     branchPattern: config.git.branch_pattern,
     maxParallelSessions: config.copilot.max_parallel_sessions,
+    minIssuesPerSprint: config.sprint.min_issues,
     maxIssuesPerSprint: config.sprint.max_issues,
     maxDriftIncidents: config.sprint.max_drift_incidents,
     maxRetries: config.sprint.max_retries,
