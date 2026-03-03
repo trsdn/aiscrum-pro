@@ -360,6 +360,7 @@ export class DashboardWebServer {
       "phase:change", "issue:start", "issue:progress", "issue:done", "issue:fail",
       "worker:output", "sprint:start", "sprint:planned", "sprint:complete", "sprint:stopped", "sprint:error",
       "sprint:paused", "sprint:resumed", "log",
+      "heartbeat:tick", "heartbeat:stale", "heartbeat:recovered",
     ];
 
     for (const eventName of eventNames) {

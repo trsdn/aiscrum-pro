@@ -3,7 +3,7 @@ project:
   base_branch: main
 copilot:
   executable: copilot
-  max_parallel_sessions: 2
+  max_parallel_sessions: 42
   session_timeout_ms: 300000
   auto_approve_tools: true
   allow_tool_patterns: []

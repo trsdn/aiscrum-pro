@@ -147,6 +147,12 @@ const GitSchema = z.object({
 
 const GitHubSchema = z.object({}).default({});
 
+const HeartbeatSchema = z.object({
+  enabled: z.boolean().default(true),
+  interval_ms: z.number().int().min(5000).default(30000),
+  stale_threshold_ms: z.number().int().min(60000).default(300000),
+});
+
 export const ConfigFileSchema = z.object({
   project: ProjectSchema,
   copilot: CopilotSchema.default({}),
@@ -155,6 +161,7 @@ export const ConfigFileSchema = z.object({
   escalation: EscalationSchema.default({}),
   git: GitSchema.default({}),
   github: GitHubSchema.default({}),
+  heartbeat: HeartbeatSchema.default({}),
 });
 
 export type ConfigFile = z.infer<typeof ConfigFileSchema>;

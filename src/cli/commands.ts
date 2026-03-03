@@ -3,6 +3,7 @@
  */
 
 import type { Command } from "commander";
+import * as path from "node:path";
 import { prefixToSlug } from "../config.js";
 import { runSprintPlanning } from "../ceremonies/planning.js";
 import { executeIssue } from "../ceremonies/execution.js";
@@ -461,8 +462,20 @@ function registerWeb(program: Command): void {
           exec(`${openCmd} ${url}`);
         }
 
+        // Start heartbeat supervisor
+        const { HeartbeatSupervisor } = await import("../heartbeat.js");
+        const heartbeat = new HeartbeatSupervisor({
+          enabled: config.heartbeat?.enabled ?? true,
+          intervalMs: config.heartbeat?.interval_ms ?? 30000,
+          staleThresholdMs: config.heartbeat?.stale_threshold_ms ?? 300000,
+          stateDir: path.join(process.cwd(), "docs", "sprints"),
+          sprintSlug: prefixToSlug(config.sprint.prefix),
+        }, eventBus);
+        heartbeat.start();
+
         // Graceful shutdown
         const cleanup = async () => {
+          heartbeat.stop();
           await dashboardServer.stop();
           process.exit(0);
         };

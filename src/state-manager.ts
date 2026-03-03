@@ -21,6 +21,7 @@ const SprintStateSchema = z
       "retro",
       "complete",
       "paused",
+      "stopped",
       "failed",
     ]),
     startedAt: z.string().refine((s) => !isNaN(new Date(s).getTime()), {

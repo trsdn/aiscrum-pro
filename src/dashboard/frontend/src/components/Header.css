@@ -61,6 +61,10 @@
 }
 .status-connected { background: var(--green); }
 .status-disconnected { background: var(--red); }
+.status-heartbeat-ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.status-heartbeat-warn { background: var(--yellow, #f0ad4e); }
+.status-heartbeat-stale { background: var(--red); animation: pulse-dot 1s infinite; }
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
 /* Phase stepper */
 .phase-stepper {

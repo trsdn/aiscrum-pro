@@ -21,6 +21,9 @@ export interface SprintEngineEvents {
   "sprint:paused": Record<string, never>;
   "sprint:resumed": { phase: SprintPhase };
   "log": { level: "info" | "warn" | "error"; message: string };
+  "heartbeat:tick": { sprintNumber: number | null; phase: SprintPhase | null; healthy: boolean; staleLock: boolean; lastTickAt: string };
+  "heartbeat:stale": { sprintNumber: number; phase: SprintPhase; staleSinceMs: number };
+  "heartbeat:recovered": { sprintNumber: number; action: string };
 }
 
 type EventKey = keyof SprintEngineEvents;

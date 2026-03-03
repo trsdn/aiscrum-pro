@@ -19,6 +19,7 @@ export function Header() {
   const executionMode = useDashboardStore((s) => s.executionMode);
   const sprintLimit = useDashboardStore((s) => s.sprintLimit);
   const repoUrl = useDashboardStore((s) => s.repoUrl);
+  const heartbeat = useDashboardStore((s) => s.heartbeat);
   const send = useDashboardStore((s) => s.send);
   const setViewingSprint = useDashboardStore((s) => s.setViewingSprint);
 
@@ -104,7 +105,19 @@ export function Header() {
         </button>
         <span className="issue-count">{doneCount}/{totalCount} done</span>
         <span className="elapsed">{elapsed}</span>
-        <span className={`status-dot ${connected ? "status-connected" : "status-disconnected"}`} />
+        <span className={`status-dot ${connected ? "status-connected" : "status-disconnected"}`} title={connected ? "Connected" : "Disconnected"} />
+        <span
+          className={`status-dot ${heartbeat.healthy ? "status-heartbeat-ok" : heartbeat.staleWarning ? "status-heartbeat-stale" : "status-heartbeat-warn"}`}
+          title={
+            heartbeat.staleWarning
+              ? "Sprint stale — no phase change detected"
+              : heartbeat.staleLock
+                ? "Orphaned lock detected"
+                : heartbeat.healthy
+                  ? "Heartbeat OK"
+                  : "Heartbeat warning"
+          }
+        />
 
         <select
           className="btn btn-small"

@@ -83,6 +83,14 @@ export interface DashboardStore {
   backlogPending: Set<number>;   // currently being added
   backlogPlanned: Set<number>;   // confirmed added (hide from list)
 
+  // Heartbeat
+  heartbeat: {
+    healthy: boolean;
+    staleLock: boolean;
+    lastTickAt: string | null;
+    staleWarning: boolean;
+  };
+
   // Actions
   send: (msg: ClientMessage) => void;
   connect: () => void;
@@ -651,6 +659,27 @@ function handleSprintEvent(
     case "decisions:commented":
       // Handled by component-level refetch
       break;
+
+    case "heartbeat:tick":
+      set({
+        heartbeat: {
+          healthy: !!p?.healthy,
+          staleLock: !!p?.staleLock,
+          lastTickAt: (p?.lastTickAt as string) ?? null,
+          staleWarning: false,
+        },
+      });
+      break;
+
+    case "heartbeat:stale":
+      set((prev) => ({
+        heartbeat: { ...prev.heartbeat, staleWarning: true, healthy: false },
+      }));
+      break;
+
+    case "heartbeat:recovered":
+      addActivity(set, get(), "heartbeat", `Recovered: ${p?.action}`, null, "done");
+      break;
   }
 }
 
@@ -701,6 +730,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
   sprintLimit: 0,
   backlogPending: new Set<number>(),
   backlogPlanned: new Set<number>(),
+  heartbeat: { healthy: true, staleLock: false, lastTickAt: null, staleWarning: false },
 
   // Actions
   send: (msg: ClientMessage) => {

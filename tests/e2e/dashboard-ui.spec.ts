@@ -101,7 +101,7 @@ test.describe("Header Controls", () => {
   });
 
   test("connection status dot is visible", async ({ page }) => {
-    const dot = page.locator(".status-dot");
+    const dot = page.locator(".status-connected, .status-disconnected").first();
     await expect(dot).toBeVisible();
   });
 

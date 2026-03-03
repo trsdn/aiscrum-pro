@@ -277,13 +277,13 @@ test.describe("Elapsed Timer", () => {
 test.describe("Connection Status", () => {
   test("connection dot is visible", async ({ page }) => {
     await waitForDashboard(page);
-    const dot = page.locator(".status-dot");
+    const dot = page.locator(".status-connected, .status-disconnected").first();
     await expect(dot).toBeVisible();
   });
 
   test("connection dot shows connected state", async ({ page }) => {
     await waitForDashboard(page);
-    const dot = page.locator(".status-dot");
+    const dot = page.locator(".status-connected, .status-disconnected").first();
     await expect(dot).toHaveClass(/status-connected/);
   });
 });
