@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { useDashboardStore } from "../store";
+import type { AcpSession } from "../types";
 import "./SessionPanel.css";
+
+function sessionIcon(s: AcpSession): string {
+  if (!s.endedAt) return "⚡";
+  switch (s.outcome) {
+    case "approved": return "✅";
+    case "changes_requested": return "🔄";
+    case "failed": return "❌";
+    default: return "✅";
+  }
+}
 
 export function SessionPanel() {
   const sessions = useDashboardStore((s) => s.acpSessions);
@@ -46,7 +57,7 @@ export function SessionPanel() {
                 className={`session-item ${isActive ? "session-active" : "session-ended"}${isViewing ? " session-viewing" : ""}`}
                 onClick={() => openSession(s.sessionId)}
               >
-                <span className="session-icon">{isActive ? "⚡" : "✅"}</span>
+                <span className={`session-icon${isActive ? " session-icon-active" : ""}`}>{sessionIcon(s)}</span>
                 <span className="session-role">{s.role}</span>
                 {s.model && <span className="session-model">{s.model}</span>}
                 {isActive && elapsed > 0 && (

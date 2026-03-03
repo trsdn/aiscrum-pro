@@ -39,6 +39,8 @@ export async function runCodeReview(
     model: sessionConfig.model,
   });
 
+  let outcome: "approved" | "changes_requested" | "failed" | "completed" = "completed";
+
   try {
     if (sessionConfig.model) {
       await client.setModel(sessionId, sessionConfig.model);
@@ -90,9 +92,10 @@ export async function runCodeReview(
 
     log.info({ approved, issueCount: issues.length }, "code review completed");
 
+    outcome = approved ? "approved" : "changes_requested";
     return { approved, feedback: response, issues };
   } finally {
-    eventBus?.emitTyped("session:end", { sessionId });
+    eventBus?.emitTyped("session:end", { sessionId, outcome });
     await client.endSession(sessionId);
   }
 }

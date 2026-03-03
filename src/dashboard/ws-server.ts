@@ -98,6 +98,7 @@ export interface TrackedSession {
   model?: string;
   startedAt: number;
   endedAt?: number;
+  outcome?: "completed" | "approved" | "changes_requested" | "failed";
   output: string[];
 }
 
@@ -349,6 +350,7 @@ export class DashboardWebServer {
       model: s.model,
       startedAt: s.startedAt,
       endedAt: s.endedAt,
+      outcome: s.outcome,
       outputLength: s.output.length,
     }));
     this.broadcast({ type: "session:list", payload: sessions });
@@ -430,6 +432,7 @@ export class DashboardWebServer {
       const session = this.sessions.get(payload.sessionId);
       if (session) {
         session.endedAt = Date.now();
+        session.outcome = payload.outcome;
         this.broadcastSessionList();
         // Clean up subscribers
         this.sessionSubscribers.delete(payload.sessionId);

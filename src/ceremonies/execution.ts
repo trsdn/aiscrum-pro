@@ -124,15 +124,13 @@ async function planPhase(ctx: ExecutionContext): Promise<string> {
   } catch (err: unknown) {
     log.warn({ err }, "plan mode failed — proceeding with direct execution");
   } finally {
-    eventBus?.emitTyped("session:end", { sessionId });
+    eventBus?.emitTyped("session:end", { sessionId, outcome: "completed" });
     await client.endSession(sessionId);
   }
 
   return implementationPlan;
 }
 
-// ---------------------------------------------------------------------------
-// Sub-phase: TDD — Test-Engineer writes tests before implementation
 // ---------------------------------------------------------------------------
 
 /** Create ACP session for Test-Engineer to write failing tests based on the plan. */
@@ -180,7 +178,7 @@ async function tddPhase(ctx: ExecutionContext, implementationPlan: string): Prom
 
     log.info("TDD tests written");
   } finally {
-    eventBus?.emitTyped("session:end", { sessionId });
+    eventBus?.emitTyped("session:end", { sessionId, outcome: "completed" });
     await client.endSession(sessionId);
   }
 }
@@ -254,7 +252,7 @@ async function implementPhase(ctx: ExecutionContext, implementationPlan: string)
   } catch (err: unknown) {
     // On error, close session before re-throwing
     acpOutputLines = client.getSessionOutput(sessionId, 50);
-    eventBus?.emitTyped("session:end", { sessionId });
+    eventBus?.emitTyped("session:end", { sessionId, outcome: "failed" });
     await client.endSession(sessionId);
     throw err;
   }
@@ -322,6 +320,8 @@ async function acceptanceCriteriaReview(ctx: ExecutionContext, qualityResult: Qu
     model: reviewerConfig.model,
   });
 
+  let acOutcome: "approved" | "changes_requested" | "completed" = "completed";
+
   try {
     if (reviewerConfig.model) {
       await client.setModel(sessionId, reviewerConfig.model);
@@ -341,9 +341,10 @@ async function acceptanceCriteriaReview(ctx: ExecutionContext, qualityResult: Qu
     );
 
     log.info({ approved: acResult.approved }, "acceptance criteria review completed");
+    acOutcome = acResult.approved ? "approved" : "changes_requested";
     return acResult;
   } finally {
-    eventBus?.emitTyped("session:end", { sessionId });
+    eventBus?.emitTyped("session:end", { sessionId, outcome: acOutcome });
     await client.endSession(sessionId);
   }
 }
@@ -393,6 +394,7 @@ async function qualityAndReviewPhase(ctx: ExecutionContext, devSessionId: string
       codeReview = await runCodeReview(client, config, issue, branch, worktreePath, ctx.eventBus);
 
       if (!codeReview.approved) {
+        progress("review rejected — fixing");
         const fixResult = await attemptCodeReviewFix(ctx, codeReview, devSessionId);
         qualityResult = fixResult.qualityResult;
         codeReview = fixResult.codeReview;
@@ -409,6 +411,7 @@ async function qualityAndReviewPhase(ctx: ExecutionContext, devSessionId: string
       progress("acceptance review");
       const acReview = await acceptanceCriteriaReview(ctx, qualityResult);
       if (!acReview.approved) {
+        progress("acceptance failed — fixing");
         const feedback = acReview.feedback ?? "Acceptance criteria not met";
         await client.sendPrompt(devSessionId,
           `## Acceptance Criteria Review Failed\n\n${feedback}\n\nPlease fix the issues and ensure all acceptance criteria are met.`,
@@ -481,9 +484,10 @@ async function attemptCodeReviewFix(
   codeReview: CodeReviewResult,
   devSessionId: string,
 ): Promise<{ qualityResult: QualityResult; codeReview?: CodeReviewResult }> {
-  const { client, config, issue, log, worktreePath, branch } = ctx;
+  const { client, config, issue, log, worktreePath, branch, progress } = ctx;
 
   log.warn("code review rejected — attempting fix in same session");
+  progress("developer fixing review issues");
 
   const fixPrompt = [
     "The automated code review found issues with your implementation.",
@@ -499,6 +503,7 @@ async function attemptCodeReviewFix(
 
   let newReview: CodeReviewResult | undefined = codeReview;
   if (newQuality.passed) {
+    progress("re-reviewing code");
     newReview = await runCodeReview(client, config, issue, branch, worktreePath, ctx.eventBus);
     log.info({ approved: newReview.approved }, "code review re-run after fix");
   }
@@ -727,7 +732,7 @@ export async function executeIssue(
   } finally {
     // Close developer session after all retries are done
     if (devSessionId) {
-      eventBus?.emitTyped("session:end", { sessionId: devSessionId });
+      eventBus?.emitTyped("session:end", { sessionId: devSessionId, outcome: status === "completed" ? "completed" : "failed" });
       await client.endSession(devSessionId).catch((err) => {
         log.warn({ err, sessionId: devSessionId, issue: issue.number }, "failed to end developer session — possible session leak");
       });
