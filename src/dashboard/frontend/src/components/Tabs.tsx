@@ -7,6 +7,7 @@ import "./TabList.css";
 export function BacklogTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const send = useDashboardStore((s) => s.send);
   const activeSprintNumber = useDashboardStore((s) => s.activeSprintNumber);
   const availableSprints = useDashboardStore((s) => s.availableSprints);
@@ -21,13 +22,14 @@ export function BacklogTab() {
 
   const fetchItems = () => {
     setLoading(true);
+    setError(null);
     fetch("/api/backlog")
       .then((r) => r.json())
       .then((d) => {
         setItems(Array.isArray(d) ? d : []);
         useDashboardStore.setState({ backlogPlanned: new Set() });
       })
-      .catch(() => setItems([]))
+      .catch((e) => { setItems([]); setError(String(e)); })
       .finally(() => setLoading(false));
   };
 
@@ -44,6 +46,7 @@ export function BacklogTab() {
     : activeSprintNumber > 0 ? [{ sprintNumber: activeSprintNumber }] : [];
 
   if (loading) return <div className="tab-loading">Loading backlog...</div>;
+  if (error) return <div className="tab-empty">❌ Failed to load backlog: {error} <button className="btn btn-small" onClick={fetchItems}>↻ Retry</button></div>;
   if (visibleItems.length === 0) return <div className="tab-empty">No backlog items.</div>;
 
   return (
@@ -92,14 +95,16 @@ export function BacklogTab() {
 export function BlockedTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const send = useDashboardStore((s) => s.send);
 
   const fetchItems = () => {
     setLoading(true);
+    setError(null);
     fetch("/api/blocked")
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
-      .catch(() => setItems([]))
+      .catch((e) => { setItems([]); setError(String(e)); })
       .finally(() => setLoading(false));
   };
 
@@ -120,6 +125,7 @@ export function BlockedTab() {
   useEffect(() => { fetchItems(); }, []);
 
   if (loading) return <div className="tab-loading">Loading blocked items...</div>;
+  if (error) return <div className="tab-empty">❌ Failed to load blocked items: {error} <button className="btn btn-small" onClick={fetchItems}>↻ Retry</button></div>;
   if (items.length === 0) return <div className="tab-empty">No blocked items 🎉</div>;
 
   return (
@@ -153,14 +159,16 @@ export function BlockedTab() {
 export function DecisionsTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const send = useDashboardStore((s) => s.send);
 
   const fetchItems = () => {
     setLoading(true);
+    setError(null);
     fetch("/api/decisions")
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
-      .catch(() => setItems([]))
+      .catch((e) => { setItems([]); setError(String(e)); })
       .finally(() => setLoading(false));
   };
 
@@ -180,6 +188,7 @@ export function DecisionsTab() {
   useEffect(() => { fetchItems(); }, []);
 
   if (loading) return <div className="tab-loading">Loading decisions...</div>;
+  if (error) return <div className="tab-empty">❌ Failed to load decisions: {error} <button className="btn btn-small" onClick={fetchItems}>↻ Retry</button></div>;
   if (items.length === 0) return <div className="tab-empty">No pending decisions.</div>;
 
   return (
@@ -213,14 +222,16 @@ export function DecisionsTab() {
 export function IdeasTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const send = useDashboardStore((s) => s.send);
 
   const fetchItems = () => {
     setLoading(true);
+    setError(null);
     fetch("/api/ideas")
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
-      .catch(() => setItems([]))
+      .catch((e) => { setItems([]); setError(String(e)); })
       .finally(() => setLoading(false));
   };
 
@@ -240,6 +251,7 @@ export function IdeasTab() {
   useEffect(() => { fetchItems(); }, []);
 
   if (loading) return <div className="tab-loading">Loading ideas...</div>;
+  if (error) return <div className="tab-empty">❌ Failed to load ideas: {error} <button className="btn btn-small" onClick={fetchItems}>↻ Retry</button></div>;
   if (items.length === 0) return <div className="tab-empty">No ideas yet.</div>;
 
   return (

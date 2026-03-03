@@ -112,6 +112,7 @@ export interface LogEntry {
 }
 
 let ws: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const pendingMessages: ClientMessage[] = [];
 let pendingGeneralCreate = false;
 
@@ -120,6 +121,8 @@ const stateCache = new Map<number, { state: SprintState; issues: SprintIssue[] }
 const activityCache = new Map<number, Activity[]>();
 
 function createWebSocket(set: SetFn, get: GetFn): void {
+  if (ws && (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN)) return;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const url = `${protocol}//${window.location.host}`;
   ws = new WebSocket(url);
@@ -153,7 +156,7 @@ function createWebSocket(set: SetFn, get: GetFn): void {
       chatConfig: {},
     });
     ws = null;
-    setTimeout(() => createWebSocket(set, get), 2000);
+    reconnectTimer = setTimeout(() => { reconnectTimer = null; createWebSocket(set, get); }, 2000);
   };
 
   ws.onmessage = (event) => {

@@ -78,11 +78,9 @@ export default function App() {
     document.addEventListener("mouseup", onMouseUp);
   }, []);
 
-  const RESTRICTED_TABS = new Set(["sprint", "settings", "logs"]);
-
   const handleTabClick = useCallback((tabId: Tab) => {
     setActiveTab(tabId);
-    if (RESTRICTED_TABS.has(tabId) && chatPanelOpen) {
+    if ((tabId === "sprint" || tabId === "settings" || tabId === "logs") && chatPanelOpen) {
       useDashboardStore.setState({ chatPanelOpen: false });
     }
   }, [chatPanelOpen]);

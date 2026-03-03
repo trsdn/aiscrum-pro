@@ -152,7 +152,7 @@ export function LogTerminal() {
             {filteredLive.map((l, i) => (
               <div key={i} className={`log-line log-${l.level}`}>
                 <span className="log-ts">
-                  {l.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  {l.time?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) ?? "--:--:--"}
                 </span>
                 <span className={`log-level log-level-${l.level}`}>{l.level.toUpperCase()}</span>
                 <span className="log-text">{l.message}</span>

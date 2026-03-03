@@ -8,11 +8,13 @@ export function SprintBacklogTab() {
   const [items, setItems] = useState<GhIssueItem[]>([]);
   const [sprintNumber, setSprintNumber] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const send = useDashboardStore((s) => s.send);
   const viewingSprintNumber = useDashboardStore((s) => s.viewingSprintNumber);
 
   const fetchItems = (sprint?: number) => {
     setLoading(true);
+    setError(null);
     const url = sprint && sprint > 0 ? `/api/sprint-backlog?sprint=${sprint}` : "/api/sprint-backlog";
     fetch(url)
       .then((r) => r.json())
@@ -20,7 +22,7 @@ export function SprintBacklogTab() {
         setSprintNumber(d.sprintNumber ?? 0);
         setItems(Array.isArray(d.items) ? d.items : []);
       })
-      .catch(() => setItems([]))
+      .catch((e) => { setItems([]); setError(String(e)); })
       .finally(() => setLoading(false));
   };
 
@@ -34,6 +36,7 @@ export function SprintBacklogTab() {
   };
 
   if (loading) return <div className="tab-loading">Loading sprint backlog...</div>;
+  if (error) return <div className="tab-empty">❌ Failed to load sprint backlog: {error} <button className="btn btn-small" onClick={() => fetchItems(viewingSprintNumber)}>↻ Retry</button></div>;
   if (items.length === 0) return <div className="tab-empty">No issues in sprint backlog.</div>;
 
   return (

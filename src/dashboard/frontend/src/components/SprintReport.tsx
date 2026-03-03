@@ -184,12 +184,14 @@ export function SprintReport() {
   }, [viewingSprintNumber]);
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
-    fetch(`/api/sprints/${sprintNum}/state`)
+    fetch(`/api/sprints/${sprintNum}/state`, { signal: controller.signal })
       .then((r) => r.json())
       .then((d) => setData(d as SprintStateData))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (e.name !== "AbortError") setData(null); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
   }, [sprintNum]);
 
   const copyMarkdown = useCallback(() => {
@@ -231,11 +233,15 @@ export function SprintReport() {
           value={sprintNum}
           onChange={(e) => setSprintNum(parseInt(e.target.value, 10))}
         >
-          {availableSprints.map((s) => (
-            <option key={s.sprintNumber} value={s.sprintNumber}>
-              Sprint {s.sprintNumber}
-            </option>
-          ))}
+          {availableSprints.length > 0 ? (
+            availableSprints.map((s) => (
+              <option key={s.sprintNumber} value={s.sprintNumber}>
+                Sprint {s.sprintNumber}
+              </option>
+            ))
+          ) : (
+            <option value={sprintNum}>Sprint {sprintNum}</option>
+          )}
         </select>
       </div>
 
@@ -254,8 +260,8 @@ export function SprintReport() {
       ) : (
         <>
           <div className="report-actions">
-            <button className="btn btn-small" onClick={copyMarkdown}>📋 Copy Markdown</button>
-            <button className="btn btn-small" onClick={downloadMarkdown}>⬇ Download .md</button>
+            <button className="btn btn-small" onClick={copyMarkdown} disabled={!data}>{copied ? "✅ Copied!" : "📋 Copy Markdown"}</button>
+            <button className="btn btn-small" onClick={downloadMarkdown} disabled={!data}>⬇ Download .md</button>
           </div>
 
           <div className="report-summary">
@@ -404,7 +410,6 @@ export function SprintReport() {
         </>
       )}
 
-      {copied && <div className="copied-toast">✅ Copied to clipboard</div>}
     </div>
   );
 }
