@@ -67,7 +67,6 @@ export function SidePanel() {
 
   // ACP session viewer state
   const acpSessions = useDashboardStore((s) => s.acpSessions);
-  const viewingSessionId = useDashboardStore((s) => s.viewingSessionId);
   const sessionOutput = useDashboardStore((s) => s.sessionOutput);
   const closeAcpSession = useDashboardStore((s) => s.closeSession);
 
