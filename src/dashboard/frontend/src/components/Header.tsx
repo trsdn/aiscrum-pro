@@ -31,11 +31,10 @@ export function Header() {
       setNotificationsEnabled(false);
       setNotificationsOn(false);
     } else {
-      const granted = await requestNotificationPermission();
-      if (granted) {
-        setNotificationsEnabled(true);
-        setNotificationsOn(true);
-      }
+      setNotificationsEnabled(true);
+      setNotificationsOn(true);
+      // Request permission in background — toggle works regardless
+      await requestNotificationPermission();
     }
   }, [notificationsOn]);
 
