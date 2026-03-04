@@ -66,15 +66,16 @@ export function SessionPanel() {
                 {isViewing && <span className="session-viewing-badge">viewing</span>}
                 {isActive && isViewing && (
                   <button
-                    className="btn btn-danger btn-tiny"
+                    className="session-stop-btn"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (confirm("Stop this session?")) {
                         send({ type: "session:stop", sessionId: s.sessionId });
                       }
                     }}
+                    title="Stop session"
                   >
-                    Stop
+                    ■
                   </button>
                 )}
               </div>

@@ -152,11 +152,13 @@ export function Header() {
           <option value="10">10 Sprints</option>
         </select>
 
-        {idle && <button className="btn btn-primary" onClick={() => send({ type: "sprint:start" })}>▶ Start</button>}
-        {running && isViewingActive && <button className="btn btn-small" onClick={() => send({ type: "sprint:pause" })}>⏸ Pause</button>}
-        {paused && isViewingActive && <button className="btn btn-small" onClick={() => send({ type: "sprint:resume" })}>▶ Resume</button>}
-        {(running || paused) && isViewingActive && <button className="btn btn-danger btn-small" onClick={() => { if (confirm("Stop sprint?")) send({ type: "sprint:stop" }); }}>⏹ Stop</button>}
-        {(running || paused) && isViewingActive && <button className="btn btn-danger btn-small" onClick={() => { if (confirm("Cancel sprint and return items to backlog?")) send({ type: "sprint:cancel" }); }}>✕ Cancel</button>}
+        <div className="header-controls">
+          {idle && <button className="btn btn-primary btn-small" onClick={() => send({ type: "sprint:start" })}>▶ Start</button>}
+          {running && isViewingActive && <button className="btn btn-small" onClick={() => send({ type: "sprint:pause" })}>⏸ Pause</button>}
+          {paused && isViewingActive && <button className="btn btn-small" onClick={() => send({ type: "sprint:resume" })}>▶ Resume</button>}
+          {(running || paused) && isViewingActive && <button className="btn btn-danger btn-small" onClick={() => { if (confirm("Stop sprint?")) send({ type: "sprint:stop" }); }}>⏹ Stop</button>}
+          {(running || paused) && isViewingActive && <button className="btn btn-danger btn-small" onClick={() => { if (confirm("Cancel sprint and return items to backlog?")) send({ type: "sprint:cancel" }); }}>✕ Cancel</button>}
+        </div>
       </div>
 
       <div className="phase-stepper">
