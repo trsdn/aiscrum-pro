@@ -78,12 +78,6 @@ export function normalizeRetroFields(raw: Record<string, unknown>): Record<strin
 
 function normalizeRetroImprovements(raw: unknown): unknown[] {
   if (!Array.isArray(raw)) return [];
-  const categoryMap: Record<string, string> = {
-    config: "config",
-    agent: "agent",
-    skill: "skill",
-    process: "process",
-  };
   return raw.map((item: Record<string, unknown>) => ({
     title: (item.title as string) || (item.action as string) || (item.problem as string) || "",
     description:
@@ -93,9 +87,21 @@ function normalizeRetroImprovements(raw: unknown): unknown[] {
         .join(" — ") ||
       "",
     autoApplicable: item.autoApplicable !== undefined ? Boolean(item.autoApplicable) : true,
-    target:
-      (item.target as string) || categoryMap[(item.category as string)?.toLowerCase()] || "process",
+    target: coerceRetroTarget((item.target as string) || (item.category as string) || "process"),
   }));
+}
+
+const VALID_RETRO_TARGETS = new Set(["config", "agent", "skill", "process"]);
+
+function coerceRetroTarget(value: string): string {
+  const lower = value.toLowerCase();
+  if (VALID_RETRO_TARGETS.has(lower)) return lower;
+  // LLMs sometimes return file paths — infer category from path
+  if (lower.includes("config") || lower.endsWith(".yaml") || lower.endsWith(".json"))
+    return "config";
+  if (lower.includes("agent") || lower.includes("roles/")) return "agent";
+  if (lower.includes("skill")) return "skill";
+  return "process";
 }
 
 // --- Action Schemas (#421 + #425) ---
