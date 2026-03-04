@@ -206,9 +206,21 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
       break;
     }
 
-    case "sprint:issues":
-      set({ issues: (msg.payload as SprintIssue[]) || [] });
+    case "sprint:issues": {
+      const incoming = (msg.payload as SprintIssue[]) || [];
+      const current = get().issues;
+      // Preserve runtime status/step/failReason from existing issues
+      const statusMap = new Map(current.map((i) => [i.number, i]));
+      const merged = incoming.map((i) => {
+        const prev = statusMap.get(i.number);
+        if (prev && prev.status !== "planned" && prev.status !== i.status) {
+          return { ...i, status: prev.status, step: prev.step, failReason: prev.failReason };
+        }
+        return i;
+      });
+      set({ issues: merged });
       break;
+    }
 
     case "sprint:switched": {
       const p = msg.payload as { activeSprintNumber?: number } | undefined;

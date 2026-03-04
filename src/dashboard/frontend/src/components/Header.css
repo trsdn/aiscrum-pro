@@ -111,3 +111,10 @@
   background: rgba(46, 160, 67, 0.15);
   border-color: #3fb950;
 }
+
+.header-controls {
+  display: flex;
+  gap: 4px;
+  min-width: 120px;
+  justify-content: flex-end;
+}

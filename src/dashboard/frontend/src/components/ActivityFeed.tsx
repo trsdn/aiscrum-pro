@@ -6,9 +6,14 @@ export function ActivityFeed() {
   const activities = useDashboardStore((s) => s.activities);
   const bottomRef = useRef<HTMLLIElement>(null);
 
+  // Scroll to bottom on new entries and on initial mount (tab switch)
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activities]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "auto" });
+  }, []);
 
   return (
     <div id="activity-panel" className="activity-container">
