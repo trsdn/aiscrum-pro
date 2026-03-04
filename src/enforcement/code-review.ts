@@ -89,10 +89,26 @@ export async function runCodeReview(
 
     const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
 
-    const action = await parseWithRetry(CodeReviewActionSchema, result.response, async (hint) => {
-      const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
-      return retry.response;
-    });
+    const codeReviewJsonExample = JSON.stringify(
+      {
+        decision: "approved",
+        reasoning: "No blocking issues found",
+        summary: "Changes look correct",
+        issues: [],
+      },
+      null,
+      2,
+    );
+
+    const action = await parseWithRetry(
+      CodeReviewActionSchema,
+      result.response,
+      async (hint) => {
+        const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
+        return retry.response;
+      },
+      codeReviewJsonExample,
+    );
 
     const approved = action.decision === "approved";
 

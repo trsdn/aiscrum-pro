@@ -91,11 +91,16 @@ export function extractJson<T = unknown>(text: string): T {
  * Parse an agent response against a Zod schema, retrying once on validation failure.
  * On first failure, calls `retryFn` with a format hint derived from the schema error.
  * Logs the first failure as a warning. Throws on second failure.
+ *
+ * @param jsonExample - Optional JSON example string to include in the retry hint.
+ *   Providing this dramatically improves retry success by showing the LLM the exact
+ *   structure expected.
  */
 export async function parseWithRetry<S extends z.ZodTypeAny>(
   schema: S,
   rawResponse: string,
   retryFn: (formatHint: string) => Promise<string>,
+  jsonExample?: string,
 ): Promise<z.output<S>> {
   const log = logger.child({ module: "parseWithRetry" });
 
@@ -105,16 +110,27 @@ export async function parseWithRetry<S extends z.ZodTypeAny>(
     const errMsg = firstError instanceof Error ? firstError.message : String(firstError);
     log.warn({ error: errMsg }, "schema validation failed — retrying with format hint");
 
-    const formatHint = [
-      "Your previous response could not be parsed.",
+    const hintLines = [
+      "Your previous response could not be parsed as JSON.",
       `Error: ${errMsg}`,
       "",
-      "Please respond with your analysis as readable text, then include a JSON block at the end.",
-      "The JSON must be wrapped in a ```json fenced code block.",
-      "Do NOT change your analysis — only fix the JSON format.",
-    ].join("\n");
+      "IMPORTANT: You MUST include a JSON block in your response.",
+      "Write your analysis as readable text first, then end with a ```json fenced code block.",
+    ];
 
-    const retryResponse = await retryFn(formatHint);
+    if (jsonExample) {
+      hintLines.push(
+        "",
+        "The JSON must match this exact structure:",
+        "```json",
+        jsonExample,
+        "```",
+      );
+    }
+
+    hintLines.push("", "Do NOT change your analysis — only add the JSON block at the end.");
+
+    const retryResponse = await retryFn(hintLines.join("\n"));
     return schema.parse(extractJson(retryResponse));
   }
 }

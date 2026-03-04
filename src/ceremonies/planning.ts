@@ -72,15 +72,41 @@ export async function runSprintPlanning(
     for (let attempt = 1; attempt <= MAX_PLANNING_ATTEMPTS; attempt++) {
       try {
         const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
-        plan = (await parseWithRetry(SprintPlanSchema, result.response, async (formatHint) => {
-          log.warn("Planning parse failed — retrying with format hint");
-          eventBus?.emitTyped("log", {
-            level: "warn",
-            message: "Planning parse failed, retrying with format hint…",
-          });
-          const retry = await client.sendPrompt(sessionId, formatHint, config.sessionTimeoutMs);
-          return retry.response;
-        })) as SprintPlan;
+        const planJsonExample = JSON.stringify(
+          {
+            sprintNumber: config.sprintNumber,
+            sprint_issues: [
+              {
+                number: 1,
+                title: "Example issue",
+                ice_score: 8,
+                depends_on: [],
+                acceptanceCriteria: "Feature works as expected",
+                expectedFiles: ["src/example.ts"],
+                points: 1,
+              },
+            ],
+            execution_groups: [[1]],
+            estimated_points: 1,
+            rationale: "Selected based on priority and dependencies",
+          },
+          null,
+          2,
+        );
+        plan = (await parseWithRetry(
+          SprintPlanSchema,
+          result.response,
+          async (formatHint) => {
+            log.warn("Planning parse failed — retrying with format hint");
+            eventBus?.emitTyped("log", {
+              level: "warn",
+              message: "Planning parse failed, retrying with format hint…",
+            });
+            const retry = await client.sendPrompt(sessionId, formatHint, config.sessionTimeoutMs);
+            return retry.response;
+          },
+          planJsonExample,
+        )) as SprintPlan;
         break;
       } catch (err: unknown) {
         lastError = err;

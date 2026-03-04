@@ -372,6 +372,24 @@ async function acceptanceCriteriaReview(
     }
 
     const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
+
+    const acJsonExample = JSON.stringify(
+      {
+        approved: true,
+        reasoning: "All acceptance criteria met",
+        summary: "Implementation matches requirements",
+        criteria: [
+          {
+            criterion: "Feature works as specified",
+            passed: true,
+            evidence: "Verified in tests",
+          },
+        ],
+      },
+      null,
+      2,
+    );
+
     const acResult = await parseWithRetry(
       AcceptanceCriteriaSchema,
       result.response,
@@ -379,6 +397,7 @@ async function acceptanceCriteriaReview(
         const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
         return retry.response;
       },
+      acJsonExample,
     );
 
     // Post results as issue comment

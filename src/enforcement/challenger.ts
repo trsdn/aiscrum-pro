@@ -76,10 +76,21 @@ export async function runChallengerReview(
 
   const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
 
-  const action = await parseWithRetry(ChallengerActionSchema, result.response, async (hint) => {
-    const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
-    return retry.response;
-  });
+  const challengerJsonExample = JSON.stringify(
+    { decision: "approved", reasoning: "No blocking issues found", feedback: "LGTM" },
+    null,
+    2,
+  );
+
+  const action = await parseWithRetry(
+    ChallengerActionSchema,
+    result.response,
+    async (hint) => {
+      const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
+      return retry.response;
+    },
+    challengerJsonExample,
+  );
 
   await client.endSession(sessionId);
 
