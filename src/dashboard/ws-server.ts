@@ -434,8 +434,14 @@ export class DashboardWebServer {
         session.endedAt = Date.now();
         session.outcome = payload.outcome;
         this.broadcastSessionList();
-        // Clean up subscribers
         this.sessionSubscribers.delete(payload.sessionId);
+        // Prune ended session after 5 minutes to prevent memory leak
+        setTimeout(() => {
+          const s = this.sessions.get(payload.sessionId);
+          if (s?.endedAt) {
+            this.sessions.delete(payload.sessionId);
+          }
+        }, 5 * 60 * 1000);
       }
     });
 
