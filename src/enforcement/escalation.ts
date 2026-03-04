@@ -12,11 +12,13 @@ const MAX_HTTP_STRING_LENGTH = 500;
 
 /** Sanitize a string for safe use in HTTP headers/body via curl. */
 export function sanitizeForHttp(str: string): string {
-  return str
-    .replace(/[\r\n]+/g, " ")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x1f\x7f]/g, "")
-    .slice(0, MAX_HTTP_STRING_LENGTH);
+  return (
+    str
+      .replace(/[\r\n]+/g, " ")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x1f\x7f]/g, "")
+      .slice(0, MAX_HTTP_STRING_LENGTH)
+  );
 }
 
 export interface EscalationConfig {
@@ -79,7 +81,7 @@ export async function escalateToStakeholder(
       state,
       config.maxIssuesCreatedPerSprint ?? DEFAULT_MAX_ISSUES,
     );
-    
+
     if (issue) {
       log.info({ number: issue.number }, "escalation issue created");
     } else {
@@ -137,6 +139,10 @@ export async function escalateToStakeholder(
         "-s",
         "-o",
         "/dev/null",
+        "--max-time",
+        "10",
+        "--connect-timeout",
+        "5",
         "-d",
         `[${event.level}] ${sanitizeForHttp(event.reason)}: ${sanitizeForHttp(event.detail)}`,
         "-H",

@@ -63,7 +63,7 @@ export async function runChallengerReview(
     await client.setModel(sessionId, sessionConfig.model);
   }
 
-  const result = await client.sendPrompt(sessionId, prompt);
+  const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
   await client.endSession(sessionId);
 
   const response = result.response.trim();

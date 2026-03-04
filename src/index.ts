@@ -28,11 +28,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const pkg = JSON.parse(readFileSync(resolve(__dirname, "..", "package.json"), "utf-8"));
 
-// Graceful shutdown on SIGINT (Ctrl+C)
-process.on("SIGINT", () => {
-  console.log("\n🛑 Received SIGINT, shutting down...");
-  process.exit(130);
-});
+// Global SIGINT handler removed — individual commands register their own cleanup handlers
 
 const program = new Command();
 

@@ -24,7 +24,14 @@ export async function runSprintPlanning(
   const log = logger.child({ ceremony: "planning" });
 
   // Read prompt template
-  const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "planner", "prompts", "planning.md");
+  const templatePath = path.join(
+    config.projectPath,
+    ".aiscrum",
+    "roles",
+    "planner",
+    "prompts",
+    "planning.md",
+  );
   const template = await fs.readFile(templatePath, "utf-8");
 
   const prompt = substitutePrompt(template, {
@@ -53,9 +60,16 @@ export async function runSprintPlanning(
       await client.setModel(sessionId, sessionConfig.model);
     }
     const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
-    const plan = SprintPlanSchema.parse(
-      extractJson(result.response),
-    ) as SprintPlan;
+    const plan = SprintPlanSchema.parse(extractJson(result.response)) as SprintPlan;
+
+    // Enforce max_issues — LLM may return more than requested
+    if (plan.sprint_issues.length > config.maxIssuesPerSprint) {
+      log.warn(
+        { returned: plan.sprint_issues.length, max: config.maxIssuesPerSprint },
+        "planner returned more issues than max — truncating",
+      );
+      plan.sprint_issues = plan.sprint_issues.slice(0, config.maxIssuesPerSprint);
+    }
 
     log.info(
       {
@@ -70,7 +84,10 @@ export async function runSprintPlanning(
     const milestoneTitle = `${config.sprintPrefix} ${config.sprintNumber}`;
     const existing = await getMilestone(milestoneTitle);
     if (!existing) {
-      await createMilestone(milestoneTitle, `${config.sprintPrefix} ${config.sprintNumber} milestone`);
+      await createMilestone(
+        milestoneTitle,
+        `${config.sprintPrefix} ${config.sprintNumber} milestone`,
+      );
     }
 
     // Set labels and milestone on each selected issue

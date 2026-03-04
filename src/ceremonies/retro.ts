@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import yaml from "yaml";
 import type { AcpClient } from "../acp/client.js";
 import type {
   SprintConfig,
@@ -45,7 +46,14 @@ export async function runSprintRetro(
     }));
 
   // Read prompt template
-  const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "retro", "prompts", "retro.md");
+  const templatePath = path.join(
+    config.projectPath,
+    ".aiscrum",
+    "roles",
+    "retro",
+    "prompts",
+    "retro.md",
+  );
   const template = await fs.readFile(templatePath, "utf-8");
 
   const prompt = substitutePrompt(template, {
@@ -80,23 +88,30 @@ export async function runSprintRetro(
       wentWell: (rawRetro.wentWell ?? rawRetro.went_well ?? []) as string[],
       wentBadly: (rawRetro.wentBadly ?? rawRetro.went_poorly ?? []) as string[],
       improvements: [],
-      previousImprovementsChecked: (rawRetro.previousImprovementsChecked ?? rawRetro.previous_improvements_applied !== undefined) as boolean,
+      previousImprovementsChecked: (rawRetro.previousImprovementsChecked ??
+        rawRetro.previous_improvements_applied !== undefined) as boolean,
     };
 
     // Normalize improvements: prompt format uses problem/action/category,
     // code expects title/description/target/autoApplicable
     const rawImprovements = (rawRetro.improvements ?? []) as Record<string, unknown>[];
     for (const raw of rawImprovements) {
-      const title = (raw.title as string) || (raw.action as string) || (raw.problem as string) || "";
-      const description = (raw.description as string) ||
+      const title =
+        (raw.title as string) || (raw.action as string) || (raw.problem as string) || "";
+      const description =
+        (raw.description as string) ||
         [raw.problem, raw.root_cause, raw.action, raw.expected_outcome]
           .filter(Boolean)
           .join(" — ") ||
         "";
       const categoryMap: Record<string, RetroImprovement["target"]> = {
-        config: "config", agent: "agent", skill: "skill", process: "process",
+        config: "config",
+        agent: "agent",
+        skill: "skill",
+        process: "process",
       };
-      const target = (raw.target as RetroImprovement["target"]) ||
+      const target =
+        (raw.target as RetroImprovement["target"]) ||
         categoryMap[(raw.category as string)?.toLowerCase()] ||
         "process";
       const autoApplicable = raw.autoApplicable !== undefined ? Boolean(raw.autoApplicable) : true;
@@ -149,7 +164,10 @@ export async function runSprintRetro(
             labels: ["human-decision-needed", "type:improvement"],
           });
         } catch (issueErr) {
-          log.warn({ err: String(issueErr), title }, "Failed to create backlog issue for process improvement");
+          log.warn(
+            { err: String(issueErr), title },
+            "Failed to create backlog issue for process improvement",
+          );
         }
         continue;
       }
@@ -219,6 +237,27 @@ async function applyImprovement(
       `Do NOT create new files — only edit existing ones.`,
     ].join("\n");
     await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
+
+    // Validate config after ACP edits to prevent corruption
+    if (improvement.target === "config") {
+      const configFile = path.join(config.projectPath, ".aiscrum", "config.yaml");
+      try {
+        const raw = await fs.readFile(configFile, "utf-8");
+        yaml.parse(raw); // Throws on invalid YAML
+      } catch (parseErr: unknown) {
+        log.error(
+          { err: String(parseErr), title: improvement.title },
+          "Retro improvement corrupted config — reverting",
+        );
+        // Revert via git checkout
+        const { execFile } = await import("node:child_process");
+        const { promisify } = await import("node:util");
+        const exec = promisify(execFile);
+        await exec("git", ["checkout", "--", configFile], { cwd: config.projectPath });
+        throw new Error(`Config validation failed after retro improvement: ${String(parseErr)}`);
+      }
+    }
+
     log.info({ title: improvement.title }, "Applied improvement via ACP");
   } catch (err: unknown) {
     log.warn({ err: String(err), title: improvement.title }, "Failed to auto-apply improvement");

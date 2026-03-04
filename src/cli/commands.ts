@@ -69,7 +69,9 @@ function registerPlan(program: Command): void {
           console.log(`  Estimated points: ${plan.estimated_points}`);
           console.log(`  Rationale: ${plan.rationale}`);
           for (const issue of plan.sprint_issues) {
-            console.log(`    #${issue.number} — ${issue.title} (${issue.points}pt, ICE=${issue.ice_score})`);
+            console.log(
+              `    #${issue.number} — ${issue.title} (${issue.points}pt, ICE=${issue.ice_score})`,
+            );
           }
         } finally {
           await client.disconnect();
@@ -110,7 +112,9 @@ function registerExecuteIssue(program: Command): void {
         const client = await createConnectedClient(config);
         try {
           const result = await executeIssue(client, sprintConfig, sprintIssue);
-          console.log(`\n${result.status === "completed" ? "✅" : "❌"} Issue #${result.issueNumber}: ${result.status}`);
+          console.log(
+            `\n${result.status === "completed" ? "✅" : "❌"} Issue #${result.issueNumber}: ${result.status}`,
+          );
           console.log(`  Quality gate: ${result.qualityGatePassed ? "passed" : "failed"}`);
           console.log(`  Branch: ${result.branch}`);
           console.log(`  Duration: ${(result.duration_ms / 1000).toFixed(1)}s`);
@@ -158,7 +162,9 @@ function registerCheckQuality(program: Command): void {
         };
 
         const result = await runQualityGate(gateConfig, process.cwd(), opts.branch, baseBranch);
-        console.log(`\n${result.passed ? "✅" : "❌"} Quality gate: ${result.passed ? "PASSED" : "FAILED"}`);
+        console.log(
+          `\n${result.passed ? "✅" : "❌"} Quality gate: ${result.passed ? "PASSED" : "FAILED"}`,
+        );
         for (const check of result.checks) {
           console.log(`  ${check.passed ? "✓" : "✗"} ${check.name}: ${check.detail}`);
         }
@@ -218,20 +224,26 @@ function registerFullCycle(program: Command): void {
           // Step 1: Plan
           console.log("\n🔄 Phase 1/4: Planning...");
           const plan = await runSprintPlanning(client, sprintConfig);
-          console.log(`  Planned ${plan.sprint_issues.length} issues (${plan.estimated_points} points)`);
+          console.log(
+            `  Planned ${plan.sprint_issues.length} issues (${plan.estimated_points} points)`,
+          );
 
           // Step 2: Execute all issues (with parallel dispatch, merge, pre-merge verification)
           console.log("\n🔄 Phase 2/4: Execution...");
           const sprintResult = await runParallelExecution(client, sprintConfig, plan);
           const results = sprintResult.results;
           for (const r of results) {
-            console.log(`  ${r.status === "completed" ? "✅" : "❌"} #${r.issueNumber} — ${r.status}`);
+            console.log(
+              `  ${r.status === "completed" ? "✅" : "❌"} #${r.issueNumber} — ${r.status}`,
+            );
           }
 
           // Step 3: Review
           console.log("\n🔄 Phase 3/4: Review...");
           const review = await runSprintReview(client, sprintConfig, sprintResult);
-          console.log(`  ${review.demoItems.length} demo items, ${review.openItems.length} open items`);
+          console.log(
+            `  ${review.demoItems.length} demo items, ${review.openItems.length} open items`,
+          );
 
           // Step 4: Retro
           console.log("\n🔄 Phase 4/4: Retrospective...");
@@ -261,10 +273,19 @@ function registerWeb(program: Command): void {
     .command("web")
     .description("Launch web dashboard — browser-based sprint monitor on localhost")
     .option("--sprint <number>", "Override sprint number (skip auto-detection)", parseSprintNumber)
-    .option("--port <number>", "Dashboard server port (default: 9100)", (v) => parseInt(v, 10), 9100)
+    .option(
+      "--port <number>",
+      "Dashboard server port (default: 9100)",
+      (v) => parseInt(v, 10),
+      9100,
+    )
     .option("--run", "Start sprint execution immediately")
     .option("--once", "Run only one sprint instead of looping (implies --run)")
-    .option("--max-sprints <number>", "Number of sprints to run (0=infinite, default: from config)", (v) => parseInt(v, 10))
+    .option(
+      "--max-sprints <number>",
+      "Number of sprints to run (0=infinite, default: from config)",
+      (v) => parseInt(v, 10),
+    )
     .option("--log-file <path>", "Log file path (default: sprint-runner.log)", "sprint-runner.log")
     .option("--no-open", "Don't auto-open browser")
     .action(async (opts) => {
@@ -295,7 +316,11 @@ function registerWeb(program: Command): void {
         runner.loadSavedState();
 
         // Load initial issues
-        let currentIssues: { number: number; title: string; status: "planned" | "in-progress" | "done" | "failed" }[] = [];
+        let currentIssues: {
+          number: number;
+          title: string;
+          status: "planned" | "in-progress" | "done" | "failed";
+        }[] = [];
         try {
           const milestoneIssues = await listIssues({
             milestone: `${config.sprint.prefix} ${initialSprint}`,
@@ -313,8 +338,8 @@ function registerWeb(program: Command): void {
           }
 
           currentIssues = milestoneIssues.map((i) => {
-            const labels = ((i.labels ?? []) as Array<string | { name: string }>).map(
-              (l) => (typeof l === "string" ? l : l.name),
+            const labels = ((i.labels ?? []) as Array<string | { name: string }>).map((l) =>
+              typeof l === "string" ? l : l.name,
             );
             let status: "planned" | "in-progress" | "done" | "failed" = "planned";
             if (completedIssues.has(i.number) || i.state === "closed") status = "done";
@@ -334,7 +359,9 @@ function registerWeb(program: Command): void {
               title: i.title,
               status: "planned" as const,
             }));
-          } catch (err) { logger.warn({ err }, "event handler error: sprint:planned"); }
+          } catch (err) {
+            logger.warn({ err }, "event handler error: sprint:planned");
+          }
         });
         eventBus.onTyped("issue:start", ({ issue }) => {
           try {
@@ -342,21 +369,31 @@ function registerWeb(program: Command): void {
             if (existing) {
               existing.status = "in-progress";
             } else {
-              currentIssues.push({ number: issue.number, title: issue.title, status: "in-progress" });
+              currentIssues.push({
+                number: issue.number,
+                title: issue.title,
+                status: "in-progress",
+              });
             }
-          } catch (err) { logger.warn({ err }, "event handler error: issue:start"); }
+          } catch (err) {
+            logger.warn({ err }, "event handler error: issue:start");
+          }
         });
         eventBus.onTyped("issue:done", ({ issueNumber }) => {
           try {
             const issue = currentIssues.find((i) => i.number === issueNumber);
             if (issue) issue.status = "done";
-          } catch (err) { logger.warn({ err }, "event handler error: issue:done"); }
+          } catch (err) {
+            logger.warn({ err }, "event handler error: issue:done");
+          }
         });
         eventBus.onTyped("issue:fail", ({ issueNumber }) => {
           try {
             const issue = currentIssues.find((i) => i.number === issueNumber);
             if (issue) issue.status = "failed";
-          } catch (err) { logger.warn({ err }, "event handler error: issue:fail"); }
+          } catch (err) {
+            logger.warn({ err }, "event handler error: issue:fail");
+          }
         });
 
         // Start/loop functions
@@ -376,7 +413,9 @@ function registerWeb(program: Command): void {
             (sprintNumber) => buildSprintConfig(config, sprintNumber),
             eventBus,
             () => sprintLimit,
-            (r) => { activeRunner = r; },
+            (r) => {
+              activeRunner = r;
+            },
           ).catch((err: unknown) => {
             const msg = err instanceof Error ? err.message : String(err);
             eventBus.emitTyped("sprint:error", { error: msg });
@@ -406,7 +445,7 @@ function registerWeb(program: Command): void {
             currentIssues = milestoneIssues.map((i) => ({
               number: i.number,
               title: i.title,
-              status: i.state === "closed" ? "done" as const : "planned" as const,
+              status: i.state === "closed" ? ("done" as const) : ("planned" as const),
             }));
           } catch {
             currentIssues = [];
@@ -456,35 +495,52 @@ function registerWeb(program: Command): void {
           try {
             dashboardServer.setActiveSprintNumber(sprintNumber);
             currentIssues = [];
-          } catch (err) { logger.warn({ err }, "event handler error: sprint:start"); }
+          } catch (err) {
+            logger.warn({ err }, "event handler error: sprint:start");
+          }
         });
 
         // Auto-open browser
         if (opts.open !== false) {
           const { exec } = await import("node:child_process");
-          const openCmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+          const openCmd =
+            process.platform === "darwin"
+              ? "open"
+              : process.platform === "win32"
+                ? "start"
+                : "xdg-open";
           exec(`${openCmd} ${url}`);
         }
 
         // Start heartbeat supervisor
         const { HeartbeatSupervisor } = await import("../heartbeat.js");
-        const heartbeat = new HeartbeatSupervisor({
-          enabled: config.heartbeat?.enabled ?? true,
-          intervalMs: config.heartbeat?.interval_ms ?? 30000,
-          staleThresholdMs: config.heartbeat?.stale_threshold_ms ?? 300000,
-          stateDir: path.join(process.cwd(), "docs", "sprints"),
-          sprintSlug: prefixToSlug(config.sprint.prefix),
-        }, eventBus);
+        const heartbeat = new HeartbeatSupervisor(
+          {
+            enabled: config.heartbeat?.enabled ?? true,
+            intervalMs: config.heartbeat?.interval_ms ?? 30000,
+            staleThresholdMs: config.heartbeat?.stale_threshold_ms ?? 300000,
+            stateDir: path.join(process.cwd(), "docs", "sprints"),
+            sprintSlug: prefixToSlug(config.sprint.prefix),
+          },
+          eventBus,
+        );
         heartbeat.start();
 
         // Graceful shutdown
+        let cleaningUp = false;
         const cleanup = async () => {
+          if (cleaningUp) return;
+          cleaningUp = true;
           heartbeat.stop();
           await dashboardServer.stop();
           process.exit(0);
         };
-        process.on("SIGINT", () => { cleanup(); });
-        process.on("SIGTERM", () => { cleanup(); });
+        process.on("SIGINT", () => {
+          void cleanup();
+        });
+        process.on("SIGTERM", () => {
+          void cleanup();
+        });
 
         // Catch unhandled errors
         process.on("unhandledRejection", (reason: unknown) => {
@@ -514,7 +570,10 @@ function registerReview(program: Command): void {
     .action(async (opts) => {
       try {
         const config = loadConfigFromOpts(program.opts().config);
-        logger.info({ sprint: opts.sprint, project: config.project.name }, "Starting sprint review");
+        logger.info(
+          { sprint: opts.sprint, project: config.project.name },
+          "Starting sprint review",
+        );
 
         // Attempt to load sprint log for context
         let logContent: string;
@@ -526,7 +585,9 @@ function registerReview(program: Command): void {
           process.exit(1);
         }
 
-        console.log(`📋 ${config.sprint.prefix} ${opts.sprint} log loaded (${logContent.length} chars)`);
+        console.log(
+          `📋 ${config.sprint.prefix} ${opts.sprint} log loaded (${logContent.length} chars)`,
+        );
         console.log("⚠️  Sprint review requires a SprintResult from execution.");
         console.log("   Use 'full-cycle' for an end-to-end run, or provide sprint state.");
         console.log("   Sprint log preview:\n");
@@ -548,7 +609,10 @@ function registerRetro(program: Command): void {
     .action(async (opts) => {
       try {
         const config = loadConfigFromOpts(program.opts().config);
-        logger.info({ sprint: opts.sprint, project: config.project.name }, "Starting sprint retrospective");
+        logger.info(
+          { sprint: opts.sprint, project: config.project.name },
+          "Starting sprint retrospective",
+        );
 
         // Attempt to load sprint log for context
         let logContent: string;
@@ -560,8 +624,12 @@ function registerRetro(program: Command): void {
           process.exit(1);
         }
 
-        console.log(`📋 ${config.sprint.prefix} ${opts.sprint} log loaded (${logContent.length} chars)`);
-        console.log("⚠️  Sprint retro requires SprintResult and ReviewResult from prior ceremonies.");
+        console.log(
+          `📋 ${config.sprint.prefix} ${opts.sprint} log loaded (${logContent.length} chars)`,
+        );
+        console.log(
+          "⚠️  Sprint retro requires SprintResult and ReviewResult from prior ceremonies.",
+        );
         console.log("   Use 'full-cycle' for an end-to-end run, or provide sprint state.");
         console.log("   Sprint log preview:\n");
         console.log(logContent.slice(0, 500));
@@ -618,7 +686,10 @@ function registerMetrics(program: Command): void {
     .action(async (opts) => {
       try {
         const config = loadConfigFromOpts(program.opts().config);
-        logger.info({ sprint: opts.sprint, project: config.project.name }, "Loading sprint metrics");
+        logger.info(
+          { sprint: opts.sprint, project: config.project.name },
+          "Loading sprint metrics",
+        );
 
         let logContent: string;
         try {
@@ -657,7 +728,9 @@ function registerDriftReport(program: Command): void {
 
         if (changedFiles.length === 0) {
           console.log("⚠️  No changed files provided. Use --changed-files to specify files.");
-          console.log("   Example: sprint-runner drift-report --sprint 1 --changed-files src/a.ts src/b.ts --expected-files src/a.ts");
+          console.log(
+            "   Example: sprint-runner drift-report --sprint 1 --changed-files src/a.ts src/b.ts --expected-files src/a.ts",
+          );
           process.exit(0);
         }
 
@@ -714,7 +787,9 @@ function registerInit(program: Command): void {
           }
         }
 
-        console.log(`\n✅ Initialized! ${result.created.length} files created, ${result.skipped.length} skipped.`);
+        console.log(
+          `\n✅ Initialized! ${result.created.length} files created, ${result.skipped.length} skipped.`,
+        );
 
         if (result.configPath) {
           console.log(`\n📝 Edit ${result.configPath} to configure your project.`);
