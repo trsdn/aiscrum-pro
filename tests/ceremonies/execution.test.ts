@@ -238,7 +238,7 @@ describe("executeIssue", () => {
     expect(createWorktree).toHaveBeenCalledWith({
       path: "/tmp/worktrees/issue-42",
       branch: "sprint/3/issue-42",
-      base: "main",
+      base: "origin/main",
     });
 
     // ACP session created in worktree directory

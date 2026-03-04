@@ -120,291 +120,450 @@ export async function runParallelExecution(
   const issueMap = new Map(plan.sprint_issues.map((i) => [i.number, i]));
 
   for (const group of groups) {
-    const concurrency = config.sequentialExecution ? 1 : config.maxParallelSessions;
-    const limit = pLimit(concurrency);
-    log.info({ group: group.group, issues: group.issues, concurrency }, "executing group");
+    log.info({ group: group.group, issues: group.issues }, "executing group");
 
-    const settled = await Promise.allSettled(
-      group.issues.map((issueNumber) =>
-        limit(async () => {
-          const issue = issueMap.get(issueNumber);
-          if (!issue) {
-            throw new Error(`Issue #${issueNumber} not found in sprint plan`);
-          }
-          return executeIssue(client, config, issue, eventBus);
-        }),
-      ),
-    );
+    if (config.sequentialExecution && config.autoMerge) {
+      // Sequential execute-and-merge: each issue merges before the next executes,
+      // so each subsequent issue branches from the latest main (no merge conflicts).
+      let haltMerges = false;
 
-    for (let i = 0; i < settled.length; i++) {
-      const outcome = settled[i];
-      if (outcome.status === "fulfilled") {
-        const result = outcome.value;
+      for (const issueNumber of group.issues) {
+        const issue = issueMap.get(issueNumber);
+        if (!issue) {
+          log.error({ issueNumber }, "issue not found in sprint plan");
+          allResults.push({
+            issueNumber,
+            status: "failed",
+            qualityGatePassed: false,
+            qualityDetails: { passed: false, checks: [] },
+            branch: config.branchPattern
+              .replace("{prefix}", config.sprintSlug)
+              .replace("{sprint}", String(config.sprintNumber))
+              .replace("{issue}", String(issueNumber)),
+            duration_ms: 0,
+            filesChanged: [],
+            retryCount: 0,
+            points: 0,
+          });
+          continue;
+        }
+
+        let result: IssueResult;
+        try {
+          result = await executeIssue(client, config, issue, eventBus);
+        } catch (err: unknown) {
+          log.error({ issueNumber, err }, "issue execution rejected");
+          allResults.push({
+            issueNumber,
+            status: "failed",
+            qualityGatePassed: false,
+            qualityDetails: { passed: false, checks: [] },
+            branch: config.branchPattern
+              .replace("{prefix}", config.sprintSlug)
+              .replace("{sprint}", String(config.sprintNumber))
+              .replace("{issue}", String(issueNumber)),
+            duration_ms: 0,
+            filesChanged: [],
+            retryCount: 0,
+            points: issue.points,
+          });
+          continue;
+        }
+
         allResults.push(result);
 
-        // Merge successful branches back to base via GitHub PR
-        if (config.autoMerge && result.status === "completed") {
-          // Rebase branch on latest main before pre-merge (main may have changed from earlier merges)
-          // Use a temporary worktree to avoid "unstaged changes" errors in the main repo
-          let rebaseSucceeded = true;
-          const rebaseTmpDir = path.join(
-            os.tmpdir(),
-            `rebase-${result.branch.replace(/\//g, "-")}-${Date.now()}`,
-          );
-          try {
-            await execFile("git", ["fetch", "origin", config.baseBranch], {
-              cwd: config.projectPath,
-            });
-            await createWorktree({
-              path: rebaseTmpDir,
-              branch: `rebase-tmp-${Date.now()}`,
-              base: result.branch,
-            });
-            await execFile("git", ["rebase", `origin/${config.baseBranch}`], { cwd: rebaseTmpDir });
-            await execFile(
-              "git",
-              ["push", "origin", `HEAD:${result.branch}`, "--force-with-lease"],
-              { cwd: rebaseTmpDir },
-            );
-          } catch (rebaseErr) {
-            rebaseSucceeded = false;
-            // Rebase failed (conflicts) — abort and let pre-merge catch it
-            try {
-              await execFile("git", ["rebase", "--abort"], { cwd: rebaseTmpDir });
-            } catch {
-              /* ignore */
-            }
-            appendErrorLog("warn", `rebase on latest main failed — issue #${result.issueNumber}`, {
-              issue: result.issueNumber,
-              err: String(rebaseErr),
-            });
-            log.warn(
-              { issue: result.issueNumber, err: String(rebaseErr) },
-              "rebase on latest main failed — proceeding to pre-merge",
-            );
-          } finally {
-            try {
-              await removeWorktree(rebaseTmpDir);
-            } catch {
-              /* ignore */
-            }
-          }
+        if (result.status !== "completed" || haltMerges) {
+          continue;
+        }
 
-          // Pre-merge verification: test feature branch with main merged in
-          const premerge = await runPreMergeVerification(result.branch, config);
-          if (!premerge.passed) {
-            // On rebase conflict, re-execute issue from latest main (counts as retry)
-            if (!rebaseSucceeded && config.maxRetries > 0) {
-              const issue = issueMap.get(result.issueNumber);
-              if (issue) {
-                log.info(
-                  { issue: result.issueNumber },
-                  "rebase conflict — re-executing issue from latest main",
-                );
-                await addComment(
-                  result.issueNumber,
-                  "⚠️ Merge conflict detected. Re-executing from latest main...",
-                ).catch(() => {});
-                try {
-                  await execFile("git", ["push", "origin", "--delete", result.branch], {
-                    cwd: config.projectPath,
-                  });
-                } catch {
-                  /* may not exist */
-                }
-                try {
-                  await execFile("git", ["branch", "-D", result.branch], {
-                    cwd: config.projectPath,
-                  });
-                } catch {
-                  /* ignore */
-                }
-                const retryResult = await executeIssue(client, config, issue, eventBus);
-                allResults[allResults.length - 1] = retryResult;
-                if (retryResult.status === "completed") {
-                  const retryPremerge = await runPreMergeVerification(retryResult.branch, config);
-                  if (retryPremerge.passed) {
-                    try {
-                      const retryMerge = await mergeIssuePR(retryResult.branch, {
-                        squash: config.squashMerge,
-                        deleteBranch: config.deleteBranchAfterMerge,
-                      });
-                      if (retryMerge.success) {
-                        log.info(
-                          { issue: retryResult.issueNumber, pr: retryMerge.prNumber },
-                          "PR merged after conflict retry",
-                        );
-                        try {
-                          const gateConfig = buildQualityGateConfig(config);
-                          const verifyResult = await verifyMainBranch(
-                            config.projectPath,
-                            gateConfig,
-                          );
-                          if (!verifyResult.passed) {
-                            const failedChecks = verifyResult.checks
-                              .filter((c) => !c.passed)
-                              .map((c) => c.name)
-                              .join(", ");
-                            log.error(
-                              { issue: retryResult.issueNumber, failedChecks },
-                              "post-merge verification FAILED on main",
-                            );
-                            await escalateToStakeholder(
-                              {
-                                level: "must",
-                                reason: `Post-merge verification failed after merging #${retryResult.issueNumber}`,
-                                detail: `Failed checks: ${failedChecks}. Main branch may be broken.`,
-                                context: {
-                                  issueNumber: retryResult.issueNumber,
-                                  branch: retryResult.branch,
-                                },
-                                timestamp: new Date(),
-                              },
-                              {
-                                ntfyEnabled: !!config.ntfy?.enabled,
-                                ntfyTopic: config.ntfy?.topic,
-                              },
-                              eventBus,
-                            );
-                          }
-                        } catch (verifyErr: unknown) {
-                          appendErrorLog(
-                            "error",
-                            `post-merge verification failed (retry) — issue #${retryResult.issueNumber}`,
-                            { issue: retryResult.issueNumber, err: String(verifyErr) },
-                          );
-                          log.error(
-                            { err: verifyErr, issue: retryResult.issueNumber },
-                            "post-merge verification could not run",
-                          );
-                        }
-                        continue;
-                      }
-                    } catch {
-                      /* fall through to mark failed */
-                    }
-                  }
-                }
-                // Retry didn't resolve the conflict
-                retryResult.status = "failed";
-                retryResult.qualityGatePassed = false;
-                await setStatusLabel(retryResult.issueNumber, "status:blocked");
-                await addComment(
-                  retryResult.issueNumber,
-                  "**Block reason:** Pre-merge verification failed after conflict retry",
-                ).catch(() => {});
-                continue;
-              }
-            }
+        // No rebase needed — branch is already based on latest main
+        const premerge = await runPreMergeVerification(result.branch, config);
+        if (!premerge.passed) {
+          log.warn(
+            { issue: result.issueNumber, reason: premerge.reason },
+            "pre-merge verification failed",
+          );
+          result.status = "failed";
+          result.qualityGatePassed = false;
+          await setStatusLabel(result.issueNumber, "status:blocked");
+          await addComment(
+            result.issueNumber,
+            `**Block reason:** Pre-merge verification failed — ${premerge.reason ?? "unknown"}`,
+          ).catch((err) => log.warn({ err: String(err) }, "failed to post block comment"));
+          continue;
+        }
+
+        try {
+          const mergeResult = await mergeIssuePR(result.branch, {
+            squash: config.squashMerge,
+            deleteBranch: config.deleteBranchAfterMerge,
+          });
+
+          if (!mergeResult.success) {
+            mergeConflicts++;
             log.warn(
-              { issue: result.issueNumber, reason: premerge.reason },
-              "pre-merge verification failed",
+              { issue: result.issueNumber, branch: result.branch, reason: mergeResult.reason },
+              "PR merge failed — marking as failed",
             );
             result.status = "failed";
             result.qualityGatePassed = false;
             await setStatusLabel(result.issueNumber, "status:blocked");
             await addComment(
               result.issueNumber,
-              `**Block reason:** Pre-merge verification failed — ${premerge.reason ?? "unknown"}`,
-            ).catch((err) => log.warn({ err: String(err) }, "failed to post block comment"));
-            continue;
-          }
-          try {
-            const mergeResult = await mergeIssuePR(result.branch, {
-              squash: config.squashMerge,
-              deleteBranch: config.deleteBranchAfterMerge,
-            });
-
-            if (!mergeResult.success) {
-              mergeConflicts++;
+              `**Block reason:** PR merge failed — ${mergeResult.reason ?? "unknown"}`,
+            ).catch((err) =>
               log.warn(
-                { issue: result.issueNumber, branch: result.branch, reason: mergeResult.reason },
-                "PR merge failed — marking as failed",
+                { err: String(err), issue: result.issueNumber },
+                "failed to post block reason comment",
+              ),
+            );
+          } else {
+            log.info(
+              { issue: result.issueNumber, branch: result.branch, pr: mergeResult.prNumber },
+              "PR merged",
+            );
+
+            // Post-merge verification
+            try {
+              const gateConfig = buildQualityGateConfig(config);
+              const verifyResult = await verifyMainBranch(config.projectPath, gateConfig);
+              if (!verifyResult.passed) {
+                const failedChecks = verifyResult.checks
+                  .filter((c) => !c.passed)
+                  .map((c) => c.name)
+                  .join(", ");
+                log.error(
+                  { issue: result.issueNumber, failedChecks },
+                  "post-merge verification FAILED on main",
+                );
+                await escalateToStakeholder(
+                  {
+                    level: "must",
+                    reason: `Post-merge verification failed after merging #${result.issueNumber}`,
+                    detail: `Failed checks: ${failedChecks}. Main branch may be broken.`,
+                    context: { issueNumber: result.issueNumber, branch: result.branch },
+                    timestamp: new Date(),
+                  },
+                  { ntfyEnabled: !!config.ntfy?.enabled, ntfyTopic: config.ntfy?.topic },
+                  eventBus,
+                );
+              }
+            } catch (verifyErr: unknown) {
+              appendErrorLog(
+                "error",
+                `post-merge verification FAILED — issue #${result.issueNumber}, halting merges`,
+                { issue: result.issueNumber, err: String(verifyErr) },
+              );
+              log.error(
+                { err: verifyErr, issue: result.issueNumber },
+                "post-merge verification could not run — halting further merges",
+              );
+              haltMerges = true;
+            }
+          }
+        } catch (err: unknown) {
+          mergeConflicts++;
+          appendErrorLog("error", `merge error — issue #${result.issueNumber}`, {
+            issue: result.issueNumber,
+            err: String(err),
+          });
+          log.error({ issue: result.issueNumber, err }, "merge error");
+          result.status = "failed";
+          result.qualityGatePassed = false;
+        }
+      }
+    } else {
+      // Parallel execution: run all issues concurrently, then merge sequentially
+      const concurrency = config.maxParallelSessions;
+      const limit = pLimit(concurrency);
+
+      const settled = await Promise.allSettled(
+        group.issues.map((issueNumber) =>
+          limit(async () => {
+            const issue = issueMap.get(issueNumber);
+            if (!issue) {
+              throw new Error(`Issue #${issueNumber} not found in sprint plan`);
+            }
+            return executeIssue(client, config, issue, eventBus);
+          }),
+        ),
+      );
+
+      for (let i = 0; i < settled.length; i++) {
+        const outcome = settled[i];
+        if (outcome.status === "fulfilled") {
+          const result = outcome.value;
+          allResults.push(result);
+
+          // Merge successful branches back to base via GitHub PR
+          if (config.autoMerge && result.status === "completed") {
+            // Rebase branch on latest main before pre-merge (main may have changed from earlier merges)
+            let rebaseSucceeded = true;
+            const rebaseTmpDir = path.join(
+              os.tmpdir(),
+              `rebase-${result.branch.replace(/\//g, "-")}-${Date.now()}`,
+            );
+            try {
+              await execFile("git", ["fetch", "origin", config.baseBranch], {
+                cwd: config.projectPath,
+              });
+              await createWorktree({
+                path: rebaseTmpDir,
+                branch: `rebase-tmp-${Date.now()}`,
+                base: result.branch,
+              });
+              await execFile("git", ["rebase", `origin/${config.baseBranch}`], {
+                cwd: rebaseTmpDir,
+              });
+              await execFile(
+                "git",
+                ["push", "origin", `HEAD:${result.branch}`, "--force-with-lease"],
+                { cwd: rebaseTmpDir },
+              );
+            } catch (rebaseErr) {
+              rebaseSucceeded = false;
+              try {
+                await execFile("git", ["rebase", "--abort"], { cwd: rebaseTmpDir });
+              } catch {
+                /* ignore */
+              }
+              appendErrorLog(
+                "warn",
+                `rebase on latest main failed — issue #${result.issueNumber}`,
+                { issue: result.issueNumber, err: String(rebaseErr) },
+              );
+              log.warn(
+                { issue: result.issueNumber, err: String(rebaseErr) },
+                "rebase on latest main failed — proceeding to pre-merge",
+              );
+            } finally {
+              try {
+                await removeWorktree(rebaseTmpDir);
+              } catch {
+                /* ignore */
+              }
+            }
+
+            // Pre-merge verification: test feature branch with main merged in
+            const premerge = await runPreMergeVerification(result.branch, config);
+            if (!premerge.passed) {
+              // On rebase conflict, re-execute issue from latest main (counts as retry)
+              if (!rebaseSucceeded && config.maxRetries > 0) {
+                const issue = issueMap.get(result.issueNumber);
+                if (issue) {
+                  log.info(
+                    { issue: result.issueNumber },
+                    "rebase conflict — re-executing issue from latest main",
+                  );
+                  await addComment(
+                    result.issueNumber,
+                    "⚠️ Merge conflict detected. Re-executing from latest main...",
+                  ).catch(() => {});
+                  try {
+                    await execFile("git", ["push", "origin", "--delete", result.branch], {
+                      cwd: config.projectPath,
+                    });
+                  } catch {
+                    /* may not exist */
+                  }
+                  try {
+                    await execFile("git", ["branch", "-D", result.branch], {
+                      cwd: config.projectPath,
+                    });
+                  } catch {
+                    /* ignore */
+                  }
+                  const retryResult = await executeIssue(client, config, issue, eventBus);
+                  allResults[allResults.length - 1] = retryResult;
+                  if (retryResult.status === "completed") {
+                    const retryPremerge = await runPreMergeVerification(retryResult.branch, config);
+                    if (retryPremerge.passed) {
+                      try {
+                        const retryMerge = await mergeIssuePR(retryResult.branch, {
+                          squash: config.squashMerge,
+                          deleteBranch: config.deleteBranchAfterMerge,
+                        });
+                        if (retryMerge.success) {
+                          log.info(
+                            { issue: retryResult.issueNumber, pr: retryMerge.prNumber },
+                            "PR merged after conflict retry",
+                          );
+                          try {
+                            const gateConfig = buildQualityGateConfig(config);
+                            const verifyResult = await verifyMainBranch(
+                              config.projectPath,
+                              gateConfig,
+                            );
+                            if (!verifyResult.passed) {
+                              const failedChecks = verifyResult.checks
+                                .filter((c) => !c.passed)
+                                .map((c) => c.name)
+                                .join(", ");
+                              log.error(
+                                { issue: retryResult.issueNumber, failedChecks },
+                                "post-merge verification FAILED on main",
+                              );
+                              await escalateToStakeholder(
+                                {
+                                  level: "must",
+                                  reason: `Post-merge verification failed after merging #${retryResult.issueNumber}`,
+                                  detail: `Failed checks: ${failedChecks}. Main branch may be broken.`,
+                                  context: {
+                                    issueNumber: retryResult.issueNumber,
+                                    branch: retryResult.branch,
+                                  },
+                                  timestamp: new Date(),
+                                },
+                                {
+                                  ntfyEnabled: !!config.ntfy?.enabled,
+                                  ntfyTopic: config.ntfy?.topic,
+                                },
+                                eventBus,
+                              );
+                            }
+                          } catch (verifyErr: unknown) {
+                            appendErrorLog(
+                              "error",
+                              `post-merge verification failed (retry) — issue #${retryResult.issueNumber}`,
+                              { issue: retryResult.issueNumber, err: String(verifyErr) },
+                            );
+                            log.error(
+                              { err: verifyErr, issue: retryResult.issueNumber },
+                              "post-merge verification could not run",
+                            );
+                          }
+                          continue;
+                        }
+                      } catch {
+                        /* fall through to mark failed */
+                      }
+                    }
+                  }
+                  // Retry didn't resolve the conflict
+                  retryResult.status = "failed";
+                  retryResult.qualityGatePassed = false;
+                  await setStatusLabel(retryResult.issueNumber, "status:blocked");
+                  await addComment(
+                    retryResult.issueNumber,
+                    "**Block reason:** Pre-merge verification failed after conflict retry",
+                  ).catch(() => {});
+                  continue;
+                }
+              }
+              log.warn(
+                { issue: result.issueNumber, reason: premerge.reason },
+                "pre-merge verification failed",
               );
               result.status = "failed";
               result.qualityGatePassed = false;
               await setStatusLabel(result.issueNumber, "status:blocked");
               await addComment(
                 result.issueNumber,
-                `**Block reason:** PR merge failed — ${mergeResult.reason ?? "unknown"}`,
-              ).catch((err) =>
-                log.warn(
-                  { err: String(err), issue: result.issueNumber },
-                  "failed to post block reason comment",
-                ),
-              );
-            } else {
-              log.info(
-                { issue: result.issueNumber, branch: result.branch, pr: mergeResult.prNumber },
-                "PR merged",
-              );
-
-              // Post-merge verification: run tests + types on main to catch combinatorial breakage
-              try {
-                const gateConfig = buildQualityGateConfig(config);
-                const verifyResult = await verifyMainBranch(config.projectPath, gateConfig);
-                if (!verifyResult.passed) {
-                  const failedChecks = verifyResult.checks
-                    .filter((c) => !c.passed)
-                    .map((c) => c.name)
-                    .join(", ");
-                  log.error(
-                    { issue: result.issueNumber, failedChecks },
-                    "post-merge verification FAILED on main",
-                  );
-                  await escalateToStakeholder(
-                    {
-                      level: "must",
-                      reason: `Post-merge verification failed after merging #${result.issueNumber}`,
-                      detail: `Failed checks: ${failedChecks}. Main branch may be broken.`,
-                      context: { issueNumber: result.issueNumber, branch: result.branch },
-                      timestamp: new Date(),
-                    },
-                    { ntfyEnabled: !!config.ntfy?.enabled, ntfyTopic: config.ntfy?.topic },
-                    eventBus,
-                  );
-                }
-              } catch (verifyErr: unknown) {
-                appendErrorLog(
-                  "error",
-                  `post-merge verification FAILED — issue #${result.issueNumber}, halting merges`,
-                  { issue: result.issueNumber, err: String(verifyErr) },
-                );
-                log.error(
-                  { err: verifyErr, issue: result.issueNumber },
-                  "post-merge verification could not run — halting further merges",
-                );
-                break;
-              }
+                `**Block reason:** Pre-merge verification failed — ${premerge.reason ?? "unknown"}`,
+              ).catch((err) => log.warn({ err: String(err) }, "failed to post block comment"));
+              continue;
             }
-          } catch (err: unknown) {
-            mergeConflicts++;
-            appendErrorLog("error", `merge error — issue #${result.issueNumber}`, {
-              issue: result.issueNumber,
-              err: String(err),
-            });
-            log.error({ issue: result.issueNumber, err }, "merge error");
-            result.status = "failed";
-            result.qualityGatePassed = false;
+            try {
+              const mergeResult = await mergeIssuePR(result.branch, {
+                squash: config.squashMerge,
+                deleteBranch: config.deleteBranchAfterMerge,
+              });
+
+              if (!mergeResult.success) {
+                mergeConflicts++;
+                log.warn(
+                  {
+                    issue: result.issueNumber,
+                    branch: result.branch,
+                    reason: mergeResult.reason,
+                  },
+                  "PR merge failed — marking as failed",
+                );
+                result.status = "failed";
+                result.qualityGatePassed = false;
+                await setStatusLabel(result.issueNumber, "status:blocked");
+                await addComment(
+                  result.issueNumber,
+                  `**Block reason:** PR merge failed — ${mergeResult.reason ?? "unknown"}`,
+                ).catch((err) =>
+                  log.warn(
+                    { err: String(err), issue: result.issueNumber },
+                    "failed to post block reason comment",
+                  ),
+                );
+              } else {
+                log.info(
+                  { issue: result.issueNumber, branch: result.branch, pr: mergeResult.prNumber },
+                  "PR merged",
+                );
+
+                // Post-merge verification
+                try {
+                  const gateConfig = buildQualityGateConfig(config);
+                  const verifyResult = await verifyMainBranch(config.projectPath, gateConfig);
+                  if (!verifyResult.passed) {
+                    const failedChecks = verifyResult.checks
+                      .filter((c) => !c.passed)
+                      .map((c) => c.name)
+                      .join(", ");
+                    log.error(
+                      { issue: result.issueNumber, failedChecks },
+                      "post-merge verification FAILED on main",
+                    );
+                    await escalateToStakeholder(
+                      {
+                        level: "must",
+                        reason: `Post-merge verification failed after merging #${result.issueNumber}`,
+                        detail: `Failed checks: ${failedChecks}. Main branch may be broken.`,
+                        context: { issueNumber: result.issueNumber, branch: result.branch },
+                        timestamp: new Date(),
+                      },
+                      { ntfyEnabled: !!config.ntfy?.enabled, ntfyTopic: config.ntfy?.topic },
+                      eventBus,
+                    );
+                  }
+                } catch (verifyErr: unknown) {
+                  appendErrorLog(
+                    "error",
+                    `post-merge verification FAILED — issue #${result.issueNumber}, halting merges`,
+                    { issue: result.issueNumber, err: String(verifyErr) },
+                  );
+                  log.error(
+                    { err: verifyErr, issue: result.issueNumber },
+                    "post-merge verification could not run — halting further merges",
+                  );
+                  break;
+                }
+              }
+            } catch (err: unknown) {
+              mergeConflicts++;
+              appendErrorLog("error", `merge error — issue #${result.issueNumber}`, {
+                issue: result.issueNumber,
+                err: String(err),
+              });
+              log.error({ issue: result.issueNumber, err }, "merge error");
+              result.status = "failed";
+              result.qualityGatePassed = false;
+            }
           }
+        } else {
+          const issueNumber = group.issues[i];
+          log.error({ issueNumber, err: outcome.reason }, "issue execution rejected");
+          allResults.push({
+            issueNumber,
+            status: "failed",
+            qualityGatePassed: false,
+            qualityDetails: { passed: false, checks: [] },
+            branch: config.branchPattern
+              .replace("{prefix}", config.sprintSlug)
+              .replace("{sprint}", String(config.sprintNumber))
+              .replace("{issue}", String(issueNumber)),
+            duration_ms: 0,
+            filesChanged: [],
+            retryCount: 0,
+            points: issueMap.get(issueNumber)?.points ?? 0,
+          });
         }
-      } else {
-        const issueNumber = group.issues[i];
-        log.error({ issueNumber, err: outcome.reason }, "issue execution rejected");
-        allResults.push({
-          issueNumber,
-          status: "failed",
-          qualityGatePassed: false,
-          qualityDetails: { passed: false, checks: [] },
-          branch: config.branchPattern
-            .replace("{prefix}", config.sprintSlug)
-            .replace("{sprint}", String(config.sprintNumber))
-            .replace("{issue}", String(issueNumber)),
-          duration_ms: 0,
-          filesChanged: [],
-          retryCount: 0,
-          points: issueMap.get(issueNumber)?.points ?? 0,
-        });
       }
     }
 

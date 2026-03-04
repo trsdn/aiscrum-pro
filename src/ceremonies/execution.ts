@@ -793,8 +793,17 @@ export async function executeIssue(
   let devSessionId: string | undefined;
 
   try {
-    // Step 2: Create worktree
-    await createWorktree({ path: worktreePath, branch, base: config.baseBranch });
+    // Step 2: Fetch latest base branch and create worktree from remote HEAD
+    // This ensures each issue branches from the most recent main (important when
+    // sequential execute-and-merge updates remote main between issues).
+    await execFile("git", ["fetch", "origin", config.baseBranch], {
+      cwd: config.projectPath,
+    });
+    await createWorktree({
+      path: worktreePath,
+      branch,
+      base: `origin/${config.baseBranch}`,
+    });
     log.info({ worktreePath, branch }, "worktree created");
 
     // Step 3: Plan phase (own ACP session as planner)

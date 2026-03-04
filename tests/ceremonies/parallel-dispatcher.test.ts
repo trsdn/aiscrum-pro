@@ -136,6 +136,7 @@ function makeConfig(overrides: Partial<SprintConfig> = {}): SprintConfig {
     maxDriftIncidents: 2,
     maxRetries: 1,
     enableChallenger: false,
+    sequentialExecution: false,
     autoRevertDrift: false,
     backlogLabels: [],
     autoMerge: true,
@@ -495,6 +496,77 @@ describe("runParallelExecution", () => {
     expect(removeWorktree).toHaveBeenCalled();
     const issue1 = result.results.find((r) => r.issueNumber === 1)!;
     expect(issue1.status).toBe("completed");
+  });
+
+  // --- Sequential execute-and-merge tests ---
+
+  it("merges each issue before executing the next in sequential mode", async () => {
+    const issues = [makeIssue(1), makeIssue(2)];
+    vi.mocked(buildExecutionGroups).mockReturnValue([{ group: 0, issues: [1, 2] }]);
+
+    const executionOrder: string[] = [];
+    vi.mocked(executeIssue).mockImplementation(async (_c, _cfg, issue) => {
+      executionOrder.push(`execute-${issue.number}`);
+      return makeResult(issue.number);
+    });
+    vi.mocked(mergeIssuePR).mockImplementation(async () => {
+      executionOrder.push("merge");
+      return { success: true };
+    });
+
+    await runParallelExecution(
+      mockClient,
+      makeConfig({ sequentialExecution: true, autoMerge: true }),
+      makePlan(issues),
+    );
+
+    // In sequential mode: execute #1 → merge → execute #2 → merge
+    expect(executionOrder).toEqual(["execute-1", "merge", "execute-2", "merge"]);
+    expect(executeIssue).toHaveBeenCalledTimes(2);
+    expect(mergeIssuePR).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips rebase in sequential mode (no worktree for rebase)", async () => {
+    const issues = [makeIssue(1)];
+    vi.mocked(buildExecutionGroups).mockReturnValue([{ group: 0, issues: [1] }]);
+    vi.mocked(executeIssue).mockResolvedValueOnce(makeResult(1));
+    vi.mocked(mergeIssuePR).mockResolvedValue({ success: true });
+
+    const worktreeCallsBefore = vi.mocked(createWorktree).mock.calls.length;
+
+    await runParallelExecution(
+      mockClient,
+      makeConfig({ sequentialExecution: true, autoMerge: true }),
+      makePlan(issues),
+    );
+
+    // In sequential mode, createWorktree is called for pre-merge verification only (no rebase worktree)
+    const worktreeCallsAfter = vi.mocked(createWorktree).mock.calls.length;
+    const newCalls = worktreeCallsAfter - worktreeCallsBefore;
+    // Pre-merge verification creates 1 worktree; rebase would add another
+    expect(newCalls).toBe(1);
+    expect(mergeIssuePR).toHaveBeenCalledTimes(1);
+  });
+
+  it("handles execution failure in sequential mode", async () => {
+    const issues = [makeIssue(1), makeIssue(2)];
+    vi.mocked(buildExecutionGroups).mockReturnValue([{ group: 0, issues: [1, 2] }]);
+    vi.mocked(executeIssue)
+      .mockRejectedValueOnce(new Error("session crashed"))
+      .mockResolvedValueOnce(makeResult(2));
+    vi.mocked(mergeIssuePR).mockResolvedValue({ success: true });
+
+    const result = await runParallelExecution(
+      mockClient,
+      makeConfig({ sequentialExecution: true, autoMerge: true }),
+      makePlan(issues),
+    );
+
+    expect(result.results).toHaveLength(2);
+    expect(result.results[0]!.status).toBe("failed");
+    expect(result.results[1]!.status).toBe("completed");
+    // Issue 2 should still execute and merge even though issue 1 failed
+    expect(mergeIssuePR).toHaveBeenCalledTimes(1);
   });
 
   it("cleans up worktree even when pre-merge verification fails", async () => {
