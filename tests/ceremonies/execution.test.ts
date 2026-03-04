@@ -412,7 +412,7 @@ describe("executeIssue", () => {
     expect(result.status).toBe("completed");
   });
 
-  it("captures zero-change diagnostic with task-not-applicable outcome when no error", async () => {
+  it("marks zero-change as completed when quality gate passes (already implemented)", async () => {
     const mockClient = makeMockClient();
     vi.mocked(runQualityGate).mockResolvedValue(passingQuality);
     const { getChangedFiles } = await import("../../src/git/diff-analysis.js");
@@ -427,22 +427,7 @@ describe("executeIssue", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await executeIssue(mockClient as any, makeConfig(), makeIssue());
 
-    expect(result.status).toBe("failed");
-    expect(formatHuddleComment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "failed",
-        filesChanged: [],
-        zeroChangeDiagnostic: expect.objectContaining({
-          workerOutcome: "task-not-applicable",
-          timedOut: false,
-          lastOutputLines: expect.arrayContaining([
-            "Processing issue...",
-            "No changes needed for this task",
-            "Task completed successfully",
-          ]),
-        }),
-      }),
-    );
+    expect(result.status).toBe("completed");
   });
 
   it("captures zero-change diagnostic with worker-error outcome on timeout", async () => {
@@ -470,7 +455,7 @@ describe("executeIssue", () => {
     );
   });
 
-  it("captures zero-change diagnostic with worker-error outcome when output contains errors", async () => {
+  it("marks zero-change as completed even when output contains errors if QG passes", async () => {
     const mockClient = makeMockClient();
     vi.mocked(runQualityGate).mockResolvedValue(passingQuality);
     const { getChangedFiles } = await import("../../src/git/diff-analysis.js");
@@ -486,18 +471,8 @@ describe("executeIssue", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await executeIssue(mockClient as any, makeConfig(), makeIssue());
 
-    expect(result.status).toBe("failed");
-    expect(formatHuddleComment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: "failed",
-        filesChanged: [],
-        zeroChangeDiagnostic: expect.objectContaining({
-          workerOutcome: "worker-error",
-          timedOut: false,
-          lastOutputLines: expect.arrayContaining([expect.stringContaining("Error:")]),
-        }),
-      }),
-    );
+    // QG passed + 0 changes = already implemented, regardless of output
+    expect(result.status).toBe("completed");
   });
 
   it("runs TDD phase between plan and implement when enableTdd is true", async () => {

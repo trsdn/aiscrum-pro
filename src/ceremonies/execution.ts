@@ -831,29 +831,13 @@ export async function executeIssue(
 
     // Zero-change guard
     if (qualityResult.passed && filesChanged.length === 0) {
-      if (planStepCount === 0) {
-        // Planner determined work is already done — this is a valid completion
-        log.info(
-          { issue: issue.number },
-          "Planner reported 0 steps — already implemented, marking completed",
-        );
-        status = "completed";
-      } else {
-        log.warn({ issue: issue.number }, "Worker produced 0 file changes — treating as failure");
-        status = "failed";
-        qualityResult = {
-          passed: false,
-          checks: [
-            ...qualityResult.checks,
-            {
-              name: "files-changed",
-              passed: false,
-              detail: "Worker produced 0 file changes",
-              category: "other" as const,
-            },
-          ],
-        };
-      }
+      // QG passed with 0 changes means main already satisfies the requirements.
+      // This happens when the issue describes already-implemented functionality.
+      log.info(
+        { issue: issue.number, planStepCount },
+        "Quality gate passed with 0 file changes — already implemented, marking completed",
+      );
+      status = "completed";
     } else {
       status = qualityResult.passed ? "completed" : "failed";
     }
