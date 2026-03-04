@@ -289,7 +289,7 @@ describe("runSprintPlanning", () => {
     expect(createMilestone).not.toHaveBeenCalled();
   });
 
-  it("ends session even when prompt fails", async () => {
+  it("ends session even when all planning attempts fail", async () => {
     const mockClient = makeMockClient();
     mockClient.sendPrompt.mockRejectedValue(new Error("timeout"));
     vi.mocked(listIssues).mockResolvedValue([]);
@@ -297,6 +297,35 @@ describe("runSprintPlanning", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(runSprintPlanning(mockClient as any, makeConfig())).rejects.toThrow("timeout");
 
+    // Retried once before giving up
+    expect(mockClient.sendPrompt).toHaveBeenCalledTimes(2);
     expect(mockClient.endSession).toHaveBeenCalledWith("session-123");
+  });
+
+  it("retries planning on first failure and succeeds on second attempt", async () => {
+    const mockClient = makeMockClient();
+    mockClient.sendPrompt
+      .mockRejectedValueOnce(new Error("Prompt timed out"))
+      .mockResolvedValueOnce({
+        response: "```json\n" + JSON.stringify(planResponse) + "\n```",
+        stopReason: "end_turn",
+      });
+    vi.mocked(listIssues).mockResolvedValue([]);
+    vi.mocked(getMilestone).mockResolvedValue({
+      title: "Sprint 3",
+      number: 1,
+      description: "",
+      state: "open",
+    });
+    vi.mocked(setLabel).mockResolvedValue(undefined);
+    vi.mocked(setMilestone).mockResolvedValue(undefined);
+    vi.mocked(createSprintLog).mockReturnValue("/tmp/log.md");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const plan = await runSprintPlanning(mockClient as any, makeConfig());
+
+    expect(mockClient.sendPrompt).toHaveBeenCalledTimes(2);
+    expect(plan.sprintNumber).toBe(3);
+    expect(plan.sprint_issues).toHaveLength(2);
   });
 });

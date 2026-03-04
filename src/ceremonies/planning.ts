@@ -65,8 +65,30 @@ export async function runSprintPlanning(
     if (sessionConfig.model) {
       await client.setModel(sessionId, sessionConfig.model);
     }
-    const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
-    const plan = SprintPlanSchema.parse(extractJson(result.response)) as SprintPlan;
+    // Retry planning once on timeout or parse failure
+    const MAX_PLANNING_ATTEMPTS = 2;
+    let plan: SprintPlan | undefined;
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= MAX_PLANNING_ATTEMPTS; attempt++) {
+      try {
+        const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
+        plan = SprintPlanSchema.parse(extractJson(result.response)) as SprintPlan;
+        break;
+      } catch (err: unknown) {
+        lastError = err;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (attempt < MAX_PLANNING_ATTEMPTS) {
+          log.warn({ attempt, error: msg }, "Planning attempt failed — retrying");
+          eventBus?.emitTyped("log", {
+            level: "warn",
+            message: `Planning attempt ${attempt} failed (${msg.slice(0, 100)}), retrying…`,
+          });
+        }
+      }
+    }
+    if (!plan) {
+      throw lastError;
+    }
 
     // Enforce max_issues — LLM may return more than requested
     if (plan.sprint_issues.length > config.maxIssuesPerSprint) {

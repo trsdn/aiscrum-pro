@@ -12,7 +12,7 @@ project:
 copilot:
   executable: "copilot"
   max_parallel_sessions: 2
-  session_timeout_ms: 300000
+  session_timeout_ms: 600000
   auto_approve_tools: true
 
   mcp_servers:
