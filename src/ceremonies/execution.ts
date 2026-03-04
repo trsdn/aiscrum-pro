@@ -50,13 +50,19 @@ interface ExecutionContext {
 // Sub-phase: Plan
 // ---------------------------------------------------------------------------
 
+interface PlanResult {
+  plan: string;
+  stepCount: number;
+}
+
 /** Create ACP session in Plan mode, generate implementation plan, tear down session. */
-async function planPhase(ctx: ExecutionContext): Promise<string> {
+async function planPhase(ctx: ExecutionContext): Promise<PlanResult> {
   const { client, config, issue, eventBus, log, worktreePath, progress } = ctx;
   const plannerConfig = await resolveSessionConfig(config, "planner");
   const promptVars = buildPromptVars(ctx);
 
   let implementationPlan = "";
+  let stepCount = -1; // -1 means unknown (JSON extraction failed)
 
   const { sessionId } = await client.createSession({
     cwd: worktreePath,
@@ -104,6 +110,7 @@ async function planPhase(ctx: ExecutionContext): Promise<string> {
         { summary: planJson.summary, stepCount: planJson.steps?.length ?? 0 },
         "implementation plan created",
       );
+      stepCount = planJson.steps?.length ?? 0;
       // Extract files from the structured plan and merge into expectedFiles.
       // The item planner has read the codebase — its file predictions are more accurate
       // than the sprint planner's guesses.
@@ -142,7 +149,7 @@ async function planPhase(ctx: ExecutionContext): Promise<string> {
     await client.endSession(sessionId);
   }
 
-  return implementationPlan;
+  return { plan: implementationPlan, stepCount };
 }
 
 // ---------------------------------------------------------------------------
@@ -791,7 +798,9 @@ export async function executeIssue(
     log.info({ worktreePath, branch }, "worktree created");
 
     // Step 3: Plan phase (own ACP session as planner)
-    const implementationPlan = await planPhase(ctx);
+    const planResult = await planPhase(ctx);
+    const implementationPlan = planResult.plan;
+    const planStepCount = planResult.stepCount;
 
     // Step 3b: TDD phase (optional — test-engineer writes tests before implementation)
     if (config.enableTdd && implementationPlan) {
@@ -822,20 +831,29 @@ export async function executeIssue(
 
     // Zero-change guard
     if (qualityResult.passed && filesChanged.length === 0) {
-      log.warn({ issue: issue.number }, "Worker produced 0 file changes — treating as failure");
-      status = "failed";
-      qualityResult = {
-        passed: false,
-        checks: [
-          ...qualityResult.checks,
-          {
-            name: "files-changed",
-            passed: false,
-            detail: "Worker produced 0 file changes",
-            category: "other" as const,
-          },
-        ],
-      };
+      if (planStepCount === 0) {
+        // Planner determined work is already done — this is a valid completion
+        log.info(
+          { issue: issue.number },
+          "Planner reported 0 steps — already implemented, marking completed",
+        );
+        status = "completed";
+      } else {
+        log.warn({ issue: issue.number }, "Worker produced 0 file changes — treating as failure");
+        status = "failed";
+        qualityResult = {
+          passed: false,
+          checks: [
+            ...qualityResult.checks,
+            {
+              name: "files-changed",
+              passed: false,
+              detail: "Worker produced 0 file changes",
+              category: "other" as const,
+            },
+          ],
+        };
+      }
     } else {
       status = qualityResult.passed ? "completed" : "failed";
     }
