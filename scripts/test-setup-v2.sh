@@ -44,16 +44,62 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUNNER_DIR="$(dirname "$SCRIPT_DIR")"
 TEST_REPO_DIR="${HOME}/dev/GitHub/ai-scrum-test-project"
 
-if [ -d "$TEST_REPO_DIR" ]; then
-  mkdir -p "$TEST_REPO_DIR/.aiscrum"
-  cp "$RUNNER_DIR/.aiscrum/config.test.yaml" "$TEST_REPO_DIR/.aiscrum/config.yaml"
+deploy_aiscrum() {
+  local target_dir="$1"
+  mkdir -p "$target_dir/.aiscrum"
+  cp "$RUNNER_DIR/.aiscrum/config.test.yaml" "$target_dir/.aiscrum/config.yaml"
   if [ -f "$RUNNER_DIR/.aiscrum/quality-gates.yaml" ]; then
-    cp "$RUNNER_DIR/.aiscrum/quality-gates.yaml" "$TEST_REPO_DIR/.aiscrum/quality-gates.yaml"
+    cp "$RUNNER_DIR/.aiscrum/quality-gates.yaml" "$target_dir/.aiscrum/quality-gates.yaml"
   fi
   if [ -d "$RUNNER_DIR/.aiscrum/roles" ]; then
-    cp -r "$RUNNER_DIR/.aiscrum/roles" "$TEST_REPO_DIR/.aiscrum/" 2>/dev/null || true
+    cp -r "$RUNNER_DIR/.aiscrum/roles" "$target_dir/.aiscrum/" 2>/dev/null || true
   fi
-  echo "📁 Deployed .aiscrum/ config to ${TEST_REPO_DIR}"
+  # Deploy pre-commit hook (prevents empty commits and runs basic checks)
+  mkdir -p "$target_dir/.git/hooks"
+  cat > "$target_dir/.git/hooks/pre-commit" << 'HOOK'
+#!/usr/bin/env bash
+# Pre-commit hook: prevent empty/zero-change commits and run basic checks
+set -euo pipefail
+
+# Check for empty commits (no staged changes)
+if git diff --cached --quiet; then
+  echo "❌ Pre-commit: No staged changes. Aborting empty commit."
+  exit 1
+fi
+
+# Run lint if available
+if [ -f package.json ] && grep -q '"lint"' package.json 2>/dev/null; then
+  echo "🔍 Pre-commit: Running lint..."
+  npm run lint --silent 2>/dev/null || {
+    echo "❌ Pre-commit: Lint failed. Fix errors before committing."
+    exit 1
+  }
+fi
+
+# Run typecheck if available
+if [ -f tsconfig.json ] && command -v npx &>/dev/null; then
+  echo "🔍 Pre-commit: Running type check..."
+  npx tsc --noEmit 2>/dev/null || {
+    echo "❌ Pre-commit: Type check failed. Fix errors before committing."
+    exit 1
+  }
+fi
+
+echo "✅ Pre-commit checks passed."
+HOOK
+  chmod +x "$target_dir/.git/hooks/pre-commit"
+  echo "📁 Deployed .aiscrum/ config + pre-commit hook to ${target_dir}"
+}
+
+# Deploy to local dev checkout if it exists
+if [ -d "$TEST_REPO_DIR" ]; then
+  deploy_aiscrum "$TEST_REPO_DIR"
+fi
+
+# Also deploy to /tmp clone used by sprint runner
+TMP_REPO_DIR="/tmp/ai-scrum-test-project"
+if [ -d "$TMP_REPO_DIR/.git" ]; then
+  deploy_aiscrum "$TMP_REPO_DIR"
 fi
 
 # --- Resolve milestone numbers for API ---
