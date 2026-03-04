@@ -19,6 +19,7 @@ function isRetryable(error: unknown): boolean {
   if (
     message.includes("ETIMEDOUT") ||
     message.includes("ECONNRESET") ||
+    message.includes("EAGAIN") ||
     message.includes("rate limit") ||
     message.includes("502") ||
     message.includes("503") ||
@@ -26,6 +27,8 @@ function isRetryable(error: unknown): boolean {
   ) {
     return true;
   }
+  // EAGAIN errno code (resource temporarily unavailable)
+  if (errnoCode === "EAGAIN") return true;
   return false;
 }
 
