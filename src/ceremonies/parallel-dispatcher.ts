@@ -176,6 +176,15 @@ export async function runParallelExecution(
           continue;
         }
 
+        // Skip merge for zero-change issues (already implemented — no PR to merge)
+        if (result.filesChanged.length === 0) {
+          log.info(
+            { issue: result.issueNumber },
+            "zero-change issue — skipping merge (already implemented)",
+          );
+          continue;
+        }
+
         // No rebase needed — branch is already based on latest main
         const premerge = await runPreMergeVerification(result.branch, config);
         if (!premerge.passed) {
@@ -297,6 +306,14 @@ export async function runParallelExecution(
 
           // Merge successful branches back to base via GitHub PR
           if (config.autoMerge && result.status === "completed") {
+            // Skip merge for zero-change issues (already implemented — no PR to merge)
+            if (result.filesChanged.length === 0) {
+              log.info(
+                { issue: result.issueNumber },
+                "zero-change issue — skipping merge (already implemented)",
+              );
+              continue;
+            }
             // Rebase branch on latest main before pre-merge (main may have changed from earlier merges)
             let rebaseSucceeded = true;
             const rebaseTmpDir = path.join(

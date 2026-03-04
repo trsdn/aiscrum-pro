@@ -569,6 +569,42 @@ describe("runParallelExecution", () => {
     expect(mergeIssuePR).toHaveBeenCalledTimes(1);
   });
 
+  it("skips merge for zero-change completed issues", async () => {
+    const issues = [makeIssue(1)];
+    vi.mocked(buildExecutionGroups).mockReturnValue([{ group: 0, issues: [1] }]);
+    vi.mocked(executeIssue).mockResolvedValueOnce({
+      ...makeResult(1),
+      filesChanged: [], // zero changes — already implemented
+    });
+
+    const result = await runParallelExecution(mockClient, makeConfig(), makePlan(issues));
+
+    expect(result.results).toHaveLength(1);
+    expect(result.results[0]!.status).toBe("completed");
+    // Should NOT attempt merge for zero-change issues
+    expect(mergeIssuePR).not.toHaveBeenCalled();
+    expect(hasConflicts).not.toHaveBeenCalled();
+  });
+
+  it("skips merge for zero-change issues in sequential mode", async () => {
+    const issues = [makeIssue(1), makeIssue(2)];
+    vi.mocked(buildExecutionGroups).mockReturnValue([{ group: 0, issues: [1, 2] }]);
+    vi.mocked(executeIssue)
+      .mockResolvedValueOnce({ ...makeResult(1), filesChanged: [] }) // zero changes
+      .mockResolvedValueOnce(makeResult(2)); // has changes
+    vi.mocked(mergeIssuePR).mockResolvedValue({ success: true });
+
+    const result = await runParallelExecution(
+      mockClient,
+      makeConfig({ sequentialExecution: true, autoMerge: true }),
+      makePlan(issues),
+    );
+
+    expect(result.results).toHaveLength(2);
+    // Only issue 2 should be merged (issue 1 has zero changes)
+    expect(mergeIssuePR).toHaveBeenCalledTimes(1);
+  });
+
   it("cleans up worktree even when pre-merge verification fails", async () => {
     const issues = [makeIssue(1)];
     vi.mocked(buildExecutionGroups).mockReturnValue([{ group: 0, issues: [1] }]);
