@@ -42,12 +42,20 @@ vi.mock("../../src/logger.js", () => ({
 
 import { runChallengerReview } from "../../src/enforcement/challenger.js";
 
-function makeMockClient(response = "APPROVED: Looks good") {
+function makeMockClient(
+  response = '```json\n{"decision":"approved","reasoning":"Looks good","feedback":"All clear"}\n```',
+) {
   return {
-    createSession: vi.fn().mockResolvedValue({ sessionId: "session-1", availableModes: [], currentMode: "", availableModels: [], currentModel: "" }),
-    sendPrompt: vi
+    createSession: vi
       .fn()
-      .mockResolvedValue({ response, stopReason: "end_turn" }),
+      .mockResolvedValue({
+        sessionId: "session-1",
+        availableModes: [],
+        currentMode: "",
+        availableModels: [],
+        currentModel: "",
+      }),
+    sendPrompt: vi.fn().mockResolvedValue({ response, stopReason: "end_turn" }),
     endSession: vi.fn().mockResolvedValue(undefined),
     setMode: vi.fn().mockResolvedValue(undefined),
     setModel: vi.fn().mockResolvedValue(undefined),
@@ -84,35 +92,51 @@ describe("runChallengerReview", () => {
     vi.clearAllMocks();
   });
 
-  it("approves when response starts with APPROVED", async () => {
-    const client = makeMockClient("APPROVED: Looks good");
+  it("approves when response contains approved decision", async () => {
+    const client = makeMockClient(
+      'Review looks solid.\n\n```json\n{"decision":"approved","reasoning":"Looks good","feedback":"All clear"}\n```',
+    );
     const result = await runChallengerReview(client, config, "feat/auth", 42);
 
     expect(result.approved).toBe(true);
-    expect(result.feedback).toContain("APPROVED: Looks good");
+    expect(result.feedback).toContain("Review looks solid");
   });
 
-  it("rejects when response starts with REJECTED", async () => {
-    const client = makeMockClient("REJECTED: Missing tests\nMore details");
+  it("rejects when response contains rejected decision", async () => {
+    const client = makeMockClient(
+      'Missing tests for auth module.\n\n```json\n{"decision":"rejected","reasoning":"Missing tests","feedback":"Need auth tests"}\n```',
+    );
     const result = await runChallengerReview(client, config, "feat/auth", 42);
 
     expect(result.approved).toBe(false);
-    expect(result.feedback).toContain("REJECTED: Missing tests");
+    expect(result.feedback).toContain("Missing tests for auth module");
   });
 
-  it("rejects when response does not start with APPROVED", async () => {
-    const client = makeMockClient("Some other response");
-    const result = await runChallengerReview(client, config, "feat/auth", 42);
+  it("retries when response has no valid JSON", async () => {
+    const client = makeMockClient();
+    (client.sendPrompt as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        response: "Some other response without JSON",
+        stopReason: "end_turn",
+      })
+      .mockResolvedValueOnce({
+        response:
+          '```json\n{"decision":"rejected","reasoning":"no tests","feedback":"Add tests"}\n```',
+        stopReason: "end_turn",
+      });
 
+    const result = await runChallengerReview(client, config, "feat/auth", 42);
     expect(result.approved).toBe(false);
+    expect(client.sendPrompt).toHaveBeenCalledTimes(2);
   });
 
   it("passes issue details and diff stats to prompt", async () => {
-    const client = makeMockClient("APPROVED: All good");
+    const client = makeMockClient(
+      '```json\n{"decision":"approved","reasoning":"All good","feedback":"ok"}\n```',
+    );
     await runChallengerReview(client, config, "feat/auth", 42);
 
-    const prompt = (client.sendPrompt as ReturnType<typeof vi.fn>).mock
-      .calls[0][1] as string;
+    const prompt = (client.sendPrompt as ReturnType<typeof vi.fn>).mock.calls[0][1] as string;
     expect(prompt).toContain("Fix auth bug");
     expect(prompt).toContain("50");
   });

@@ -7,14 +7,7 @@ import { listIssues } from "../github/issues.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, extractJson } from "./helpers.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
-
-interface RefinementResponse {
-  refined_issues: Array<{
-    number: number;
-    title: string;
-    ice_score: number;
-  }>;
-}
+import { RefinementResponseSchema } from "../types/schemas.js";
 
 /**
  * Run the refinement ceremony: load idea issues, ask ACP to refine them,
@@ -36,7 +29,14 @@ export async function runRefinement(
   log.info({ count: ideas.length }, "Loaded idea issues for refinement");
 
   // Read prompt template
-  const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "refiner", "prompts", "refinement.md");
+  const templatePath = path.join(
+    config.projectPath,
+    ".aiscrum",
+    "roles",
+    "refiner",
+    "prompts",
+    "refinement.md",
+  );
   const template = await fs.readFile(templatePath, "utf-8");
 
   const prompt = substitutePrompt(template, {
@@ -63,11 +63,9 @@ export async function runRefinement(
       await client.setModel(sessionId, sessionConfig.model);
     }
     const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
-    const parsed = extractJson<RefinementResponse>(result.response);
+    const parsed = RefinementResponseSchema.parse(extractJson(result.response));
 
-    // Ensure refined_issues array exists (model may omit it)
-    const refinedIssues = parsed.refined_issues ?? [];
-    const refined: RefinedIssue[] = refinedIssues.map((issue) => ({
+    const refined: RefinedIssue[] = parsed.refined_issues.map((issue) => ({
       number: issue.number,
       title: issue.title,
       ice_score: issue.ice_score,

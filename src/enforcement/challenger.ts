@@ -3,7 +3,9 @@ import { getIssue } from "../github/issues.js";
 import { logger } from "../logger.js";
 import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig } from "../types.js";
+import { ChallengerActionSchema } from "../types/schemas.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
+import { parseWithRetry } from "../ceremonies/helpers.js";
 
 export interface ChallengerResult {
   approved: boolean;
@@ -57,6 +59,15 @@ export async function runChallengerReview(
     "REJECTED: <one-line reason>",
     "",
     "Then provide detailed feedback below.",
+    "",
+    "At the end, include a JSON block in a ```json fenced code block:",
+    "```",
+    "{",
+    '  "decision": "approved" | "rejected",',
+    '  "reasoning": "why you made this decision",',
+    '  "feedback": "detailed feedback text"',
+    "}",
+    "```",
   ].join("\n");
 
   if (sessionConfig.model) {
@@ -64,16 +75,23 @@ export async function runChallengerReview(
   }
 
   const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
+
+  const action = await parseWithRetry(ChallengerActionSchema, result.response, async (hint) => {
+    const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
+    return retry.response;
+  });
+
   await client.endSession(sessionId);
 
-  const response = result.response.trim();
-  const firstLine = response.split("\n")[0] ?? "";
-  const approved = firstLine.toUpperCase().startsWith("APPROVED");
+  const approved = action.decision === "approved";
 
-  log.info({ approved, issueNumber }, "challenger review completed");
+  log.info(
+    { decision: action.decision, issueNumber, reasoning: action.reasoning },
+    "challenger review completed",
+  );
 
   return {
     approved,
-    feedback: response,
+    feedback: result.response,
   };
 }

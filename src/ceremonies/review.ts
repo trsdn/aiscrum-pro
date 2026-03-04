@@ -8,6 +8,7 @@ import { logger } from "../logger.js";
 import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
 import { getPRStatus } from "../git/merge.js";
+import { ReviewResultSchema } from "../types/schemas.js";
 
 /**
  * Verify that all completed sprint issues have properly merged PRs.
@@ -17,15 +18,23 @@ async function verifyPRMerges(
   results: IssueResult[],
 ): Promise<Array<{ issueNumber: number; prNumber?: number; status?: string; reason: string }>> {
   const log = logger.child({ ceremony: "review" });
-  const flagged: Array<{ issueNumber: number; prNumber?: number; status?: string; reason: string }> = [];
+  const flagged: Array<{
+    issueNumber: number;
+    prNumber?: number;
+    status?: string;
+    reason: string;
+  }> = [];
 
   for (const result of results) {
     if (result.status !== "completed") continue;
 
     const prStatus = await getPRStatus(result.branch);
-    
+
     if (!prStatus) {
-      log.warn({ issue: result.issueNumber, branch: result.branch }, "No PR found for completed issue");
+      log.warn(
+        { issue: result.issueNumber, branch: result.branch },
+        "No PR found for completed issue",
+      );
       flagged.push({
         issueNumber: result.issueNumber,
         reason: "Completed issue has no PR found — needs investigation",
@@ -91,17 +100,25 @@ export async function runSprintReview(
     filesChanged: r.filesChanged,
     retryCount: r.retryCount,
     qualityGatePassed: r.qualityGatePassed,
-    qualityChecks: r.qualityDetails?.checks?.map((c) => ({
-      name: c.name,
-      passed: c.passed,
-      category: c.category,
-    })) ?? [],
+    qualityChecks:
+      r.qualityDetails?.checks?.map((c) => ({
+        name: c.name,
+        passed: c.passed,
+        category: c.category,
+      })) ?? [],
     codeReviewApproved: r.codeReview?.approved,
     codeReviewIssues: r.codeReview?.issues?.length ?? 0,
   }));
 
   // Read prompt template
-  const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "reviewer", "prompts", "review.md");
+  const templatePath = path.join(
+    config.projectPath,
+    ".aiscrum",
+    "roles",
+    "reviewer",
+    "prompts",
+    "review.md",
+  );
   const template = await fs.readFile(templatePath, "utf-8");
 
   const prompt = substitutePrompt(template, {
@@ -133,13 +150,14 @@ export async function runSprintReview(
       await client.setModel(sessionId, sessionConfig.model);
     }
     const response = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
-    const review = extractJson<ReviewResult>(response.response);
+    const review = ReviewResultSchema.parse(extractJson(response.response));
 
-    // Ensure arrays exist (model may omit them)
-    review.demoItems = review.demoItems ?? [];
-    review.openItems = review.openItems ?? [];
     log.info(
-      { demoItems: review.demoItems.length, openItems: review.openItems.length, flaggedPRs: flaggedPRs.length },
+      {
+        demoItems: review.demoItems.length,
+        openItems: review.openItems.length,
+        flaggedPRs: flaggedPRs.length,
+      },
       "Sprint review completed",
     );
 

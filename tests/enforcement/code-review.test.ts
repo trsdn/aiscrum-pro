@@ -71,7 +71,8 @@ describe("runCodeReview", () => {
 
   it("returns approved when reviewer says APPROVED", async () => {
     client.sendPrompt.mockResolvedValue({
-      response: "APPROVED: Clean implementation, tests cover all cases.\n- [suggestion] Consider adding JSDoc.",
+      response:
+        'Clean implementation, tests cover all cases.\n\n```json\n{"decision":"approved","reasoning":"Code is solid","summary":"Clean implementation","issues":[]}\n```',
     });
 
     const result = await runCodeReview(
@@ -83,17 +84,13 @@ describe("runCodeReview", () => {
     );
 
     expect(result.approved).toBe(true);
-    expect(result.issues).toHaveLength(0); // suggestions are filtered out
-    expect(result.feedback).toContain("APPROVED");
+    expect(result.issues).toHaveLength(0);
   });
 
   it("returns rejected with issues when reviewer says CHANGES_REQUESTED", async () => {
     client.sendPrompt.mockResolvedValue({
-      response: [
-        "CHANGES_REQUESTED: Missing error handling in edge case",
-        "- uncaught exception in parseInput when input is null",
-        "- no validation for negative numbers",
-      ].join("\n"),
+      response:
+        'Missing error handling in edge case.\n\n```json\n{"decision":"changes_requested","reasoning":"edge cases not handled","summary":"Missing error handling","issues":["uncaught exception in parseInput when input is null","no validation for negative numbers"]}\n```',
     });
 
     const result = await runCodeReview(
@@ -111,7 +108,10 @@ describe("runCodeReview", () => {
   });
 
   it("creates and tears down a session", async () => {
-    client.sendPrompt.mockResolvedValue({ response: "APPROVED: looks good" });
+    client.sendPrompt.mockResolvedValue({
+      response:
+        '```json\n{"decision":"approved","reasoning":"ok","summary":"looks good","issues":[]}\n```',
+    });
 
     await runCodeReview(
       client as never,
@@ -129,7 +129,9 @@ describe("runCodeReview", () => {
   });
 
   it("sets the reviewer model", async () => {
-    client.sendPrompt.mockResolvedValue({ response: "APPROVED: ok" });
+    client.sendPrompt.mockResolvedValue({
+      response: '```json\n{"decision":"approved","reasoning":"ok","summary":"ok","issues":[]}\n```',
+    });
 
     await runCodeReview(
       client as never,
@@ -158,29 +160,10 @@ describe("runCodeReview", () => {
     expect(client.endSession).toHaveBeenCalledWith("review-session-1");
   });
 
-  it("handles empty response", async () => {
-    client.sendPrompt.mockResolvedValue({ response: "" });
-
-    const result = await runCodeReview(
-      client as never,
-      baseConfig,
-      issue,
-      "sprint/1/issue-42",
-      "/tmp/worktrees/issue-42",
-    );
-
-    // Empty response defaults to not-approved (doesn't start with APPROVED)
-    expect(result.approved).toBe(false);
-    expect(result.issues).toHaveLength(0);
-  });
-
-  it("filters out suggestion lines from issues list", async () => {
-    client.sendPrompt.mockResolvedValue({
-      response: [
-        "APPROVED: implementation is correct",
-        "- [suggestion] rename variable for clarity",
-        "- [Suggestion] add more tests",
-      ].join("\n"),
+  it("retries when response has no valid JSON", async () => {
+    // First call returns no JSON, retry returns valid JSON
+    client.sendPrompt.mockResolvedValueOnce({ response: "No JSON here" }).mockResolvedValueOnce({
+      response: '```json\n{"decision":"approved","reasoning":"ok","summary":"ok","issues":[]}\n```',
     });
 
     const result = await runCodeReview(
@@ -192,6 +175,22 @@ describe("runCodeReview", () => {
     );
 
     expect(result.approved).toBe(true);
-    expect(result.issues).toHaveLength(0);
+    expect(client.sendPrompt).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns feedback as full response text for session display", async () => {
+    const fullResponse =
+      'The code looks good overall.\n\n```json\n{"decision":"approved","reasoning":"solid code","summary":"approved","issues":[]}\n```';
+    client.sendPrompt.mockResolvedValue({ response: fullResponse });
+
+    const result = await runCodeReview(
+      client as never,
+      baseConfig,
+      issue,
+      "sprint/1/issue-42",
+      "/tmp/worktrees/issue-42",
+    );
+
+    expect(result.feedback).toBe(fullResponse);
   });
 });

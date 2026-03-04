@@ -16,18 +16,16 @@ import type {
 import { createWorktree, removeWorktree } from "../git/worktree.js";
 import { runQualityGate } from "../enforcement/quality-gate.js";
 import { runCodeReview } from "../enforcement/code-review.js";
-import {
-  formatHuddleComment,
-  formatSprintLogEntry,
-} from "../documentation/huddle.js";
+import { formatHuddleComment, formatSprintLogEntry } from "../documentation/huddle.js";
 import type { ZeroChangeDiagnostic, HuddleEntryWithDiag } from "../documentation/huddle.js";
 import { appendToSprintLog } from "../documentation/sprint-log.js";
 import { addComment } from "../github/issues.js";
 import { setLabel } from "../github/labels.js";
 import { getChangedFiles } from "../git/diff-analysis.js";
 import { getPRStats } from "../git/merge.js";
-import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
+import { substitutePrompt, extractJson, sanitizePromptInput, parseWithRetry } from "./helpers.js";
 import { logger, appendErrorLog } from "../logger.js";
+import { AcceptanceCriteriaSchema } from "../types/schemas.js";
 import type { SprintEventBus } from "../events.js";
 import { buildBranch, buildQualityGateConfig } from "./quality-retry.js";
 import { sessionController } from "../dashboard/session-control.js";
@@ -79,7 +77,14 @@ async function planPhase(ctx: ExecutionContext): Promise<string> {
     log.info("planner session started in Plan mode");
     progress("planning implementation");
 
-    const planTemplatePath = path.join(config.projectPath, ".aiscrum", "roles", "planner", "prompts", "item-planner.md");
+    const planTemplatePath = path.join(
+      config.projectPath,
+      ".aiscrum",
+      "roles",
+      "planner",
+      "prompts",
+      "item-planner.md",
+    );
     const planTemplate = await fs.readFile(planTemplatePath, "utf-8");
     let planPrompt = substitutePrompt(planTemplate, promptVars);
 
@@ -91,7 +96,10 @@ async function planPhase(ctx: ExecutionContext): Promise<string> {
     implementationPlan = planResult.response;
 
     try {
-      const planJson = extractJson<{ summary: string; steps: Array<{ file?: string; action?: string }> }>(implementationPlan);
+      const planJson = extractJson<{
+        summary: string;
+        steps: Array<{ file?: string; action?: string }>;
+      }>(implementationPlan);
       log.info(
         { summary: planJson.summary, stepCount: planJson.steps?.length ?? 0 },
         "implementation plan created",
@@ -109,11 +117,17 @@ async function planPhase(ctx: ExecutionContext): Promise<string> {
             existing.add(f);
           }
           issue.expectedFiles = [...existing];
-          log.info({ expectedFiles: issue.expectedFiles }, "expectedFiles updated from implementation plan");
+          log.info(
+            { expectedFiles: issue.expectedFiles },
+            "expectedFiles updated from implementation plan",
+          );
         }
       }
     } catch {
-      log.warn({ issue: issue.number, responseLength: implementationPlan.length }, "implementation plan JSON extraction failed — proceeding with unstructured plan");
+      log.warn(
+        { issue: issue.number, responseLength: implementationPlan.length },
+        "implementation plan JSON extraction failed — proceeding with unstructured plan",
+      );
     }
 
     await addComment(
@@ -161,7 +175,14 @@ async function tddPhase(ctx: ExecutionContext, implementationPlan: string): Prom
     log.info("test-engineer session started");
     progress("writing tests (TDD)");
 
-    const tddTemplatePath = path.join(config.projectPath, ".aiscrum", "roles", "test-engineer", "prompts", "tdd.md");
+    const tddTemplatePath = path.join(
+      config.projectPath,
+      ".aiscrum",
+      "roles",
+      "test-engineer",
+      "prompts",
+      "tdd.md",
+    );
     const tddTemplate = await fs.readFile(tddTemplatePath, "utf-8");
     let tddPrompt = substitutePrompt(tddTemplate, promptVars);
 
@@ -193,7 +214,10 @@ interface ImplementResult {
 }
 
 /** Create ACP session in Agent mode, implement the plan. Session stays open for QG retries. */
-async function implementPhase(ctx: ExecutionContext, implementationPlan: string): Promise<ImplementResult> {
+async function implementPhase(
+  ctx: ExecutionContext,
+  implementationPlan: string,
+): Promise<ImplementResult> {
   const { client, config, issue, eventBus, log, worktreePath, progress } = ctx;
   const workerConfig = await resolveSessionConfig(config, "worker");
   const promptVars = buildPromptVars(ctx);
@@ -218,7 +242,14 @@ async function implementPhase(ctx: ExecutionContext, implementationPlan: string)
     log.info("developer session started in Agent mode");
     progress("implementing");
 
-    const workerTemplatePath = path.join(config.projectPath, ".aiscrum", "roles", "general", "prompts", "worker.md");
+    const workerTemplatePath = path.join(
+      config.projectPath,
+      ".aiscrum",
+      "roles",
+      "general",
+      "prompts",
+      "worker.md",
+    );
     const workerTemplate = await fs.readFile(workerTemplatePath, "utf-8");
     let workerPrompt = substitutePrompt(workerTemplate, promptVars);
 
@@ -238,7 +269,10 @@ async function implementPhase(ctx: ExecutionContext, implementationPlan: string)
       for (const msg of messages) {
         if (msg.type === "user-message" && msg.content) {
           log.info({ sessionId }, "sending queued user message to session");
-          eventBus?.emitTyped("worker:output", { sessionId, text: `\n\n---\n**User message:** ${msg.content}\n---\n\n` });
+          eventBus?.emitTyped("worker:output", {
+            sessionId,
+            text: `\n\n---\n**User message:** ${msg.content}\n---\n\n`,
+          });
           await client.sendPrompt(sessionId, msg.content, config.sessionTimeoutMs);
         }
       }
@@ -267,20 +301,14 @@ async function implementPhase(ctx: ExecutionContext, implementationPlan: string)
 
 const execFile = promisify(execFileCb);
 
-interface AcceptanceCriteriaResult {
-  approved: boolean;
-  feedback?: string;
-  criteria?: Array<{
-    criterion: string;
-    passed: boolean;
-    evidence?: string;
-    concern?: string;
-  }>;
-  summary?: string;
-}
+// AcceptanceCriteriaResult type is derived from AcceptanceCriteriaSchema in schemas.ts
+type AcceptanceCriteriaResult = import("zod").infer<typeof AcceptanceCriteriaSchema>;
 
 /** Run acceptance criteria review via a fresh ACP reviewer session. */
-async function acceptanceCriteriaReview(ctx: ExecutionContext, qualityResult: QualityResult): Promise<AcceptanceCriteriaResult> {
+async function acceptanceCriteriaReview(
+  ctx: ExecutionContext,
+  qualityResult: QualityResult,
+): Promise<AcceptanceCriteriaResult> {
   const { client, config, issue, eventBus, log, worktreePath, branch } = ctx;
 
   const reviewerConfig = await resolveSessionConfig(config, "reviewer");
@@ -288,14 +316,23 @@ async function acceptanceCriteriaReview(ctx: ExecutionContext, qualityResult: Qu
   // Get diff
   let diff: string;
   try {
-    const { stdout } = await execFile("git", ["diff", `${config.baseBranch}...${branch}`], { cwd: worktreePath });
+    const { stdout } = await execFile("git", ["diff", `${config.baseBranch}...${branch}`], {
+      cwd: worktreePath,
+    });
     diff = stdout;
   } catch {
     diff = "(diff unavailable)";
   }
 
   // Load prompt template
-  const templatePath = path.join(config.projectPath, ".aiscrum", "roles", "quality-reviewer", "prompts", "acceptance-review.md");
+  const templatePath = path.join(
+    config.projectPath,
+    ".aiscrum",
+    "roles",
+    "quality-reviewer",
+    "prompts",
+    "acceptance-review.md",
+  );
   const template = await fs.readFile(templatePath, "utf-8");
 
   const promptVars: Record<string, string> = {
@@ -328,13 +365,23 @@ async function acceptanceCriteriaReview(ctx: ExecutionContext, qualityResult: Qu
     }
 
     const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
-    const acResult = extractJson<AcceptanceCriteriaResult>(result.response);
+    const acResult = await parseWithRetry(
+      AcceptanceCriteriaSchema,
+      result.response,
+      async (hint) => {
+        const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
+        return retry.response;
+      },
+    );
 
     // Post results as issue comment
     const status = acResult.approved ? "✅ Passed" : "❌ Failed";
-    const criteriaLines = (acResult.criteria ?? []).map(
-      (c) => `- ${c.passed ? "✅" : "❌"} ${c.criterion}${c.passed ? (c.evidence ? `: ${c.evidence}` : "") : (c.concern ? `: ${c.concern}` : "")}`,
-    ).join("\n");
+    const criteriaLines = acResult.criteria
+      .map(
+        (c) =>
+          `- ${c.passed ? "✅" : "❌"} ${c.criterion}${c.passed ? (c.evidence ? `: ${c.evidence}` : "") : c.concern ? `: ${c.concern}` : ""}`,
+      )
+      .join("\n");
     const comment = `### 📋 Acceptance Criteria Review — ${status}\n\n${criteriaLines}${acResult.summary ? `\n\n${acResult.summary}` : ""}`;
     await addComment(issue.number, comment).catch((err) =>
       log.warn({ err: String(err) }, "failed to post AC review comment"),
@@ -360,7 +407,10 @@ interface ReviewOutcome {
 }
 
 /** Run quality gate and code review. Sends QG retry feedback to the developer session. */
-async function qualityAndReviewPhase(ctx: ExecutionContext, devSessionId: string): Promise<ReviewOutcome> {
+async function qualityAndReviewPhase(
+  ctx: ExecutionContext,
+  devSessionId: string,
+): Promise<ReviewOutcome> {
   const { client, config, issue, log, worktreePath, branch, progress } = ctx;
 
   progress("quality gate");
@@ -369,20 +419,24 @@ async function qualityAndReviewPhase(ctx: ExecutionContext, devSessionId: string
   let qualityResult = await runQualityGate(gateConfig, worktreePath, branch, config.baseBranch);
 
   // Post quality gate results as issue comment
-  const qgChecks = qualityResult.checks.map(
-    (c) => `${c.passed ? "✅" : "❌"} **${c.name}**: ${c.detail}`
-  ).join("\n");
+  const qgChecks = qualityResult.checks
+    .map((c) => `${c.passed ? "✅" : "❌"} **${c.name}**: ${c.detail}`)
+    .join("\n");
   const qgStatus = qualityResult.passed ? "✅ Passed" : "❌ Failed";
-  await addComment(
-    issue.number,
-    `### 🔍 Quality Gate — ${qgStatus}\n\n${qgChecks}`,
-  ).catch((err) => log.warn({ err: String(err) }, "failed to post quality gate comment"));
+  await addComment(issue.number, `### 🔍 Quality Gate — ${qgStatus}\n\n${qgChecks}`).catch((err) =>
+    log.warn({ err: String(err) }, "failed to post quality gate comment"),
+  );
 
   let retryCount = 0;
   if (!qualityResult.passed) {
     // Retry using the SAME developer session — it has full context
     qualityResult = await handleQualityRetryInSession(
-      client, config, issue, worktreePath, qualityResult, devSessionId,
+      client,
+      config,
+      issue,
+      worktreePath,
+      qualityResult,
+      devSessionId,
     );
     retryCount = qualityResult.passed ? 0 : config.maxRetries;
   }
@@ -400,8 +454,15 @@ async function qualityAndReviewPhase(ctx: ExecutionContext, devSessionId: string
         codeReview = fixResult.codeReview;
       }
     } catch (err: unknown) {
-      log.warn({ err, issue: issue.number }, "code review failed — proceeding without review (tracked in metrics)");
-      codeReview = { approved: false, feedback: "Code review skipped due to error", issues: ["review-skipped"] };
+      log.warn(
+        { err, issue: issue.number },
+        "code review failed — proceeding without review (tracked in metrics)",
+      );
+      codeReview = {
+        approved: false,
+        feedback: "Code review skipped due to error",
+        issues: ["review-skipped"],
+      };
     }
   }
 
@@ -412,8 +473,9 @@ async function qualityAndReviewPhase(ctx: ExecutionContext, devSessionId: string
       const acReview = await acceptanceCriteriaReview(ctx, qualityResult);
       if (!acReview.approved) {
         progress("acceptance failed — fixing");
-        const feedback = acReview.feedback ?? "Acceptance criteria not met";
-        await client.sendPrompt(devSessionId,
+        const feedback = acReview.reasoning || acReview.summary || "Acceptance criteria not met";
+        await client.sendPrompt(
+          devSessionId,
           `## Acceptance Criteria Review Failed\n\n${feedback}\n\nPlease fix the issues and ensure all acceptance criteria are met.`,
           config.sessionTimeoutMs,
         );
@@ -424,7 +486,10 @@ async function qualityAndReviewPhase(ctx: ExecutionContext, devSessionId: string
         }
       }
     } catch (err) {
-      log.warn({ err, issue: issue.number }, "acceptance criteria review failed — proceeding without (tracked in metrics)");
+      log.warn(
+        { err, issue: issue.number },
+        "acceptance criteria review failed — proceeding without (tracked in metrics)",
+      );
     }
   }
 
@@ -539,7 +604,10 @@ async function cleanupPhase(ctx: ExecutionContext, input: CleanupInput): Promise
     log.info("worktree removed");
   } catch (err: unknown) {
     cleanupWarning = `⚠️ Orphaned worktree requires manual cleanup: \`${worktreePath}\``;
-    log.error({ err, worktreePath }, "failed to remove worktree — orphaned worktree may need manual cleanup");
+    log.error(
+      { err, worktreePath },
+      "failed to remove worktree — orphaned worktree may need manual cleanup",
+    );
   }
 
   // Enrich with PR stats
@@ -549,7 +617,10 @@ async function cleanupPhase(ctx: ExecutionContext, input: CleanupInput): Promise
     if (stats) {
       prStats = stats;
       if (input.filesChanged.length === 0 && stats.changedFiles > 0) {
-        log.info({ prNumber: stats.prNumber, changedFiles: stats.changedFiles }, "PR has files — overriding local diff");
+        log.info(
+          { prNumber: stats.prNumber, changedFiles: stats.changedFiles },
+          "PR has files — overriding local diff",
+        );
         input.filesChanged = [`(${stats.changedFiles} files via PR #${stats.prNumber})`];
       }
     }
@@ -561,11 +632,13 @@ async function cleanupPhase(ctx: ExecutionContext, input: CleanupInput): Promise
   let zeroChangeDiagnostic: ZeroChangeDiagnostic | undefined;
   if (input.filesChanged.length === 0 && input.qualityResult.passed === false) {
     // Classify the outcome
-    const hasError = input.errorMessage || input.timedOut || 
-      input.acpOutputLines.some((line) => 
-        /Error:|FAIL|Exception|TypeError|ReferenceError/.test(line)
+    const hasError =
+      input.errorMessage ||
+      input.timedOut ||
+      input.acpOutputLines.some((line) =>
+        /Error:|FAIL|Exception|TypeError|ReferenceError/.test(line),
       );
-    
+
     zeroChangeDiagnostic = {
       lastOutputLines: input.acpOutputLines,
       timedOut: input.timedOut,
@@ -605,14 +678,23 @@ async function cleanupPhase(ctx: ExecutionContext, input: CleanupInput): Promise
   try {
     await setLabel(issue.number, finalLabel);
     if (finalLabel === "status:blocked") {
-      const blockReason = input.errorMessage
-        ?? input.qualityResult?.checks.filter((c) => !c.passed).map((c) => `${c.name}: ${c.detail}`).join("; ")
-        ?? "Unknown reason";
-      await addComment(issue.number, `**Block reason:** ${blockReason}`).catch((err) => log.warn({ err: String(err), issue: issue.number }, "failed to post block reason comment"));
+      const blockReason =
+        input.errorMessage ??
+        input.qualityResult?.checks
+          .filter((c) => !c.passed)
+          .map((c) => `${c.name}: ${c.detail}`)
+          .join("; ") ??
+        "Unknown reason";
+      await addComment(issue.number, `**Block reason:** ${blockReason}`).catch((err) =>
+        log.warn({ err: String(err), issue: issue.number }, "failed to post block reason comment"),
+      );
     }
     log.info({ status: input.status, finalLabel }, "final status set");
   } catch (err: unknown) {
-    log.warn({ err, issueNumber: issue.number, finalLabel }, "failed to set final label — non-critical");
+    log.warn(
+      { err, issueNumber: issue.number, finalLabel },
+      "failed to set final label — non-critical",
+    );
   }
 }
 
@@ -653,12 +735,22 @@ export async function executeIssue(
 ): Promise<IssueResult> {
   const log = logger.child({ ceremony: "execution", issue: issue.number });
   const startTime = Date.now();
-  const progress = (step: string) => eventBus?.emitTyped("issue:progress", { issueNumber: issue.number, step });
+  const progress = (step: string) =>
+    eventBus?.emitTyped("issue:progress", { issueNumber: issue.number, step });
 
   const branch = buildBranch(config, issue.number);
   const worktreePath = path.resolve(config.worktreeBase, `issue-${issue.number}`);
 
-  const ctx: ExecutionContext = { client, config, issue, eventBus, log, branch, worktreePath, progress };
+  const ctx: ExecutionContext = {
+    client,
+    config,
+    issue,
+    eventBus,
+    log,
+    branch,
+    worktreePath,
+    progress,
+  };
 
   // Step 1: Set in-progress label
   await setLabel(issue.number, "status:in-progress");
@@ -718,7 +810,12 @@ export async function executeIssue(
         passed: false,
         checks: [
           ...qualityResult.checks,
-          { name: "files-changed", passed: false, detail: "Worker produced 0 file changes", category: "other" as const },
+          {
+            name: "files-changed",
+            passed: false,
+            detail: "Worker produced 0 file changes",
+            category: "other" as const,
+          },
         ],
       };
     } else {
@@ -726,19 +823,37 @@ export async function executeIssue(
     }
   } catch (err: unknown) {
     errorMessage = err instanceof Error ? err.message : String(err);
-    appendErrorLog("error", `Issue #${issue.number} execution failed: ${errorMessage}`, { issue: issue.number });
+    appendErrorLog("error", `Issue #${issue.number} execution failed: ${errorMessage}`, {
+      issue: issue.number,
+    });
     log.error({ err: errorMessage, issue: issue.number }, "issue execution failed");
     status = "failed";
   } finally {
     // Close developer session after all retries are done
     if (devSessionId) {
-      eventBus?.emitTyped("session:end", { sessionId: devSessionId, outcome: status === "completed" ? "completed" : "failed" });
+      eventBus?.emitTyped("session:end", {
+        sessionId: devSessionId,
+        outcome: status === "completed" ? "completed" : "failed",
+      });
       await client.endSession(devSessionId).catch((err) => {
-        log.warn({ err, sessionId: devSessionId, issue: issue.number }, "failed to end developer session — possible session leak");
+        log.warn(
+          { err, sessionId: devSessionId, issue: issue.number },
+          "failed to end developer session — possible session leak",
+        );
       });
     }
     // Step 8: Cleanup (worktree, huddle, labels)
-    await cleanupPhase(ctx, { status, qualityResult, codeReview, retryCount, filesChanged, errorMessage, startTime, acpOutputLines, timedOut });
+    await cleanupPhase(ctx, {
+      status,
+      qualityResult,
+      codeReview,
+      retryCount,
+      filesChanged,
+      errorMessage,
+      startTime,
+      acpOutputLines,
+      timedOut,
+    });
   }
 
   const duration_ms = Date.now() - startTime;
