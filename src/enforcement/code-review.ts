@@ -39,7 +39,7 @@ export async function runCodeReview(
     model: sessionConfig.model,
   });
 
-  let outcome: "approved" | "changes_requested" | "failed" | "completed" = "completed";
+  let outcome: "approved" | "changes_requested" | "failed" = "failed";
 
   try {
     if (sessionConfig.model) {

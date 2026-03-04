@@ -53,7 +53,7 @@
 }
 
 .session-ended { opacity: 0.5; }
-.session-active { background: rgba(var(--green-rgb, 46, 160, 67), 0.08); }
+.session-active { background: rgba(63, 185, 80, 0.08); }
 .session-viewing { background: var(--bg-hover); border-left: 2px solid var(--blue); }
 .session-viewing-badge {
   font-size: 10px;

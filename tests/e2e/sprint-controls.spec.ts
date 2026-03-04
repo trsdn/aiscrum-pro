@@ -4,8 +4,6 @@
  */
 import { test, expect, type Page } from "@playwright/test";
 
-const BASE = "http://localhost:9200";
-
 // Helper: wait for dashboard to load
 async function waitForDashboard(page: Page) {
   await page.goto("/");
@@ -80,7 +78,6 @@ test.describe("Sprint Control Buttons", () => {
     const startBtn = page.locator("button", { hasText: "▶ Start" });
     if (await startBtn.count() > 0 && await startBtn.isEnabled()) {
       // Set up WebSocket message listener
-      const wsMessages: string[] = [];
       await page.evaluate(() => {
         const origSend = WebSocket.prototype.send;
         (window as unknown as Record<string, string[]>).__wsMsgs = [];

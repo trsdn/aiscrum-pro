@@ -320,7 +320,7 @@ async function acceptanceCriteriaReview(ctx: ExecutionContext, qualityResult: Qu
     model: reviewerConfig.model,
   });
 
-  let acOutcome: "approved" | "changes_requested" | "completed" = "completed";
+  let acOutcome: "approved" | "changes_requested" | "failed" = "failed";
 
   try {
     if (reviewerConfig.model) {

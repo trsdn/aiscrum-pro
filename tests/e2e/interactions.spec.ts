@@ -24,7 +24,6 @@ test.describe("Sprint Report Deep", () => {
   });
 
   test("has sprint number selector", async ({ page }) => {
-    const select = page.locator(".report-sprint-select, select");
     // May or may not have a select depending on data
     const heading = page.locator(".sprint-report h1");
     await expect(heading).toBeVisible();

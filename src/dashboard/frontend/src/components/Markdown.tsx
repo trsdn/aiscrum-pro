@@ -32,7 +32,7 @@ function markdownToHtml(text: string): string {
   let blockId = 0;
 
   // Extract raw HTML table blocks (agent output) — pass through as-is
-  let processed = text.replace(/<table[\s\S]*?<\/table>/gi, (match) => {
+  const processed = text.replace(/<table[\s\S]*?<\/table>/gi, (match) => {
     const key = `__BLOCK_${blockId++}__`;
     blocks[key] = `<div class="md-table-wrap">${match}</div>`;
     return key;
