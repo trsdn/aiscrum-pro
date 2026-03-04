@@ -384,6 +384,34 @@ describe("executeIssue", () => {
     );
   });
 
+  it("marks as completed when planner reports 0 steps and no file changes", async () => {
+    const mockClient = makeMockClient();
+    vi.mocked(runQualityGate).mockResolvedValue(passingQuality);
+    const { getChangedFiles } = await import("../../src/git/diff-analysis.js");
+    vi.mocked(getChangedFiles).mockResolvedValue([]);
+
+    // Planner returns structured JSON with 0 steps (already implemented)
+    const originalSendPrompt = mockClient.sendPrompt.getMockImplementation()!;
+    let planCallDone = false;
+    mockClient.sendPrompt.mockImplementation((_sid: string, prompt: string) => {
+      if (!planCallDone) {
+        planCallDone = true;
+        return Promise.resolve({
+          response: JSON.stringify({
+            summary: "Already fully implemented",
+            steps: [],
+          }),
+          stopReason: "end_turn",
+        });
+      }
+      return originalSendPrompt(_sid, prompt);
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await executeIssue(mockClient as any, makeConfig(), makeIssue());
+    expect(result.status).toBe("completed");
+  });
+
   it("captures zero-change diagnostic with task-not-applicable outcome when no error", async () => {
     const mockClient = makeMockClient();
     vi.mocked(runQualityGate).mockResolvedValue(passingQuality);
