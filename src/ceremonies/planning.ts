@@ -14,7 +14,7 @@ import {
 import { listIssues } from "../github/issues.js";
 import { createSprintLog } from "../documentation/sprint-log.js";
 import { logger } from "../logger.js";
-import { substitutePrompt, extractJson } from "./helpers.js";
+import { substitutePrompt, parseWithRetry } from "./helpers.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
 
 /**
@@ -65,14 +65,22 @@ export async function runSprintPlanning(
     if (sessionConfig.model) {
       await client.setModel(sessionId, sessionConfig.model);
     }
-    // Retry planning once on timeout or parse failure
+    // Retry full prompt on timeout/crash; use parseWithRetry for JSON parse errors
     const MAX_PLANNING_ATTEMPTS = 2;
     let plan: SprintPlan | undefined;
     let lastError: unknown;
     for (let attempt = 1; attempt <= MAX_PLANNING_ATTEMPTS; attempt++) {
       try {
         const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
-        plan = SprintPlanSchema.parse(extractJson(result.response)) as SprintPlan;
+        plan = (await parseWithRetry(SprintPlanSchema, result.response, async (formatHint) => {
+          log.warn("Planning parse failed — retrying with format hint");
+          eventBus?.emitTyped("log", {
+            level: "warn",
+            message: "Planning parse failed, retrying with format hint…",
+          });
+          const retry = await client.sendPrompt(sessionId, formatHint, config.sessionTimeoutMs);
+          return retry.response;
+        })) as SprintPlan;
         break;
       } catch (err: unknown) {
         lastError = err;
