@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type {
-  SprintConfig,
-  SprintIssue,
-  QualityResult,
-} from "../../src/types.js";
+import type { SprintConfig, SprintIssue, QualityResult } from "../../src/types.js";
 
 vi.mock("../../src/acp/session-config.js", () => ({
   resolveSessionConfig: vi.fn().mockResolvedValue({
@@ -57,9 +53,16 @@ vi.mock("../../src/logger.js", () => {
 });
 
 vi.mock("node:child_process", () => {
-  const cb = vi.fn((_cmd: string, _args: string[], _opts: unknown, callback: (err: null, result: { stdout: string; stderr: string }) => void) => {
-    callback(null, { stdout: "diff --git a/src/foo.ts b/src/foo.ts\n+added line", stderr: "" });
-  });
+  const cb = vi.fn(
+    (
+      _cmd: string,
+      _args: string[],
+      _opts: unknown,
+      callback: (err: null, result: { stdout: string; stderr: string }) => void,
+    ) => {
+      callback(null, { stdout: "diff --git a/src/foo.ts b/src/foo.ts\n+added line", stderr: "" });
+    },
+  );
   return { execFile: cb };
 });
 
@@ -87,42 +90,35 @@ vi.mock("node:util", async (importOriginal) => {
 
 vi.mock("node:fs/promises", () => ({
   default: {
-    readFile: vi
-      .fn()
-      .mockImplementation((filePath: string) => {
-        if (filePath.includes("item-planner")) {
-          return Promise.resolve("Plan for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}");
-        }
-        if (filePath.includes("tdd")) {
-          return Promise.resolve("TDD tests for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}\nPlan: {{IMPLEMENTATION_PLAN}}");
-        }
-        if (filePath.includes("acceptance-review")) {
-          return Promise.resolve("Review AC for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}\nCriteria: {{ACCEPTANCE_CRITERIA}}\nDiff: {{DIFF}}");
-        }
-        return Promise.resolve("Worker prompt for issue #{{ISSUE_NUMBER}}");
-      }),
+    readFile: vi.fn().mockImplementation((filePath: string) => {
+      if (filePath.includes("item-planner")) {
+        return Promise.resolve("Plan for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}");
+      }
+      if (filePath.includes("tdd")) {
+        return Promise.resolve(
+          "TDD tests for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}\nPlan: {{IMPLEMENTATION_PLAN}}",
+        );
+      }
+      if (filePath.includes("acceptance-review")) {
+        return Promise.resolve(
+          "Review AC for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}\nCriteria: {{ACCEPTANCE_CRITERIA}}\nDiff: {{DIFF}}",
+        );
+      }
+      return Promise.resolve("Worker prompt for issue #{{ISSUE_NUMBER}}");
+    }),
   },
 }));
 
-const { createWorktree, removeWorktree } = await import(
-  "../../src/git/worktree.js"
-);
-const { runQualityGate } = await import(
-  "../../src/enforcement/quality-gate.js"
-);
-const { formatHuddleComment, formatSprintLogEntry } = await import(
-  "../../src/documentation/huddle.js"
-);
-const { appendToSprintLog } = await import(
-  "../../src/documentation/sprint-log.js"
-);
+const { createWorktree, removeWorktree } = await import("../../src/git/worktree.js");
+const { runQualityGate } = await import("../../src/enforcement/quality-gate.js");
+const { formatHuddleComment, formatSprintLogEntry } =
+  await import("../../src/documentation/huddle.js");
+const { appendToSprintLog } = await import("../../src/documentation/sprint-log.js");
 const { addComment } = await import("../../src/github/issues.js");
 const { setLabel } = await import("../../src/github/labels.js");
 await import("../../src/git/diff-analysis.js");
 
-const { executeIssue } = await import(
-  "../../src/ceremonies/execution.js"
-);
+const { executeIssue } = await import("../../src/ceremonies/execution.js");
 
 // --- Helpers ---
 
@@ -142,7 +138,7 @@ function makeConfig(overrides: Partial<SprintConfig> = {}): SprintConfig {
     enableChallenger: false,
     enableTdd: false,
     autoRevertDrift: false,
-  backlogLabels: [],
+    backlogLabels: [],
     autoMerge: true,
     squashMerge: true,
     deleteBranchAfterMerge: true,
@@ -169,11 +165,32 @@ function makeIssue(overrides: Partial<SprintIssue> = {}): SprintIssue {
 }
 
 function makeMockClient() {
+  let callCount = 0;
   return {
-    createSession: vi.fn().mockResolvedValue({ sessionId: "session-abc", availableModes: [], currentMode: "", availableModels: [], currentModel: "" }),
-    sendPrompt: vi.fn().mockResolvedValue({
-      response: "Done implementing issue",
-      stopReason: "end_turn",
+    createSession: vi
+      .fn()
+      .mockResolvedValue({
+        sessionId: "session-abc",
+        availableModes: [],
+        currentMode: "",
+        availableModels: [],
+        currentModel: "",
+      }),
+    sendPrompt: vi.fn().mockImplementation((_sid: string, prompt: string) => {
+      callCount++;
+      // AC review prompts come from the acceptance-review template
+      if (typeof prompt === "string" && prompt.includes("Review AC for issue")) {
+        return Promise.resolve({
+          response: JSON.stringify({
+            approved: true,
+            reasoning: "all good",
+            summary: "Criteria met",
+            criteria: [],
+          }),
+          stopReason: "end_turn",
+        });
+      }
+      return Promise.resolve({ response: "Done implementing issue", stopReason: "end_turn" });
     }),
     endSession: vi.fn().mockResolvedValue(undefined),
     setMode: vi.fn().mockResolvedValue(undefined),
@@ -450,9 +467,7 @@ describe("executeIssue", () => {
         zeroChangeDiagnostic: expect.objectContaining({
           workerOutcome: "worker-error",
           timedOut: false,
-          lastOutputLines: expect.arrayContaining([
-            expect.stringContaining("Error:"),
-          ]),
+          lastOutputLines: expect.arrayContaining([expect.stringContaining("Error:")]),
         }),
       }),
     );
@@ -547,8 +562,10 @@ describe("executeIssue", () => {
         return Promise.resolve({
           response: JSON.stringify({
             approved: false,
-            feedback: "Missing search endpoint implementation",
-            criteria: [{ criterion: "returns results", passed: false, concern: "no endpoint found" }],
+            reasoning: "Missing search endpoint implementation",
+            criteria: [
+              { criterion: "returns results", passed: false, concern: "no endpoint found" },
+            ],
           }),
           stopReason: "end_turn",
         });
@@ -561,7 +578,8 @@ describe("executeIssue", () => {
 
     // Developer session should receive AC failure feedback
     const feedbackCalls = mockClient.sendPrompt.mock.calls.filter(
-      (call: unknown[]) => typeof call[1] === "string" && call[1].includes("Acceptance Criteria Review Failed"),
+      (call: unknown[]) =>
+        typeof call[1] === "string" && call[1].includes("Acceptance Criteria Review Failed"),
     );
     expect(feedbackCalls.length).toBe(1);
     expect(feedbackCalls[0][1]).toContain("Missing search endpoint implementation");
@@ -588,4 +606,3 @@ describe("executeIssue", () => {
     expect(result.qualityGatePassed).toBe(true);
   });
 });
-

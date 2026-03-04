@@ -1,17 +1,14 @@
-import { describe, it, expect } from "vitest";
-import { extractJson } from "../../src/ceremonies/helpers.js";
+import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
+import { extractJson, parseWithRetry } from "../../src/ceremonies/helpers.js";
 
 describe("extractJson", () => {
   it("throws descriptive error for malformed JSON", () => {
-    expect(() => extractJson("```json\n{invalid}\n```")).toThrow(
-      "Failed to parse JSON",
-    );
+    expect(() => extractJson("```json\n{invalid}\n```")).toThrow("Failed to parse JSON");
   });
 
   it("throws for garbage text with braces", () => {
-    expect(() => extractJson("{not json at all}")).toThrow(
-      "Failed to parse JSON",
-    );
+    expect(() => extractJson("{not json at all}")).toThrow("Failed to parse JSON");
   });
 
   it("throws for empty string", () => {
@@ -28,5 +25,42 @@ describe("extractJson", () => {
 
   it("handles valid JSON without fence", () => {
     expect(extractJson('some text {"a":1} more text')).toEqual({ a: 1 });
+  });
+});
+
+vi.mock("../../src/logger.js", () => ({
+  logger: { child: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }) },
+}));
+
+describe("parseWithRetry", () => {
+  const schema = z.object({ decision: z.string(), issues: z.array(z.string()).default([]) });
+
+  it("succeeds on first attempt with valid JSON", async () => {
+    const retryFn = vi.fn();
+    const result = await parseWithRetry(schema, '```json\n{"decision":"approved"}\n```', retryFn);
+    expect(result).toEqual({ decision: "approved", issues: [] });
+    expect(retryFn).not.toHaveBeenCalled();
+  });
+
+  it("retries on invalid JSON and succeeds on second attempt", async () => {
+    const retryFn = vi
+      .fn()
+      .mockResolvedValue('```json\n{"decision":"rejected","issues":["bug"]}\n```');
+    const result = await parseWithRetry(schema, "no json here", retryFn);
+    expect(result).toEqual({ decision: "rejected", issues: ["bug"] });
+    expect(retryFn).toHaveBeenCalledOnce();
+    expect(retryFn.mock.calls[0][0]).toContain("could not be parsed");
+  });
+
+  it("throws on second failure after retry", async () => {
+    const retryFn = vi.fn().mockResolvedValue("still no json");
+    await expect(parseWithRetry(schema, "bad", retryFn)).rejects.toThrow();
+    expect(retryFn).toHaveBeenCalledOnce();
+  });
+
+  it("retries on schema validation failure (valid JSON but wrong shape)", async () => {
+    const retryFn = vi.fn().mockResolvedValue('```json\n{"decision":"ok"}\n```');
+    const result = await parseWithRetry(schema, '{"wrong_field": 123}', retryFn);
+    expect(result.decision).toBe("ok");
   });
 });

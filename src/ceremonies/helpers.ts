@@ -2,11 +2,11 @@
  * Shared helpers for sprint ceremony modules.
  */
 
+import type { z } from "zod";
+import { logger } from "../logger.js";
+
 /** Replace `{{KEY}}` placeholders in a template string. */
-export function substitutePrompt(
-  template: string,
-  vars: Record<string, string>,
-): string {
+export function substitutePrompt(template: string, vars: Record<string, string>): string {
   let result = template;
   for (const [key, value] of Object.entries(vars)) {
     result = result.replaceAll(`{{${key}}}`, value);
@@ -34,7 +34,9 @@ export function extractJson<T = unknown>(text: string): T {
       return JSON.parse(fencedMatch[1]) as T;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`Failed to parse JSON from response: ${msg}. Input (first 200 chars): ${text.slice(0, 200)}`);
+      throw new Error(
+        `Failed to parse JSON from response: ${msg}. Input (first 200 chars): ${text.slice(0, 200)}`,
+      );
     }
   }
 
@@ -75,10 +77,44 @@ export function extractJson<T = unknown>(text: string): T {
         return JSON.parse(text.slice(start, i + 1)) as T;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        throw new Error(`Failed to parse JSON from response: ${msg}. Input (first 200 chars): ${text.slice(0, 200)}`);
+        throw new Error(
+          `Failed to parse JSON from response: ${msg}. Input (first 200 chars): ${text.slice(0, 200)}`,
+        );
       }
     }
   }
 
   throw new Error("No complete JSON found in response");
+}
+
+/**
+ * Parse an agent response against a Zod schema, retrying once on validation failure.
+ * On first failure, calls `retryFn` with a format hint derived from the schema error.
+ * Logs the first failure as a warning. Throws on second failure.
+ */
+export async function parseWithRetry<S extends z.ZodTypeAny>(
+  schema: S,
+  rawResponse: string,
+  retryFn: (formatHint: string) => Promise<string>,
+): Promise<z.output<S>> {
+  const log = logger.child({ module: "parseWithRetry" });
+
+  try {
+    return schema.parse(extractJson(rawResponse));
+  } catch (firstError: unknown) {
+    const errMsg = firstError instanceof Error ? firstError.message : String(firstError);
+    log.warn({ error: errMsg }, "schema validation failed — retrying with format hint");
+
+    const formatHint = [
+      "Your previous response could not be parsed.",
+      `Error: ${errMsg}`,
+      "",
+      "Please respond with your analysis as readable text, then include a JSON block at the end.",
+      "The JSON must be wrapped in a ```json fenced code block.",
+      "Do NOT change your analysis — only fix the JSON format.",
+    ].join("\n");
+
+    const retryResponse = await retryFn(formatHint);
+    return schema.parse(extractJson(retryResponse));
+  }
 }

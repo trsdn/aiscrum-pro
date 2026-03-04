@@ -4,8 +4,10 @@
 
 import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig, SprintIssue, CodeReviewResult } from "../types.js";
+import { CodeReviewActionSchema } from "../types/schemas.js";
 import { resolveSessionConfig } from "../acp/session-config.js";
 import { diffStat } from "../git/diff-analysis.js";
+import { parseWithRetry } from "../ceremonies/helpers.js";
 import { logger } from "../logger.js";
 
 /**
@@ -70,30 +72,37 @@ export async function runCodeReview(
       "Review the actual file changes using the tools available to you.",
       "Read the changed files and the diff to understand what was modified.",
       "",
-      "Respond with EXACTLY one of these on the FIRST line:",
-      "APPROVED: <one-line summary of what looks good>",
-      "CHANGES_REQUESTED: <one-line summary of what needs fixing>",
-      "",
-      "Then list any issues found, one per line, prefixed with '- '.",
-      "If approved, you may still list non-blocking suggestions prefixed with '- [suggestion] '.",
+      "Write your review as readable text first, then include a JSON block at the end.",
+      "The JSON must be in a ```json fenced code block with this exact structure:",
+      "```",
+      "{",
+      '  "decision": "approved" | "changes_requested" | "failed",',
+      '  "reasoning": "why you made this decision",',
+      '  "summary": "one-line summary",',
+      '  "issues": ["issue 1", "issue 2"]',
+      "}",
+      "```",
+      'Use "approved" if no blocking issues found.',
+      'Use "changes_requested" if there are issues to fix (issues array must not be empty).',
+      'Use "failed" only if the review itself could not be completed.',
     ].join("\n");
 
     const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
-    const response = result.response.trim();
 
-    const firstLine = response.split("\n")[0] ?? "";
-    const approved = firstLine.toUpperCase().startsWith("APPROVED");
+    const action = await parseWithRetry(CodeReviewActionSchema, result.response, async (hint) => {
+      const retry = await client.sendPrompt(sessionId, hint, config.sessionTimeoutMs);
+      return retry.response;
+    });
 
-    // Extract issue lines
-    const issues = response
-      .split("\n")
-      .filter((line) => line.startsWith("- ") && !line.toLowerCase().includes("[suggestion]"))
-      .map((line) => line.slice(2).trim());
+    const approved = action.decision === "approved";
 
-    log.info({ approved, issueCount: issues.length }, "code review completed");
+    log.info(
+      { decision: action.decision, issueCount: action.issues.length, reasoning: action.reasoning },
+      "code review completed",
+    );
 
     outcome = approved ? "approved" : "changes_requested";
-    return { approved, feedback: response, issues };
+    return { approved, feedback: result.response, issues: action.issues };
   } finally {
     eventBus?.emitTyped("session:end", { sessionId, outcome });
     await client.endSession(sessionId);
