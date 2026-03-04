@@ -6,6 +6,7 @@ import {
   AcceptanceCriteriaSchema,
   RetroResultSchema,
   ReviewResultSchema,
+  SprintPlanSchema,
   normalizeRetroFields,
 } from "../../src/types/schemas.js";
 
@@ -190,5 +191,27 @@ describe("ReviewResultSchema", () => {
     expect(result.summary).toBe("No summary provided");
     expect(result.demoItems).toEqual([]);
     expect(result.openItems).toEqual([]);
+  });
+});
+
+describe("SprintPlanSchema", () => {
+  it("accepts an empty sprint_issues array", () => {
+    const result = SprintPlanSchema.parse({
+      sprintNumber: 2,
+      sprint_issues: [],
+      rationale: "No actionable issues in backlog",
+    });
+    expect(result.sprint_issues).toEqual([]);
+    expect(result.sprintNumber).toBe(2);
+  });
+
+  it("accepts a plan with issues", () => {
+    const result = SprintPlanSchema.parse({
+      sprintNumber: 1,
+      sprint_issues: [{ number: 42, title: "Test", ice_score: 5, points: 2 }],
+      rationale: "test",
+    });
+    expect(result.sprint_issues).toHaveLength(1);
+    expect(result.sprint_issues[0]!.number).toBe(42);
   });
 });

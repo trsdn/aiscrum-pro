@@ -90,6 +90,16 @@ export async function runSprintPlanning(
       throw lastError;
     }
 
+    // Handle empty plan — planner found no actionable issues
+    if (plan.sprint_issues.length === 0) {
+      log.info("Planner returned 0 issues — no actionable backlog items for this sprint");
+      eventBus?.emitTyped("log", {
+        level: "info",
+        message: "No actionable backlog issues found — sprint will be skipped",
+      });
+      return plan;
+    }
+
     // Enforce max_issues — LLM may return more than requested
     if (plan.sprint_issues.length > config.maxIssuesPerSprint) {
       log.warn(

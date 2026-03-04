@@ -229,6 +229,12 @@ function registerFullCycle(program: Command): void {
             `  Planned ${plan.sprint_issues.length} issues (${plan.estimated_points} points)`,
           );
 
+          // Handle empty plan — no actionable issues
+          if (plan.sprint_issues.length === 0) {
+            console.log("\n⏭️  No actionable issues found — skipping sprint.");
+            return;
+          }
+
           // Step 2: Execute all issues (with parallel dispatch, merge, pre-merge verification)
           console.log("\n🔄 Phase 2/4: Execution...");
           const sprintResult = await runParallelExecution(client, sprintConfig, plan);
