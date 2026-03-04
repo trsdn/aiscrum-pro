@@ -8,7 +8,13 @@ vi.mock("../../src/logger.js", () => ({
 }));
 
 import { execGh } from "../../src/github/issues.js";
-import { setLabel, removeLabel, getLabels, ensureLabelExists } from "../../src/github/labels.js";
+import {
+  setLabel,
+  removeLabel,
+  getLabels,
+  ensureLabelExists,
+  setStatusLabel,
+} from "../../src/github/labels.js";
 
 const mockExecGh = vi.mocked(execGh);
 
@@ -59,6 +65,50 @@ describe("labels", () => {
       "--description",
       "A label",
       "--force",
+    ]);
+  });
+
+  it("setStatusLabel removes stale status labels before adding new one", async () => {
+    mockExecGh
+      .mockResolvedValueOnce('{"labels": [{"name": "status:planned"}, {"name": "bug"}]}') // getLabels
+      .mockResolvedValueOnce("") // removeLabel status:planned
+      .mockResolvedValueOnce(""); // setLabel status:in-progress
+    await setStatusLabel(42, "status:in-progress");
+    expect(mockExecGh).toHaveBeenCalledWith([
+      "issue",
+      "edit",
+      "42",
+      "--remove-label",
+      "status:planned",
+    ]);
+    expect(mockExecGh).toHaveBeenCalledWith([
+      "issue",
+      "edit",
+      "42",
+      "--add-label",
+      "status:in-progress",
+    ]);
+  });
+
+  it("setStatusLabel does not remove the target label itself", async () => {
+    mockExecGh
+      .mockResolvedValueOnce('{"labels": [{"name": "status:done"}]}') // getLabels
+      .mockResolvedValueOnce(""); // setLabel
+    await setStatusLabel(42, "status:done");
+    expect(mockExecGh).toHaveBeenCalledTimes(2); // getLabels + setLabel only
+  });
+
+  it("setStatusLabel works even when getLabels fails", async () => {
+    mockExecGh
+      .mockRejectedValueOnce(new Error("gh failed")) // getLabels
+      .mockResolvedValueOnce(""); // setLabel
+    await setStatusLabel(42, "status:blocked");
+    expect(mockExecGh).toHaveBeenCalledWith([
+      "issue",
+      "edit",
+      "42",
+      "--add-label",
+      "status:blocked",
     ]);
   });
 });

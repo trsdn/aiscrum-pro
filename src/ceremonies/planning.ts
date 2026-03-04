@@ -4,7 +4,7 @@ import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig, SprintPlan } from "../types.js";
 import { SprintPlanSchema } from "../types.js";
 import type { SprintEventBus } from "../events.js";
-import { setLabel, removeLabel } from "../github/labels.js";
+import { setStatusLabel, removeLabel } from "../github/labels.js";
 import {
   setMilestone,
   getMilestone,
@@ -121,7 +121,7 @@ export async function runSprintPlanning(
     // Set labels and milestone on each selected issue
     const plannedNumbers = new Set(plan.sprint_issues.map((i) => i.number));
     for (const issue of plan.sprint_issues) {
-      await setLabel(issue.number, "status:planned");
+      await setStatusLabel(issue.number, "status:planned");
       await setMilestone(issue.number, milestoneTitle);
       log.debug({ issue: issue.number }, "Labeled and milestoned issue");
     }

@@ -107,6 +107,9 @@ vi.mock("../../src/github/issues.js", () => ({
 }));
 vi.mock("../../src/github/labels.js", () => ({
   setLabel: vi.fn(),
+  setStatusLabel: vi.fn(),
+  getLabels: vi.fn().mockResolvedValue([]),
+  removeLabel: vi.fn(),
 }));
 vi.mock("../../src/github/milestones.js", () => ({
   getMilestone: vi.fn(),
@@ -137,7 +140,7 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 const { listIssues } = await import("../../src/github/issues.js");
-const { setLabel } = await import("../../src/github/labels.js");
+const { setStatusLabel } = await import("../../src/github/labels.js");
 const { getMilestone, createMilestone, setMilestone } =
   await import("../../src/github/milestones.js");
 const { createSprintLog } = await import("../../src/documentation/sprint-log.js");
@@ -232,7 +235,7 @@ describe("runSprintPlanning", () => {
       description: "",
       state: "open",
     });
-    vi.mocked(setLabel).mockResolvedValue(undefined);
+    vi.mocked(setStatusLabel).mockResolvedValue(undefined);
     vi.mocked(setMilestone).mockResolvedValue(undefined);
     vi.mocked(createSprintLog).mockReturnValue("/tmp/log.md");
 
@@ -251,9 +254,9 @@ describe("runSprintPlanning", () => {
     expect(plan.estimated_points).toBe(5);
 
     // Each issue gets label + milestone
-    expect(setLabel).toHaveBeenCalledTimes(2);
-    expect(setLabel).toHaveBeenCalledWith(10, "status:planned");
-    expect(setLabel).toHaveBeenCalledWith(12, "status:planned");
+    expect(setStatusLabel).toHaveBeenCalledTimes(2);
+    expect(setStatusLabel).toHaveBeenCalledWith(10, "status:planned");
+    expect(setStatusLabel).toHaveBeenCalledWith(12, "status:planned");
     expect(setMilestone).toHaveBeenCalledTimes(2);
 
     // Milestone created since it didn't exist
@@ -279,7 +282,7 @@ describe("runSprintPlanning", () => {
       description: "",
       state: "open",
     });
-    vi.mocked(setLabel).mockResolvedValue(undefined);
+    vi.mocked(setStatusLabel).mockResolvedValue(undefined);
     vi.mocked(setMilestone).mockResolvedValue(undefined);
     vi.mocked(createSprintLog).mockReturnValue("/tmp/log.md");
 
@@ -317,7 +320,7 @@ describe("runSprintPlanning", () => {
       description: "",
       state: "open",
     });
-    vi.mocked(setLabel).mockResolvedValue(undefined);
+    vi.mocked(setStatusLabel).mockResolvedValue(undefined);
     vi.mocked(setMilestone).mockResolvedValue(undefined);
     vi.mocked(createSprintLog).mockReturnValue("/tmp/log.md");
 

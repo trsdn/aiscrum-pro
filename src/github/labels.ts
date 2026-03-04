@@ -7,6 +7,8 @@ export const STATUS_LABELS = [
   "status:in-progress",
   "status:done",
   "status:blocked",
+  "status:refined",
+  "status:ready",
 ] as const;
 
 export type StatusLabel = (typeof STATUS_LABELS)[number];
@@ -15,6 +17,29 @@ export type StatusLabel = (typeof STATUS_LABELS)[number];
 export async function setLabel(issueNumber: number, label: string): Promise<void> {
   logger.debug({ issueNumber, label }, "Adding label");
   await execGh(["issue", "edit", String(issueNumber), "--add-label", label]);
+}
+
+/**
+ * Set a status label, removing any other status:* labels first.
+ * Prevents duplicate status labels from accumulating on issues.
+ */
+export async function setStatusLabel(issueNumber: number, label: StatusLabel): Promise<void> {
+  try {
+    const current = await getLabels(issueNumber);
+    const staleStatuses = current
+      .filter((l) => l.name.startsWith("status:") && l.name !== label)
+      .map((l) => l.name);
+
+    for (const old of staleStatuses) {
+      await removeLabel(issueNumber, old).catch((err) =>
+        logger.debug({ err, issueNumber, label: old }, "failed to remove stale status label"),
+      );
+    }
+  } catch (err) {
+    logger.debug({ err, issueNumber }, "failed to read current labels — adding anyway");
+  }
+
+  await setLabel(issueNumber, label);
 }
 
 /** Remove a label from an issue. */

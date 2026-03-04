@@ -20,7 +20,7 @@ import { formatHuddleComment, formatSprintLogEntry } from "../documentation/hudd
 import type { ZeroChangeDiagnostic, HuddleEntryWithDiag } from "../documentation/huddle.js";
 import { appendToSprintLog } from "../documentation/sprint-log.js";
 import { addComment } from "../github/issues.js";
-import { setLabel } from "../github/labels.js";
+import { setStatusLabel } from "../github/labels.js";
 import { getChangedFiles } from "../git/diff-analysis.js";
 import { getPRStats } from "../git/merge.js";
 import { substitutePrompt, extractJson, sanitizePromptInput, parseWithRetry } from "./helpers.js";
@@ -622,6 +622,24 @@ async function cleanupPhase(ctx: ExecutionContext, input: CleanupInput): Promise
           "PR has files — overriding local diff",
         );
         input.filesChanged = [`(${stats.changedFiles} files via PR #${stats.prNumber})`];
+
+        // If the only failure reason was zero file changes, recover the status
+        const zeroChangeOnly =
+          input.status === "failed" &&
+          input.qualityResult.checks.some((c) => c.name === "files-changed" && !c.passed) &&
+          input.qualityResult.checks.filter((c) => !c.passed).length === 1;
+        if (zeroChangeOnly) {
+          log.info({ issue: issue.number }, "Recovering status — PR has actual file changes");
+          input.status = "completed";
+          input.qualityResult = {
+            passed: true,
+            checks: input.qualityResult.checks.map((c) =>
+              c.name === "files-changed"
+                ? { ...c, passed: true, detail: `${stats.changedFiles} files via PR` }
+                : c,
+            ),
+          };
+        }
       }
     }
   } catch {
@@ -676,7 +694,7 @@ async function cleanupPhase(ctx: ExecutionContext, input: CleanupInput): Promise
   // Set final label
   const finalLabel = input.status === "completed" ? "status:done" : "status:blocked";
   try {
-    await setLabel(issue.number, finalLabel);
+    await setStatusLabel(issue.number, finalLabel);
     if (finalLabel === "status:blocked") {
       const blockReason =
         input.errorMessage ??
@@ -753,7 +771,7 @@ export async function executeIssue(
   };
 
   // Step 1: Set in-progress label
-  await setLabel(issue.number, "status:in-progress");
+  await setStatusLabel(issue.number, "status:in-progress");
   log.info("issue marked in-progress");
   progress("creating worktree");
 

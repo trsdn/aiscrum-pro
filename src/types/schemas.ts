@@ -167,8 +167,8 @@ export const AcceptanceCriteriaSchema = z.object({
       z.object({
         criterion: z.string(),
         passed: z.boolean(),
-        evidence: z.string().optional(),
-        concern: z.string().optional(),
+        evidence: z.string().nullish(),
+        concern: z.string().nullish(),
       }),
     )
     .default([]),

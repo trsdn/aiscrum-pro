@@ -904,6 +904,10 @@ export class DashboardWebServer {
     value: string,
     ws: WebSocket,
   ): Promise<void> {
+    if (!optionId || typeof optionId !== "string") {
+      log.warn({ sessionId, optionId }, "Ignoring chat config — invalid optionId");
+      return;
+    }
     try {
       log.info({ sessionId, optionId, value }, "Setting chat config option");
       await this.getChatManager().setConfig(sessionId, optionId, value);
@@ -1693,9 +1697,9 @@ export class DashboardWebServer {
   /** Approve a decision: remove human-decision-needed label, add status:refined. */
   private async handleDecisionApprove(issueNumber: number, _ws: WebSocket): Promise<void> {
     try {
-      const { removeLabel, setLabel } = await import("../github/labels.js");
+      const { removeLabel, setStatusLabel } = await import("../github/labels.js");
       await removeLabel(issueNumber, "human-decision-needed");
-      await setLabel(issueNumber, "status:refined");
+      await setStatusLabel(issueNumber, "status:refined");
       this.broadcast({
         type: "sprint:event",
         eventName: "decisions:approved",
@@ -1750,7 +1754,7 @@ export class DashboardWebServer {
     const prefix = this.options.sprintPrefix ?? "Sprint";
     const milestoneTitle = `${prefix} ${sprintNum}`;
     try {
-      const { setLabel, removeLabel } = await import("../github/labels.js");
+      const { setStatusLabel, removeLabel } = await import("../github/labels.js");
       const { setMilestone, createMilestone, getMilestone } =
         await import("../github/milestones.js");
       // Ensure milestone exists
@@ -1759,7 +1763,7 @@ export class DashboardWebServer {
         await createMilestone(milestoneTitle);
       }
       await setMilestone(issueNumber, milestoneTitle);
-      await setLabel(issueNumber, "status:planned");
+      await setStatusLabel(issueNumber, "status:planned");
       try {
         await removeLabel(issueNumber, "status:refined");
       } catch {
@@ -1783,10 +1787,10 @@ export class DashboardWebServer {
   /** Remove an issue from the sprint (remove milestone + planned label). */
   private async handleRemoveFromSprint(issueNumber: number, ws: WebSocket): Promise<void> {
     try {
-      const { setLabel, removeLabel } = await import("../github/labels.js");
+      const { setStatusLabel, removeLabel } = await import("../github/labels.js");
       const { removeMilestone } = await import("../github/milestones.js");
       await removeLabel(issueNumber, "status:planned");
-      await setLabel(issueNumber, "status:refined");
+      await setStatusLabel(issueNumber, "status:refined");
       await removeMilestone(issueNumber);
       log.info({ issueNumber }, "Issue removed from sprint");
       this.sendTo(ws, { type: "backlog:removed", payload: { issueNumber } } as ServerMessage);

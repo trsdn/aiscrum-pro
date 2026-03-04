@@ -53,6 +53,9 @@ vi.mock("node:util", async () => {
 
 vi.mock("../../src/github/labels.js", () => ({
   setLabel: vi.fn().mockResolvedValue(undefined),
+  setStatusLabel: vi.fn().mockResolvedValue(undefined),
+  getLabels: vi.fn().mockResolvedValue([]),
+  removeLabel: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../src/github/issues.js", () => ({
@@ -87,7 +90,7 @@ import { buildExecutionGroups } from "../../src/ceremonies/dep-graph.js";
 import { executeIssue } from "../../src/ceremonies/execution.js";
 import { hasConflicts, mergeIssuePR } from "../../src/git/merge.js";
 import { createWorktree, removeWorktree } from "../../src/git/worktree.js";
-import { setLabel } from "../../src/github/labels.js";
+import { setStatusLabel } from "../../src/github/labels.js";
 import { addComment } from "../../src/github/issues.js";
 import { escalateToStakeholder } from "../../src/enforcement/escalation.js";
 
@@ -234,7 +237,7 @@ describe("runParallelExecution", () => {
     const failedResult = result.results.find((r) => r.issueNumber === 2);
     expect(failedResult?.status).toBe("failed");
     expect(failedResult?.qualityGatePassed).toBe(false);
-    expect(setLabel).toHaveBeenCalledWith(2, "status:blocked");
+    expect(setStatusLabel).toHaveBeenCalledWith(2, "status:blocked");
   });
 
   it("skips merging when autoMerge is disabled", async () => {
@@ -429,7 +432,7 @@ describe("runParallelExecution", () => {
     const issue1 = result.results.find((r) => r.issueNumber === 1)!;
     expect(issue1.status).toBe("failed");
     expect(issue1.qualityGatePassed).toBe(false);
-    expect(setLabel).toHaveBeenCalledWith(1, "status:blocked");
+    expect(setStatusLabel).toHaveBeenCalledWith(1, "status:blocked");
     expect(addComment).toHaveBeenCalledWith(1, expect.stringContaining("Merge conflicts"));
   });
 
@@ -452,7 +455,7 @@ describe("runParallelExecution", () => {
     const issue1 = result.results.find((r) => r.issueNumber === 1)!;
     expect(issue1.status).toBe("failed");
     expect(issue1.qualityGatePassed).toBe(false);
-    expect(setLabel).toHaveBeenCalledWith(1, "status:blocked");
+    expect(setStatusLabel).toHaveBeenCalledWith(1, "status:blocked");
     expect(addComment).toHaveBeenCalledWith(1, expect.stringContaining("Tests failed"));
   });
 

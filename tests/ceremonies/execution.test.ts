@@ -34,6 +34,9 @@ vi.mock("../../src/github/issues.js", () => ({
 
 vi.mock("../../src/github/labels.js", () => ({
   setLabel: vi.fn().mockResolvedValue(undefined),
+  setStatusLabel: vi.fn().mockResolvedValue(undefined),
+  getLabels: vi.fn().mockResolvedValue([]),
+  removeLabel: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("../../src/git/diff-analysis.js", () => ({
@@ -115,7 +118,7 @@ const { formatHuddleComment, formatSprintLogEntry } =
   await import("../../src/documentation/huddle.js");
 const { appendToSprintLog } = await import("../../src/documentation/sprint-log.js");
 const { addComment } = await import("../../src/github/issues.js");
-const { setLabel } = await import("../../src/github/labels.js");
+const { setStatusLabel } = await import("../../src/github/labels.js");
 await import("../../src/git/diff-analysis.js");
 
 const { executeIssue } = await import("../../src/ceremonies/execution.js");
@@ -229,7 +232,7 @@ describe("executeIssue", () => {
     const result = await executeIssue(mockClient as any, makeConfig(), makeIssue());
 
     // Label set to in-progress first
-    expect(setLabel).toHaveBeenCalledWith(42, "status:in-progress");
+    expect(setStatusLabel).toHaveBeenCalledWith(42, "status:in-progress");
 
     // Worktree created
     expect(createWorktree).toHaveBeenCalledWith({
@@ -260,7 +263,7 @@ describe("executeIssue", () => {
     expect(appendToSprintLog).toHaveBeenCalledWith(3, "log entry", undefined, "sprint");
 
     // Final label
-    expect(setLabel).toHaveBeenCalledWith(42, "status:done");
+    expect(setStatusLabel).toHaveBeenCalledWith(42, "status:done");
 
     // Worktree removed
     expect(removeWorktree).toHaveBeenCalledWith("/tmp/worktrees/issue-42");
@@ -287,7 +290,7 @@ describe("executeIssue", () => {
     expect(result.qualityGatePassed).toBe(false);
 
     // Final label should be blocked
-    expect(setLabel).toHaveBeenCalledWith(42, "status:blocked");
+    expect(setStatusLabel).toHaveBeenCalledWith(42, "status:blocked");
   });
 
   it("sends QG retry feedback to same developer session instead of creating new one", async () => {

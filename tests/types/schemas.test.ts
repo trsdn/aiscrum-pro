@@ -115,6 +115,15 @@ describe("AcceptanceCriteriaSchema", () => {
   it("rejects missing approved", () => {
     expect(() => AcceptanceCriteriaSchema.parse({})).toThrow();
   });
+
+  it("accepts null concern and evidence fields", () => {
+    const result = AcceptanceCriteriaSchema.parse({
+      approved: false,
+      criteria: [{ criterion: "test", passed: false, concern: null, evidence: null }],
+    });
+    expect(result.criteria[0].concern).toBeNull();
+    expect(result.criteria[0].evidence).toBeNull();
+  });
 });
 
 describe("normalizeRetroFields", () => {

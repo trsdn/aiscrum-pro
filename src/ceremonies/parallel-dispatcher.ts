@@ -13,7 +13,7 @@ import { createWorktree, removeWorktree } from "../git/worktree.js";
 import { verifyMainBranch } from "../enforcement/quality-gate.js";
 import { buildQualityGateConfig } from "./quality-retry.js";
 import { escalateToStakeholder } from "../enforcement/escalation.js";
-import { setLabel } from "../github/labels.js";
+import { setStatusLabel } from "../github/labels.js";
 import { addComment } from "../github/issues.js";
 import { logger, appendErrorLog } from "../logger.js";
 
@@ -288,7 +288,7 @@ export async function runParallelExecution(
                 // Retry didn't resolve the conflict
                 retryResult.status = "failed";
                 retryResult.qualityGatePassed = false;
-                await setLabel(retryResult.issueNumber, "status:blocked");
+                await setStatusLabel(retryResult.issueNumber, "status:blocked");
                 await addComment(
                   retryResult.issueNumber,
                   "**Block reason:** Pre-merge verification failed after conflict retry",
@@ -302,7 +302,7 @@ export async function runParallelExecution(
             );
             result.status = "failed";
             result.qualityGatePassed = false;
-            await setLabel(result.issueNumber, "status:blocked");
+            await setStatusLabel(result.issueNumber, "status:blocked");
             await addComment(
               result.issueNumber,
               `**Block reason:** Pre-merge verification failed — ${premerge.reason ?? "unknown"}`,
@@ -323,7 +323,7 @@ export async function runParallelExecution(
               );
               result.status = "failed";
               result.qualityGatePassed = false;
-              await setLabel(result.issueNumber, "status:blocked");
+              await setStatusLabel(result.issueNumber, "status:blocked");
               await addComment(
                 result.issueNumber,
                 `**Block reason:** PR merge failed — ${mergeResult.reason ?? "unknown"}`,
