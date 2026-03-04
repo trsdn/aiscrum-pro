@@ -4,8 +4,14 @@ import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig, SprintPlan } from "../types.js";
 import { SprintPlanSchema } from "../types.js";
 import type { SprintEventBus } from "../events.js";
-import { setLabel } from "../github/labels.js";
-import { setMilestone, getMilestone, createMilestone } from "../github/milestones.js";
+import { setLabel, removeLabel } from "../github/labels.js";
+import {
+  setMilestone,
+  getMilestone,
+  createMilestone,
+  removeMilestone,
+} from "../github/milestones.js";
+import { listIssues } from "../github/issues.js";
 import { createSprintLog } from "../documentation/sprint-log.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, extractJson } from "./helpers.js";
@@ -91,10 +97,32 @@ export async function runSprintPlanning(
     }
 
     // Set labels and milestone on each selected issue
+    const plannedNumbers = new Set(plan.sprint_issues.map((i) => i.number));
     for (const issue of plan.sprint_issues) {
       await setLabel(issue.number, "status:planned");
       await setMilestone(issue.number, milestoneTitle);
       log.debug({ issue: issue.number }, "Labeled and milestoned issue");
+    }
+
+    // Remove milestone from issues that were previously assigned but not selected
+    try {
+      const milestoneIssues = await listIssues({ milestone: milestoneTitle, state: "open" });
+      for (const issue of milestoneIssues) {
+        if (!plannedNumbers.has(issue.number)) {
+          await removeMilestone(issue.number);
+          try {
+            await removeLabel(issue.number, "status:planned");
+          } catch {
+            /* may not have it */
+          }
+          log.info({ issue: issue.number }, "Removed unplanned issue from sprint milestone");
+        }
+      }
+    } catch (err) {
+      log.warn(
+        { err: String(err) },
+        "Failed to clean up unplanned milestone issues — non-critical",
+      );
     }
 
     // Update sprint log

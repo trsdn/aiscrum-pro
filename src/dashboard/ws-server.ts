@@ -32,7 +32,29 @@ export interface IssueEntry {
 
 /** Message sent from server to browser clients. */
 export interface ServerMessage {
-  type: "sprint:event" | "sprint:state" | "sprint:issues" | "sprint:switched" | "backlog:planned" | "backlog:removed" | "backlog:error" | "session:list" | "session:output" | "session:status" | "chat:chunk" | "chat:done" | "chat:created" | "chat:error" | "chat:thinking" | "chat:tool-call" | "chat:usage" | "chat:mode" | "chat:plan" | "chat:commands" | "chat:config" | "pong";
+  type:
+    | "sprint:event"
+    | "sprint:state"
+    | "sprint:issues"
+    | "sprint:switched"
+    | "backlog:planned"
+    | "backlog:removed"
+    | "backlog:error"
+    | "session:list"
+    | "session:output"
+    | "session:status"
+    | "chat:chunk"
+    | "chat:done"
+    | "chat:created"
+    | "chat:error"
+    | "chat:thinking"
+    | "chat:tool-call"
+    | "chat:usage"
+    | "chat:mode"
+    | "chat:plan"
+    | "chat:commands"
+    | "chat:config"
+    | "pong";
   eventName?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload?: any;
@@ -40,7 +62,33 @@ export interface ServerMessage {
 
 /** Message sent from browser client to server. */
 export interface ClientMessage {
-  type: "sprint:start" | "sprint:stop" | "sprint:cancel" | "sprint:pause" | "sprint:resume" | "sprint:switch" | "sprint:set-limit" | "mode:set" | "backlog:plan-issue" | "backlog:remove-issue" | "session:subscribe" | "session:unsubscribe" | "session:send-message" | "session:stop" | "chat:create" | "chat:send" | "chat:close" | "chat:cancel" | "chat:set-mode" | "chat:set-config" | "blocked:comment" | "blocked:unblock" | "decisions:approve" | "decisions:reject" | "decisions:comment" | "ping";
+  type:
+    | "sprint:start"
+    | "sprint:stop"
+    | "sprint:cancel"
+    | "sprint:pause"
+    | "sprint:resume"
+    | "sprint:switch"
+    | "sprint:set-limit"
+    | "mode:set"
+    | "backlog:plan-issue"
+    | "backlog:remove-issue"
+    | "session:subscribe"
+    | "session:unsubscribe"
+    | "session:send-message"
+    | "session:stop"
+    | "chat:create"
+    | "chat:send"
+    | "chat:close"
+    | "chat:cancel"
+    | "chat:set-mode"
+    | "chat:set-config"
+    | "blocked:comment"
+    | "blocked:unblock"
+    | "decisions:approve"
+    | "decisions:reject"
+    | "decisions:comment"
+    | "ping";
   sprintNumber?: number;
   issueNumber?: number;
   sessionId?: string;
@@ -121,7 +169,12 @@ export class DashboardWebServer {
   private readonly options: DashboardServerOptions;
   private readonly publicDir: string;
   private eventBuffer: BufferedEvent[] = [];
-  private knownMilestones: { sprintNumber: number; milestoneNumber: number; title: string; state: string }[] = [];
+  private knownMilestones: {
+    sprintNumber: number;
+    milestoneNumber: number;
+    title: string;
+    state: string;
+  }[] = [];
   private executionMode: "autonomous" | "hitl" = "autonomous";
   private activeSprintNumberOverride: number | undefined;
   public sprintLimit = 0;
@@ -177,7 +230,10 @@ export class DashboardWebServer {
       // Send active sprint info so client knows which sprint is running
       this.sendTo(ws, {
         type: "sprint:switched",
-        payload: { sprintNumber: this.activeSprintNumber, activeSprintNumber: this.activeSprintNumber },
+        payload: {
+          sprintNumber: this.activeSprintNumber,
+          activeSprintNumber: this.activeSprintNumber,
+        },
       });
       // Send current execution mode so client dropdown syncs
       this.sendTo(ws, {
@@ -193,7 +249,7 @@ export class DashboardWebServer {
       });
       // Send active session list
       if (this.sessions.size > 0) {
-        const sessions = Array.from(this.sessions.values()).map(s => ({
+        const sessions = Array.from(this.sessions.values()).map((s) => ({
           sessionId: s.sessionId,
           role: s.role,
           issueNumber: s.issueNumber,
@@ -258,39 +314,46 @@ export class DashboardWebServer {
     // Discover sprints from GitHub milestones (async, non-blocking)
     const prefix = this.options.sprintPrefix ?? "Sprint";
     const activeNum = this.activeSprintNumber ?? 1;
-    listSprintMilestones(prefix).then((milestones) => {
-      this.knownMilestones = milestones;
-      // Determine max sprint from both milestones and active sprint
-      const maxFromMilestones = milestones.length > 0
-        ? Math.max(...milestones.map((m) => m.sprintNumber))
-        : 0;
-      const maxSprint = Math.max(activeNum, maxFromMilestones);
-      log.info({ milestones: milestones.length, maxSprint }, "Sprint milestones discovered");
+    listSprintMilestones(prefix)
+      .then((milestones) => {
+        this.knownMilestones = milestones;
+        // Determine max sprint from both milestones and active sprint
+        const maxFromMilestones =
+          milestones.length > 0 ? Math.max(...milestones.map((m) => m.sprintNumber)) : 0;
+        const maxSprint = Math.max(activeNum, maxFromMilestones);
+        log.info({ milestones: milestones.length, maxSprint }, "Sprint milestones discovered");
 
-      // Initialize issue cache with full range
-      this.issueCache = new SprintIssueCache({
-        maxSprint,
-        loadState: (n) => this.loadSprintState(n),
-        sprintPrefix: prefix,
+        // Initialize issue cache with full range
+        this.issueCache = new SprintIssueCache({
+          maxSprint,
+          loadState: (n) => this.loadSprintState(n),
+          sprintPrefix: prefix,
+        });
+        this.issueCache
+          .preload()
+          .then(() => {
+            this.issueCache!.startRefresh();
+          })
+          .catch((err) => {
+            log.warn({ err }, "Issue cache preload failed");
+          });
+      })
+      .catch((err) => {
+        log.warn({ err }, "Milestone discovery failed, falling back to active sprint only");
+        this.issueCache = new SprintIssueCache({
+          maxSprint: activeNum,
+          loadState: (n) => this.loadSprintState(n),
+          sprintPrefix: prefix,
+        });
+        this.issueCache
+          .preload()
+          .then(() => {
+            this.issueCache!.startRefresh();
+          })
+          .catch((e) => {
+            log.warn({ err: e }, "Issue cache preload failed");
+          });
       });
-      this.issueCache.preload().then(() => {
-        this.issueCache!.startRefresh();
-      }).catch((err) => {
-        log.warn({ err }, "Issue cache preload failed");
-      });
-    }).catch((err) => {
-      log.warn({ err }, "Milestone discovery failed, falling back to active sprint only");
-      this.issueCache = new SprintIssueCache({
-        maxSprint: activeNum,
-        loadState: (n) => this.loadSprintState(n),
-        sprintPrefix: prefix,
-      });
-      this.issueCache.preload().then(() => {
-        this.issueCache!.startRefresh();
-      }).catch((e) => {
-        log.warn({ err: e }, "Issue cache preload failed");
-      });
-    });
 
     return new Promise((resolve) => {
       this.server!.listen(port, host, () => {
@@ -343,7 +406,7 @@ export class DashboardWebServer {
   }
 
   private broadcastSessionList(): void {
-    const sessions = Array.from(this.sessions.values()).map(s => ({
+    const sessions = Array.from(this.sessions.values()).map((s) => ({
       sessionId: s.sessionId,
       role: s.role,
       issueNumber: s.issueNumber,
@@ -360,11 +423,26 @@ export class DashboardWebServer {
   private bridgeEvents(): void {
     const bus = this.options.eventBus;
     const eventNames: (keyof SprintEngineEvents)[] = [
-      "phase:change", "issue:start", "issue:progress", "issue:done", "issue:fail",
-      "worker:output", "session:start", "session:end",
-      "sprint:start", "sprint:planned", "sprint:complete", "sprint:stopped", "sprint:cancelled", "sprint:error",
-      "sprint:paused", "sprint:resumed", "log",
-      "heartbeat:tick", "heartbeat:stale", "heartbeat:recovered",
+      "phase:change",
+      "issue:start",
+      "issue:progress",
+      "issue:done",
+      "issue:fail",
+      "worker:output",
+      "session:start",
+      "session:end",
+      "sprint:start",
+      "sprint:planned",
+      "sprint:complete",
+      "sprint:stopped",
+      "sprint:cancelled",
+      "sprint:error",
+      "sprint:paused",
+      "sprint:resumed",
+      "log",
+      "heartbeat:tick",
+      "heartbeat:stale",
+      "heartbeat:recovered",
     ];
 
     for (const eventName of eventNames) {
@@ -379,7 +457,9 @@ export class DashboardWebServer {
         // Write errors and warnings to daily log file
         if (eventName === "sprint:error" || eventName === "issue:fail") {
           const p = payload as Record<string, unknown>;
-          appendErrorLog("error", `${eventName}: ${p.message ?? p.error ?? JSON.stringify(p)}`, { event: eventName });
+          appendErrorLog("error", `${eventName}: ${p.message ?? p.error ?? JSON.stringify(p)}`, {
+            event: eventName,
+          });
         }
         if (eventName === "log") {
           const p = payload as { level: string; message: string };
@@ -398,11 +478,14 @@ export class DashboardWebServer {
         // Also update the issue cache
         const sprintNum = this.activeSprintNumber ?? 1;
         if (this.issueCache) {
-          this.issueCache.set(sprintNum, this.options.getIssues().map((i) => ({
-            number: i.number,
-            title: i.title,
-            status: i.status as "planned" | "in-progress" | "done" | "failed",
-          })));
+          this.issueCache.set(
+            sprintNum,
+            this.options.getIssues().map((i) => ({
+              number: i.number,
+              title: i.title,
+              status: i.status as "planned" | "in-progress" | "done" | "failed",
+            })),
+          );
         }
       }, 500);
     });
@@ -436,12 +519,15 @@ export class DashboardWebServer {
         this.broadcastSessionList();
         this.sessionSubscribers.delete(payload.sessionId);
         // Prune ended session after 5 minutes to prevent memory leak
-        setTimeout(() => {
-          const s = this.sessions.get(payload.sessionId);
-          if (s?.endedAt) {
-            this.sessions.delete(payload.sessionId);
-          }
-        }, 5 * 60 * 1000);
+        setTimeout(
+          () => {
+            const s = this.sessions.get(payload.sessionId);
+            if (s?.endedAt) {
+              this.sessions.delete(payload.sessionId);
+            }
+          },
+          5 * 60 * 1000,
+        );
       }
     });
 
@@ -501,12 +587,14 @@ export class DashboardWebServer {
                 });
               } else {
                 // Cache miss — load from GitHub async
-                this.loadHistoricalIssues(sprintNum).then((issues) => {
-                  this.sendTo(ws, {
-                    type: "sprint:issues",
-                    payload: issues,
-                  });
-                }).catch(() => {});
+                this.loadHistoricalIssues(sprintNum)
+                  .then((issues) => {
+                    this.sendTo(ws, {
+                      type: "sprint:issues",
+                      payload: issues,
+                    });
+                  })
+                  .catch(() => {});
               }
               this.sendTo(ws, {
                 type: "sprint:switched",
@@ -539,7 +627,11 @@ export class DashboardWebServer {
           this.executionMode = msg.mode;
           log.info({ mode: msg.mode }, "Dashboard client changed execution mode");
           this.options.onModeChange?.(msg.mode);
-          this.broadcast({ type: "sprint:event", eventName: "mode:changed", payload: { mode: msg.mode } });
+          this.broadcast({
+            type: "sprint:event",
+            eventName: "mode:changed",
+            payload: { mode: msg.mode },
+          });
         }
         break;
       case "sprint:set-limit": {
@@ -547,7 +639,11 @@ export class DashboardWebServer {
         log.info({ limit }, "Dashboard client set sprint limit");
         this.sprintLimit = limit;
         this.options.onSetSprintLimit?.(limit);
-        this.broadcast({ type: "sprint:event", eventName: "sprint:limit-changed", payload: { limit } });
+        this.broadcast({
+          type: "sprint:event",
+          eventName: "sprint:limit-changed",
+          payload: { limit },
+        });
         break;
       }
       case "backlog:plan-issue":
@@ -802,7 +898,12 @@ export class DashboardWebServer {
     }
   }
 
-  private async handleChatSetConfig(sessionId: string, optionId: string, value: string, ws: WebSocket): Promise<void> {
+  private async handleChatSetConfig(
+    sessionId: string,
+    optionId: string,
+    value: string,
+    ws: WebSocket,
+  ): Promise<void> {
     try {
       log.info({ sessionId, optionId, value }, "Setting chat config option");
       await this.getChatManager().setConfig(sessionId, optionId, value);
@@ -838,8 +939,13 @@ export class DashboardWebServer {
       try {
         this.handleApi(url, req, res);
       } catch (err) {
-        appendErrorLog("error", `API error: ${url.pathname} — ${String(err)}`, { path: url.pathname });
-        if (!res.headersSent) { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); }
+        appendErrorLog("error", `API error: ${url.pathname} — ${String(err)}`, {
+          path: url.pathname,
+        });
+        if (!res.headersSent) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: String(err) }));
+        }
       }
       return;
     }
@@ -880,7 +986,7 @@ export class DashboardWebServer {
     }
 
     if (pathname === "/api/sessions") {
-      const sessions = Array.from(this.sessions.values()).map(s => ({
+      const sessions = Array.from(this.sessions.values()).map((s) => ({
         sessionId: s.sessionId,
         role: s.role,
         issueNumber: s.issueNumber,
@@ -972,7 +1078,9 @@ export class DashboardWebServer {
       const requestedSprint = url.searchParams.get("sprint");
       const sprintNum = requestedSprint ? parseInt(requestedSprint, 10) : undefined;
       if (sprintNum !== undefined && (isNaN(sprintNum) || sprintNum < 1)) {
-        res.writeHead(400); res.end(JSON.stringify({ error: "Invalid sprint number" })); return;
+        res.writeHead(400);
+        res.end(JSON.stringify({ error: "Invalid sprint number" }));
+        return;
       }
       this.handleSprintBacklogRequest(res, sprintNum);
       return;
@@ -982,23 +1090,27 @@ export class DashboardWebServer {
     if (pathname === "/api/config") {
       if (req.method === "PUT" || req.method === "POST") {
         let body = "";
-        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("data", (chunk: Buffer) => {
+          body += chunk.toString();
+        });
         req.on("end", () => {
           try {
             const newConfig = JSON.parse(body);
             const projectPath = this.options.projectPath ?? process.cwd();
             const configPath = path.join(projectPath, ".aiscrum", "config.yaml");
             // Dynamic import to avoid top-level dep
-            import("yaml").then(({ stringify }) => {
-              fs.mkdirSync(path.dirname(configPath), { recursive: true });
-              fs.writeFileSync(configPath, stringify(newConfig, { lineWidth: 120 }), "utf-8");
-              this.options.config = newConfig;
-              res.writeHead(200, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ ok: true }));
-            }).catch((err) => {
-              res.writeHead(500);
-              res.end(JSON.stringify({ error: String(err) }));
-            });
+            import("yaml")
+              .then(({ stringify }) => {
+                fs.mkdirSync(path.dirname(configPath), { recursive: true });
+                fs.writeFileSync(configPath, stringify(newConfig, { lineWidth: 120 }), "utf-8");
+                this.options.config = newConfig;
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ ok: true }));
+              })
+              .catch((err) => {
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: String(err) }));
+              });
           } catch (err) {
             res.writeHead(400);
             res.end(JSON.stringify({ error: String(err) }));
@@ -1019,22 +1131,46 @@ export class DashboardWebServer {
       const phases = this.options.config?.copilot?.phases ?? {};
       if (req.method === "PUT" || req.method === "POST") {
         let body = "";
-        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("data", (chunk: Buffer) => {
+          body += chunk.toString();
+        });
         req.on("end", () => {
           try {
-            const { name, instructions, prompts, model, mode, skills, mcp_servers: mcpServers } = JSON.parse(body) as {
+            const {
+              name,
+              instructions,
+              prompts,
+              model,
+              mode,
+              skills,
+              mcp_servers: mcpServers,
+            } = JSON.parse(body) as {
               name: string;
               instructions?: string;
               prompts?: Record<string, string>;
               model?: string;
               mode?: string;
               skills?: Record<string, string>;
-              mcp_servers?: Array<{ name: string; type: string; command?: string; args?: string[]; url?: string }>;
+              mcp_servers?: Array<{
+                name: string;
+                type: string;
+                command?: string;
+                args?: string[];
+                url?: string;
+              }>;
             };
             const roleDir = path.join(rolesDir, name);
-            if (!fs.existsSync(roleDir)) { res.writeHead(404); res.end(JSON.stringify({ error: "Role not found" })); return; }
+            if (!fs.existsSync(roleDir)) {
+              res.writeHead(404);
+              res.end(JSON.stringify({ error: "Role not found" }));
+              return;
+            }
             if (instructions !== undefined) {
-              fs.writeFileSync(path.join(roleDir, "copilot-instructions.md"), instructions, "utf-8");
+              fs.writeFileSync(
+                path.join(roleDir, "copilot-instructions.md"),
+                instructions,
+                "utf-8",
+              );
             }
             if (prompts) {
               const promptsDir = path.join(roleDir, "prompts");
@@ -1055,55 +1191,90 @@ export class DashboardWebServer {
             if (model !== undefined || mode !== undefined || mcpServers !== undefined) {
               const configPath = path.join(projectPath, ".aiscrum", "config.yaml");
               if (fs.existsSync(configPath)) {
-                import("yaml").then(({ parse: parseYaml, stringify }) => {
-                  const raw = fs.readFileSync(configPath, "utf-8");
-                  const cfg = parseYaml(raw) as Record<string, unknown>;
-                  const copilot = (cfg.copilot ?? {}) as Record<string, unknown>;
-                  const phasesObj = (copilot.phases ?? {}) as Record<string, Record<string, unknown>>;
-                  if (!phasesObj[name]) phasesObj[name] = {};
-                  if (model !== undefined) phasesObj[name].model = model || undefined;
-                  if (mode !== undefined) phasesObj[name].mode = mode || undefined;
-                  if (mcpServers !== undefined) phasesObj[name].mcp_servers = mcpServers.length > 0 ? mcpServers : undefined;
-                  if (!phasesObj[name].model) delete phasesObj[name].model;
-                  if (!phasesObj[name].mode) delete phasesObj[name].mode;
-                  if (!phasesObj[name].mcp_servers || (phasesObj[name].mcp_servers as unknown[]).length === 0) delete phasesObj[name].mcp_servers;
-                  if (Object.keys(phasesObj[name]).length === 0) delete phasesObj[name];
-                  copilot.phases = phasesObj;
-                  cfg.copilot = copilot;
-                  fs.writeFileSync(configPath, stringify(cfg, { lineWidth: 120 }), "utf-8");
-                  res.writeHead(200); res.end(JSON.stringify({ ok: true }));
-                }).catch((err) => { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); });
+                import("yaml")
+                  .then(({ parse: parseYaml, stringify }) => {
+                    const raw = fs.readFileSync(configPath, "utf-8");
+                    const cfg = parseYaml(raw) as Record<string, unknown>;
+                    const copilot = (cfg.copilot ?? {}) as Record<string, unknown>;
+                    const phasesObj = (copilot.phases ?? {}) as Record<
+                      string,
+                      Record<string, unknown>
+                    >;
+                    if (!phasesObj[name]) phasesObj[name] = {};
+                    if (model !== undefined) phasesObj[name].model = model || undefined;
+                    if (mode !== undefined) phasesObj[name].mode = mode || undefined;
+                    if (mcpServers !== undefined)
+                      phasesObj[name].mcp_servers = mcpServers.length > 0 ? mcpServers : undefined;
+                    if (!phasesObj[name].model) delete phasesObj[name].model;
+                    if (!phasesObj[name].mode) delete phasesObj[name].mode;
+                    if (
+                      !phasesObj[name].mcp_servers ||
+                      (phasesObj[name].mcp_servers as unknown[]).length === 0
+                    )
+                      delete phasesObj[name].mcp_servers;
+                    if (Object.keys(phasesObj[name]).length === 0) delete phasesObj[name];
+                    copilot.phases = phasesObj;
+                    cfg.copilot = copilot;
+                    fs.writeFileSync(configPath, stringify(cfg, { lineWidth: 120 }), "utf-8");
+                    res.writeHead(200);
+                    res.end(JSON.stringify({ ok: true }));
+                  })
+                  .catch((err) => {
+                    res.writeHead(500);
+                    res.end(JSON.stringify({ error: String(err) }));
+                  });
                 return;
               }
             }
-            res.writeHead(200); res.end(JSON.stringify({ ok: true }));
-          } catch (err) { res.writeHead(400); res.end(JSON.stringify({ error: String(err) })); }
+            res.writeHead(200);
+            res.end(JSON.stringify({ ok: true }));
+          } catch (err) {
+            res.writeHead(400);
+            res.end(JSON.stringify({ error: String(err) }));
+          }
         });
         return;
       }
       // GET: list all roles with model/mode/skills/mcp from phases config
       try {
         const roles: Array<{
-          name: string; instructions: string; prompts: Record<string, string>;
-          model?: string; mode?: string;
+          name: string;
+          instructions: string;
+          prompts: Record<string, string>;
+          model?: string;
+          mode?: string;
           skills: Array<{ name: string; description: string; content: string; dirName: string }>;
-          mcp_servers: Array<{ name: string; type: string; command?: string; url?: string; args?: string[] }>;
+          mcp_servers: Array<{
+            name: string;
+            type: string;
+            command?: string;
+            url?: string;
+            args?: string[];
+          }>;
         }> = [];
         if (fs.existsSync(rolesDir)) {
           for (const entry of fs.readdirSync(rolesDir, { withFileTypes: true })) {
             if (!entry.isDirectory()) continue;
             const roleDir = path.join(rolesDir, entry.name);
             const instrPath = path.join(roleDir, "copilot-instructions.md");
-            const instructions = fs.existsSync(instrPath) ? fs.readFileSync(instrPath, "utf-8") : "";
+            const instructions = fs.existsSync(instrPath)
+              ? fs.readFileSync(instrPath, "utf-8")
+              : "";
             const prompts: Record<string, string> = {};
             const promptsDir = path.join(roleDir, "prompts");
             if (fs.existsSync(promptsDir)) {
               for (const pf of fs.readdirSync(promptsDir)) {
-                if (pf.endsWith(".md")) prompts[pf] = fs.readFileSync(path.join(promptsDir, pf), "utf-8");
+                if (pf.endsWith(".md"))
+                  prompts[pf] = fs.readFileSync(path.join(promptsDir, pf), "utf-8");
               }
             }
             // Read skills with full content
-            const skills: Array<{ name: string; description: string; content: string; dirName: string }> = [];
+            const skills: Array<{
+              name: string;
+              description: string;
+              content: string;
+              dirName: string;
+            }> = [];
             const skillsDir = path.join(roleDir, "skills");
             if (fs.existsSync(skillsDir)) {
               for (const sd of fs.readdirSync(skillsDir, { withFileTypes: true })) {
@@ -1120,7 +1291,12 @@ export class DashboardWebServer {
                     skillName = nameMatch?.[1] ?? sd.name;
                     desc = descMatch?.[1] ?? "";
                   }
-                  skills.push({ name: skillName, description: desc, content: raw, dirName: sd.name });
+                  skills.push({
+                    name: skillName,
+                    description: desc,
+                    content: raw,
+                    dirName: sd.name,
+                  });
                 }
               }
             }
@@ -1142,8 +1318,12 @@ export class DashboardWebServer {
             });
           }
         }
-        res.writeHead(200); res.end(JSON.stringify(roles));
-      } catch (err) { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); }
+        res.writeHead(200);
+        res.end(JSON.stringify(roles));
+      } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: String(err) }));
+      }
       return;
     }
 
@@ -1153,16 +1333,27 @@ export class DashboardWebServer {
       const qgPath = path.join(projectPath, ".aiscrum", "quality-gates.yaml");
       if (req.method === "PUT" || req.method === "POST") {
         let body = "";
-        req.on("data", (chunk: Buffer) => { body += chunk.toString(); });
+        req.on("data", (chunk: Buffer) => {
+          body += chunk.toString();
+        });
         req.on("end", () => {
           try {
             const data = JSON.parse(body);
-            import("yaml").then(({ stringify }) => {
-              fs.mkdirSync(path.dirname(qgPath), { recursive: true });
-              fs.writeFileSync(qgPath, stringify(data, { lineWidth: 120 }), "utf-8");
-              res.writeHead(200); res.end(JSON.stringify({ ok: true }));
-            }).catch((err) => { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); });
-          } catch (err) { res.writeHead(400); res.end(JSON.stringify({ error: String(err) })); }
+            import("yaml")
+              .then(({ stringify }) => {
+                fs.mkdirSync(path.dirname(qgPath), { recursive: true });
+                fs.writeFileSync(qgPath, stringify(data, { lineWidth: 120 }), "utf-8");
+                res.writeHead(200);
+                res.end(JSON.stringify({ ok: true }));
+              })
+              .catch((err) => {
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: String(err) }));
+              });
+          } catch (err) {
+            res.writeHead(400);
+            res.end(JSON.stringify({ error: String(err) }));
+          }
         });
         return;
       }
@@ -1170,13 +1361,23 @@ export class DashboardWebServer {
       try {
         if (fs.existsSync(qgPath)) {
           const raw = fs.readFileSync(qgPath, "utf-8");
-          import("yaml").then(({ parse: parseYaml }) => {
-            res.writeHead(200); res.end(JSON.stringify(parseYaml(raw)));
-          }).catch((err) => { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); });
+          import("yaml")
+            .then(({ parse: parseYaml }) => {
+              res.writeHead(200);
+              res.end(JSON.stringify(parseYaml(raw)));
+            })
+            .catch((err) => {
+              res.writeHead(500);
+              res.end(JSON.stringify({ error: String(err) }));
+            });
         } else {
-          res.writeHead(200); res.end(JSON.stringify(null));
+          res.writeHead(200);
+          res.end(JSON.stringify(null));
         }
-      } catch (err) { res.writeHead(500); res.end(JSON.stringify({ error: String(err) })); }
+      } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: String(err) }));
+      }
       return;
     }
 
@@ -1184,7 +1385,8 @@ export class DashboardWebServer {
     if (pathname === "/api/logs") {
       const logsDir = getErrorLogDir();
       if (!logsDir || !fs.existsSync(logsDir)) {
-        res.writeHead(200); res.end(JSON.stringify({ files: [], entries: [] }));
+        res.writeHead(200);
+        res.end(JSON.stringify({ files: [], entries: [] }));
         return;
       }
       const file = url.searchParams.get("file");
@@ -1193,16 +1395,26 @@ export class DashboardWebServer {
         // Read specific log file
         const safeName = path.basename(file);
         const filePath = path.join(logsDir, safeName);
-        if (!fs.existsSync(filePath)) { res.writeHead(404); res.end(JSON.stringify({ error: "Log file not found" })); return; }
+        if (!fs.existsSync(filePath)) {
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: "Log file not found" }));
+          return;
+        }
         const raw = fs.readFileSync(filePath, "utf-8");
         const lines = raw.trim().split("\n").filter(Boolean);
         const entries = lines.slice(-tail).map((line) => {
-          try { return JSON.parse(line); } catch { return { time: "", level: "info", message: line }; }
+          try {
+            return JSON.parse(line);
+          } catch {
+            return { time: "", level: "info", message: line };
+          }
         });
-        res.writeHead(200); res.end(JSON.stringify({ file: safeName, entries }));
+        res.writeHead(200);
+        res.end(JSON.stringify({ file: safeName, entries }));
       } else {
         // List log files
-        const files = fs.readdirSync(logsDir)
+        const files = fs
+          .readdirSync(logsDir)
           .filter((f) => f.endsWith(".log"))
           .sort()
           .reverse()
@@ -1210,7 +1422,8 @@ export class DashboardWebServer {
             const stat = fs.statSync(path.join(logsDir, f));
             return { name: f, size: stat.size, modified: stat.mtime.toISOString() };
           });
-        res.writeHead(200); res.end(JSON.stringify({ files }));
+        res.writeHead(200);
+        res.end(JSON.stringify({ files }));
       }
       return;
     }
@@ -1242,29 +1455,31 @@ export class DashboardWebServer {
 
     // Cache miss — load on demand from GitHub
     const prefix = this.options.sprintPrefix ?? "Sprint";
-    import("../github/issues.js").then(async ({ listIssues }) => {
-      try {
-        const ghIssues = await listIssues({
-          milestone: `${prefix} ${sprintNumber}`,
-          state: "all",
-        });
-        const mapped = ghIssues.map((i) => ({
-          number: i.number,
-          title: i.title,
-          status: (i.state === "closed" ? "done" : "planned") as "planned" | "done",
-        }));
-        this.issueCache?.set(sprintNumber, mapped);
-        res.writeHead(200);
-        res.end(JSON.stringify(mapped));
-      } catch {
+    import("../github/issues.js")
+      .then(async ({ listIssues }) => {
+        try {
+          const ghIssues = await listIssues({
+            milestone: `${prefix} ${sprintNumber}`,
+            state: "all",
+          });
+          const mapped = ghIssues.map((i) => ({
+            number: i.number,
+            title: i.title,
+            status: (i.state === "closed" ? "done" : "planned") as "planned" | "done",
+          }));
+          this.issueCache?.set(sprintNumber, mapped);
+          res.writeHead(200);
+          res.end(JSON.stringify(mapped));
+        } catch {
+          res.writeHead(200);
+          res.end(JSON.stringify([]));
+        }
+      })
+      .catch((err) => {
+        log.debug({ err: String(err) }, "non-critical dashboard operation failed");
         res.writeHead(200);
         res.end(JSON.stringify([]));
-      }
-    }).catch((err) => {
-      log.debug({ err: String(err) }, "non-critical dashboard operation failed");
-      res.writeHead(200);
-      res.end(JSON.stringify([]));
-    });
+      });
   }
 
   /** Load historical sprint issues from GitHub (for sprint:switch cache misses). */
@@ -1291,124 +1506,145 @@ export class DashboardWebServer {
 
   /** Return backlog issues (open, no milestone, excluding ideas). */
   private handleBacklogRequest(res: http.ServerResponse): void {
-    import("../github/issues.js").then(async ({ listIssues }) => {
-      try {
-        const ghIssues = await listIssues({ state: "open" });
-        // Backlog = open issues without a sprint milestone, excluding ideas
-        const backlog = ghIssues
-          .filter((i) => {
-            if (i.milestone) return false;
-            if (i.labels.some((l) => l.name === "type:idea")) return false;
-            return true;
-          })
-          .map((i) => ({
-            number: i.number,
-            title: i.title,
-            body: i.body ?? "",
-            labels: i.labels.map((l) => l.name),
-          }));
-        res.writeHead(200);
-        res.end(JSON.stringify(backlog));
-      } catch {
+    import("../github/issues.js")
+      .then(async ({ listIssues }) => {
+        try {
+          const ghIssues = await listIssues({ state: "open" });
+          // Backlog = open issues without a sprint milestone, excluding ideas
+          const backlog = ghIssues
+            .filter((i) => {
+              if (i.milestone) return false;
+              if (i.labels.some((l) => l.name === "type:idea")) return false;
+              return true;
+            })
+            .map((i) => ({
+              number: i.number,
+              title: i.title,
+              body: i.body ?? "",
+              labels: i.labels.map((l) => l.name),
+            }));
+          res.writeHead(200);
+          res.end(JSON.stringify(backlog));
+        } catch {
+          res.writeHead(200);
+          res.end(JSON.stringify([]));
+        }
+      })
+      .catch(() => {
         res.writeHead(200);
         res.end(JSON.stringify([]));
-      }
-    }).catch(() => {
-      res.writeHead(200);
-      res.end(JSON.stringify([]));
-    });
+      });
   }
 
   /** Return issues planned in the active sprint with full body for detail view. */
   private handleSprintBacklogRequest(res: http.ServerResponse, requestedSprint?: number): void {
     const prefix = this.options.sprintPrefix ?? "Sprint";
-    const sprintNum = requestedSprint && requestedSprint > 0 ? requestedSprint : (this.activeSprintNumber ?? 1);
+    const sprintNum =
+      requestedSprint && requestedSprint > 0 ? requestedSprint : (this.activeSprintNumber ?? 1);
     const milestoneName = `${prefix} ${sprintNum}`;
-    import("../github/issues.js").then(async ({ listIssues }) => {
-      try {
-        const ghIssues = await listIssues({ milestone: milestoneName, state: "open" });
-        const items = ghIssues.map((i) => ({
-          number: i.number,
-          title: i.title,
-          body: i.body ?? "",
-          labels: i.labels.map((l) => l.name),
-        }));
-        res.writeHead(200);
-        res.end(JSON.stringify({ sprintNumber: sprintNum, items }));
-      } catch {
+    import("../github/issues.js")
+      .then(async ({ listIssues }) => {
+        try {
+          const ghIssues = await listIssues({ milestone: milestoneName, state: "open" });
+          const items = ghIssues.map((i) => ({
+            number: i.number,
+            title: i.title,
+            body: i.body ?? "",
+            labels: i.labels.map((l) => l.name),
+          }));
+          res.writeHead(200);
+          res.end(JSON.stringify({ sprintNumber: sprintNum, items }));
+        } catch {
+          res.writeHead(200);
+          res.end(JSON.stringify({ sprintNumber: sprintNum, items: [] }));
+        }
+      })
+      .catch(() => {
         res.writeHead(200);
         res.end(JSON.stringify({ sprintNumber: sprintNum, items: [] }));
-      }
-    }).catch(() => {
-      res.writeHead(200);
-      res.end(JSON.stringify({ sprintNumber: sprintNum, items: [] }));
-    });
+      });
   }
 
   /** Return idea issues (type:idea, awaiting refinement). */
   private handleIdeasRequest(res: http.ServerResponse): void {
-    import("../github/issues.js").then(async ({ listIssues }) => {
-      try {
-        const ghIssues = await listIssues({ state: "open", labels: ["type:idea"] });
-        const ideas = ghIssues.map((i) => ({
-          number: i.number,
-          title: i.title,
-          body: i.body ?? "",
-          labels: i.labels.map((l) => l.name),
-        }));
-        res.writeHead(200);
-        res.end(JSON.stringify(ideas));
-      } catch {
+    import("../github/issues.js")
+      .then(async ({ listIssues }) => {
+        try {
+          const ghIssues = await listIssues({ state: "open", labels: ["type:idea"] });
+          const ideas = ghIssues.map((i) => ({
+            number: i.number,
+            title: i.title,
+            body: i.body ?? "",
+            labels: i.labels.map((l) => l.name),
+          }));
+          res.writeHead(200);
+          res.end(JSON.stringify(ideas));
+        } catch {
+          res.writeHead(200);
+          res.end(JSON.stringify([]));
+        }
+      })
+      .catch(() => {
         res.writeHead(200);
         res.end(JSON.stringify([]));
-      }
-    }).catch(() => {
-      res.writeHead(200);
-      res.end(JSON.stringify([]));
-    });
+      });
   }
 
   /** Return blocked issues (status:blocked label) with block reason from comments. */
   private handleBlockedRequest(res: http.ServerResponse): void {
-    import("../github/issues.js").then(async ({ listIssues, getComments }) => {
-      try {
-        const ghIssues = await listIssues({ state: "open", labels: ["status:blocked"] });
-        const blocked = await Promise.all(ghIssues.map(async (i) => {
-          // Extract block reason from the latest "Block reason:" comment
-          let blockedReason: string | undefined;
-          try {
-            const comments = await getComments(i.number, 5);
-            const reasonComment = comments.find((c) => c.body.startsWith("**Block reason:**"));
-            if (reasonComment) {
-              blockedReason = reasonComment.body.replace("**Block reason:** ", "").trim();
-            }
-          } catch { /* best-effort */ }
-          return {
-            number: i.number,
-            title: i.title,
-            body: (i.body ?? "").slice(0, 500),
-            labels: i.labels.map((l) => l.name),
-            blockedReason,
-          };
-        }));
-        res.writeHead(200);
-        res.end(JSON.stringify(blocked));
-      } catch {
+    import("../github/issues.js")
+      .then(async ({ listIssues, getComments }) => {
+        try {
+          const ghIssues = await listIssues({ state: "open", labels: ["status:blocked"] });
+          const blocked = await Promise.all(
+            ghIssues.map(async (i) => {
+              // Extract block reason from the latest "Block reason:" comment
+              let blockedReason: string | undefined;
+              try {
+                const comments = await getComments(i.number, 5);
+                const reasonComment = comments.find((c) => c.body.startsWith("**Block reason:**"));
+                if (reasonComment) {
+                  blockedReason = reasonComment.body.replace("**Block reason:** ", "").trim();
+                }
+              } catch {
+                /* best-effort */
+              }
+              return {
+                number: i.number,
+                title: i.title,
+                body: (i.body ?? "").slice(0, 500),
+                labels: i.labels.map((l) => l.name),
+                blockedReason,
+              };
+            }),
+          );
+          res.writeHead(200);
+          res.end(JSON.stringify(blocked));
+        } catch {
+          res.writeHead(200);
+          res.end(JSON.stringify([]));
+        }
+      })
+      .catch(() => {
         res.writeHead(200);
         res.end(JSON.stringify([]));
-      }
-    }).catch(() => {
-      res.writeHead(200);
-      res.end(JSON.stringify([]));
-    });
+      });
   }
 
   /** Add a comment to a blocked issue. */
-  private async handleBlockedComment(issueNumber: number, body: string, ws: WebSocket): Promise<void> {
+  private async handleBlockedComment(
+    issueNumber: number,
+    body: string,
+    ws: WebSocket,
+  ): Promise<void> {
     try {
       const { addComment } = await import("../github/issues.js");
       await addComment(issueNumber, body);
-      this.sendTo(ws, { type: "sprint:event", eventName: "blocked:commented", payload: { issueNumber } });
+      this.sendTo(ws, {
+        type: "sprint:event",
+        eventName: "blocked:commented",
+        payload: { issueNumber },
+      });
     } catch (err: unknown) {
       log.error({ err: String(err), issueNumber }, "Failed to add comment to blocked issue");
     }
@@ -1419,7 +1655,11 @@ export class DashboardWebServer {
     try {
       const { removeLabel } = await import("../github/labels.js");
       await removeLabel(issueNumber, "status:blocked");
-      this.sendTo(ws, { type: "sprint:event", eventName: "blocked:unblocked", payload: { issueNumber } });
+      this.sendTo(ws, {
+        type: "sprint:event",
+        eventName: "blocked:unblocked",
+        payload: { issueNumber },
+      });
     } catch (err: unknown) {
       log.error({ err: String(err), issueNumber }, "Failed to unblock issue");
     }
@@ -1427,25 +1667,27 @@ export class DashboardWebServer {
 
   /** Return issues with human-decision-needed label. */
   private handleDecisionsRequest(res: http.ServerResponse): void {
-    import("../github/issues.js").then(async ({ listIssues }) => {
-      try {
-        const ghIssues = await listIssues({ state: "open", labels: ["human-decision-needed"] });
-        const decisions = ghIssues.map((i) => ({
-          number: i.number,
-          title: i.title,
-          body: (i.body ?? "").slice(0, 500),
-          labels: i.labels.map((l) => l.name),
-        }));
-        res.writeHead(200);
-        res.end(JSON.stringify(decisions));
-      } catch {
+    import("../github/issues.js")
+      .then(async ({ listIssues }) => {
+        try {
+          const ghIssues = await listIssues({ state: "open", labels: ["human-decision-needed"] });
+          const decisions = ghIssues.map((i) => ({
+            number: i.number,
+            title: i.title,
+            body: (i.body ?? "").slice(0, 500),
+            labels: i.labels.map((l) => l.name),
+          }));
+          res.writeHead(200);
+          res.end(JSON.stringify(decisions));
+        } catch {
+          res.writeHead(200);
+          res.end(JSON.stringify([]));
+        }
+      })
+      .catch(() => {
         res.writeHead(200);
         res.end(JSON.stringify([]));
-      }
-    }).catch(() => {
-      res.writeHead(200);
-      res.end(JSON.stringify([]));
-    });
+      });
   }
 
   /** Approve a decision: remove human-decision-needed label, add status:refined. */
@@ -1454,7 +1696,11 @@ export class DashboardWebServer {
       const { removeLabel, setLabel } = await import("../github/labels.js");
       await removeLabel(issueNumber, "human-decision-needed");
       await setLabel(issueNumber, "status:refined");
-      this.broadcast({ type: "sprint:event", eventName: "decisions:approved", payload: { issueNumber } });
+      this.broadcast({
+        type: "sprint:event",
+        eventName: "decisions:approved",
+        payload: { issueNumber },
+      });
     } catch (err: unknown) {
       log.error({ err: String(err), issueNumber }, "Failed to approve decision");
     }
@@ -1465,31 +1711,48 @@ export class DashboardWebServer {
     try {
       const { closeIssue } = await import("../github/issues.js");
       await closeIssue(issueNumber);
-      this.broadcast({ type: "sprint:event", eventName: "decisions:rejected", payload: { issueNumber } });
+      this.broadcast({
+        type: "sprint:event",
+        eventName: "decisions:rejected",
+        payload: { issueNumber },
+      });
     } catch (err: unknown) {
       log.error({ err: String(err), issueNumber }, "Failed to reject decision");
     }
   }
 
   /** Add a comment to a decision issue. */
-  private async handleDecisionComment(issueNumber: number, body: string, _ws: WebSocket): Promise<void> {
+  private async handleDecisionComment(
+    issueNumber: number,
+    body: string,
+    _ws: WebSocket,
+  ): Promise<void> {
     try {
       const { addComment } = await import("../github/issues.js");
       await addComment(issueNumber, body);
-      this.broadcast({ type: "sprint:event", eventName: "decisions:commented", payload: { issueNumber } });
+      this.broadcast({
+        type: "sprint:event",
+        eventName: "decisions:commented",
+        payload: { issueNumber },
+      });
     } catch (err: unknown) {
       log.error({ err: String(err), issueNumber }, "Failed to comment on decision");
     }
   }
 
   /** Add an issue to the current sprint (set milestone + status:planned label). */
-  private async handlePlanIssue(issueNumber: number, ws: WebSocket, targetSprint?: number): Promise<void> {
+  private async handlePlanIssue(
+    issueNumber: number,
+    ws: WebSocket,
+    targetSprint?: number,
+  ): Promise<void> {
     const sprintNum = targetSprint ?? this.activeSprintNumber ?? 1;
     const prefix = this.options.sprintPrefix ?? "Sprint";
     const milestoneTitle = `${prefix} ${sprintNum}`;
     try {
       const { setLabel, removeLabel } = await import("../github/labels.js");
-      const { setMilestone, createMilestone, getMilestone } = await import("../github/milestones.js");
+      const { setMilestone, createMilestone, getMilestone } =
+        await import("../github/milestones.js");
       // Ensure milestone exists
       const existing = await getMilestone(milestoneTitle);
       if (!existing) {
@@ -1497,13 +1760,23 @@ export class DashboardWebServer {
       }
       await setMilestone(issueNumber, milestoneTitle);
       await setLabel(issueNumber, "status:planned");
-      try { await removeLabel(issueNumber, "status:refined"); } catch { /* may not have it */ }
+      try {
+        await removeLabel(issueNumber, "status:refined");
+      } catch {
+        /* may not have it */
+      }
       log.info({ issueNumber, milestoneTitle }, "Issue added to sprint");
-      this.sendTo(ws, { type: "backlog:planned", payload: { issueNumber, sprintNumber: sprintNum } } as ServerMessage);
+      this.sendTo(ws, {
+        type: "backlog:planned",
+        payload: { issueNumber, sprintNumber: sprintNum },
+      } as ServerMessage);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error({ err, issueNumber }, "Failed to plan issue");
-      this.sendTo(ws, { type: "backlog:error", payload: { issueNumber, error: msg } } as ServerMessage);
+      this.sendTo(ws, {
+        type: "backlog:error",
+        payload: { issueNumber, error: msg },
+      } as ServerMessage);
     }
   }
 
@@ -1511,16 +1784,19 @@ export class DashboardWebServer {
   private async handleRemoveFromSprint(issueNumber: number, ws: WebSocket): Promise<void> {
     try {
       const { setLabel, removeLabel } = await import("../github/labels.js");
+      const { removeMilestone } = await import("../github/milestones.js");
       await removeLabel(issueNumber, "status:planned");
       await setLabel(issueNumber, "status:refined");
-      const { execGh } = await import("../github/issues.js");
-      await execGh(["issue", "edit", String(issueNumber), "--milestone", ""]);
+      await removeMilestone(issueNumber);
       log.info({ issueNumber }, "Issue removed from sprint");
       this.sendTo(ws, { type: "backlog:removed", payload: { issueNumber } } as ServerMessage);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error({ err, issueNumber }, "Failed to remove issue from sprint");
-      this.sendTo(ws, { type: "backlog:error", payload: { issueNumber, error: msg } } as ServerMessage);
+      this.sendTo(ws, {
+        type: "backlog:error",
+        payload: { issueNumber, error: msg },
+      } as ServerMessage);
     }
   }
 
@@ -1554,10 +1830,18 @@ export class DashboardWebServer {
   }
 
   /** List available sprints by scanning state files, log files, and filling gaps. */
-  private listSprints(): { sprintNumber: number; milestoneNumber?: number; phase: string; isActive: boolean }[] {
+  private listSprints(): {
+    sprintNumber: number;
+    milestoneNumber?: number;
+    phase: string;
+    isActive: boolean;
+  }[] {
     const projectPath = this.options.projectPath ?? process.cwd();
     const sprintsDir = path.join(projectPath, "docs", "sprints");
-    const sprintMap = new Map<number, { milestoneNumber?: number; phase: string; isActive: boolean }>();
+    const sprintMap = new Map<
+      number,
+      { milestoneNumber?: number; phase: string; isActive: boolean }
+    >();
     const slug = this.options.sprintSlug ?? "sprint";
     const stateRegex = new RegExp(`^${slug}-(\\d+)-state\\.json$`);
     const logRegex = new RegExp(`^${slug}-(\\d+)-log\\.md$`);
@@ -1643,7 +1927,12 @@ export class DashboardWebServer {
 
     const projectPath = this.options.projectPath ?? process.cwd();
     const slug = this.options.sprintSlug ?? "sprint";
-    const filePath = path.join(projectPath, "docs", "sprints", `${slug}-${sprintNumber}-state.json`);
+    const filePath = path.join(
+      projectPath,
+      "docs",
+      "sprints",
+      `${slug}-${sprintNumber}-state.json`,
+    );
     try {
       const raw = fs.readFileSync(filePath, "utf-8");
       const state = JSON.parse(raw) as SprintState;
