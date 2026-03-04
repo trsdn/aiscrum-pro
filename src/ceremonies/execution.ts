@@ -665,10 +665,6 @@ export async function executeIssue(
   log.info("issue marked in-progress");
   progress("creating worktree");
 
-  // Step 2: Create worktree
-  await createWorktree({ path: worktreePath, branch, base: config.baseBranch });
-  log.info({ worktreePath, branch }, "worktree created");
-
   let qualityResult: QualityResult = { passed: false, checks: [] };
   let codeReview: CodeReviewResult | undefined;
   let retryCount = 0;
@@ -680,6 +676,10 @@ export async function executeIssue(
   let devSessionId: string | undefined;
 
   try {
+    // Step 2: Create worktree
+    await createWorktree({ path: worktreePath, branch, base: config.baseBranch });
+    log.info({ worktreePath, branch }, "worktree created");
+
     // Step 3: Plan phase (own ACP session as planner)
     const implementationPlan = await planPhase(ctx);
 

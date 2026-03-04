@@ -54,7 +54,7 @@ const ProjectSchema = z.object({
 
 const CopilotSchema = z.object({
   executable: z.string().min(1).default("copilot"),
-  max_parallel_sessions: z.number().int().min(1).max(20).default(4),
+  max_parallel_sessions: z.number().int().min(1).max(100).default(4),
   session_timeout_ms: z.number().int().min(0).default(600000),
   auto_approve_tools: z.boolean().default(true),
   allow_tool_patterns: z.array(z.string()).default([]),

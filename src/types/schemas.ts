@@ -16,7 +16,7 @@ export const SprintPlanSchema = z.object({
     )
     .min(1),
   execution_groups: z.array(z.array(z.coerce.number())).optional(),
-  estimated_points: z.number().default(0),
+  estimated_points: z.number().nullable().default(0).transform((v) => v ?? 0),
   rationale: z.string().default(""),
 });
 

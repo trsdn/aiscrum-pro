@@ -152,6 +152,7 @@ function createWebSocket(set: SetFn, get: GetFn): void {
   ws.onclose = () => {
     set({
       connected: false,
+      activities: [],
       chatSessions: [],
       activeChatId: null,
       generalChatId: null,
@@ -770,6 +771,10 @@ function addActivity(
     a.status === "active" && a.type === type ? { ...a, status: "done" as const } : a,
   );
   activities.push({ type, label, detail, status, time: new Date() });
+  // Cap at 500 entries to prevent unbounded memory growth
+  if (activities.length > 500) {
+    activities.splice(0, activities.length - 500);
+  }
   set({ activities });
 }
 

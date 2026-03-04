@@ -136,7 +136,7 @@ export async function runQualityGate(
     });
   }
 
-  // 6. Compute diff stat (reused by scope-drift and diff-size checks)
+  // 6. Compute diff stat for diff-size check
   try {
     const stat = await diffStat(branch, baseBranch);
 
@@ -152,7 +152,7 @@ export async function runQualityGate(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    log.warn({ error: msg }, "diffStat() failed — skipping scope-drift and diff-size checks");
+    log.warn({ error: msg }, "diffStat() failed — skipping diff-size check");
     checks.push({
       name: "diff-stat",
       passed: false,
