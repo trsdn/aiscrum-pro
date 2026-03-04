@@ -1,8 +1,14 @@
+import { useEffect, useRef } from "react";
 import { useDashboardStore } from "../store";
 import "./ActivityFeed.css";
 
 export function ActivityFeed() {
   const activities = useDashboardStore((s) => s.activities);
+  const bottomRef = useRef<HTMLLIElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [activities]);
 
   return (
     <div id="activity-panel" className="activity-container">
@@ -22,6 +28,7 @@ export function ActivityFeed() {
         {activities.length === 0 && (
           <li className="empty-state">No activity yet. Start a sprint to see progress.</li>
         )}
+        <li ref={bottomRef} style={{ height: 0 }} aria-hidden />
       </ul>
     </div>
   );

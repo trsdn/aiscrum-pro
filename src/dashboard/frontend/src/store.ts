@@ -774,10 +774,29 @@ function addActivity(
   detail: string | null,
   status: Activity["status"],
 ): void {
+  const entry: Activity = { type, label, detail, status, time: new Date() };
+
+  // If viewing a different sprint than the active one, buffer the activity
+  // in the cache so it doesn't pollute the viewed sprint's feed.
+  if (
+    store.activeSprintNumber > 0 &&
+    store.viewingSprintNumber > 0 &&
+    store.viewingSprintNumber !== store.activeSprintNumber
+  ) {
+    const cached = activityCache.get(store.activeSprintNumber) ?? [];
+    const updated = cached.map((a) =>
+      a.status === "active" && a.type === type ? { ...a, status: "done" as const } : a,
+    );
+    updated.push(entry);
+    if (updated.length > 500) updated.splice(0, updated.length - 500);
+    activityCache.set(store.activeSprintNumber, updated);
+    return;
+  }
+
   const activities = store.activities.map((a) =>
     a.status === "active" && a.type === type ? { ...a, status: "done" as const } : a,
   );
-  activities.push({ type, label, detail, status, time: new Date() });
+  activities.push(entry);
   // Cap at 500 entries to prevent unbounded memory growth
   if (activities.length > 500) {
     activities.splice(0, activities.length - 500);
