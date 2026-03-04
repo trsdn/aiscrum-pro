@@ -45,7 +45,9 @@ TEST_REPO_DIR="${HOME}/dev/GitHub/ai-scrum-test-project"
 if [ -d "$TEST_REPO_DIR" ]; then
   mkdir -p "$TEST_REPO_DIR/.aiscrum"
   cp "$RUNNER_DIR/.aiscrum/config.test.yaml" "$TEST_REPO_DIR/.aiscrum/config.yaml"
-  cp "$RUNNER_DIR/.aiscrum/quality-gates.yaml" "$TEST_REPO_DIR/.aiscrum/quality-gates.yaml"
+  if [ -f "$RUNNER_DIR/.aiscrum/quality-gates.yaml" ]; then
+    cp "$RUNNER_DIR/.aiscrum/quality-gates.yaml" "$TEST_REPO_DIR/.aiscrum/quality-gates.yaml"
+  fi
   if [ -d "$RUNNER_DIR/.aiscrum/roles" ]; then
     cp -r "$RUNNER_DIR/.aiscrum/roles" "$TEST_REPO_DIR/.aiscrum/" 2>/dev/null || true
   fi
