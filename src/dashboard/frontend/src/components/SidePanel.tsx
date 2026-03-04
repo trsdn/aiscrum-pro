@@ -5,18 +5,21 @@ import { Markdown } from "./Markdown";
 import "./SidePanel.css";
 
 const ROLE_META: Record<string, { icon: string; label: string }> = {
-  refiner:   { icon: "🔬", label: "Refinement Agent" },
-  planner:   { icon: "📐", label: "Planning Agent" },
-  reviewer:  { icon: "🔍", label: "Review Agent" },
-  researcher:{ icon: "🔎", label: "Research Agent" },
-  general:   { icon: "💬", label: "General Agent" },
-  challenger:{ icon: "⚔️", label: "Challenger Agent" },
+  refiner: { icon: "🔬", label: "Refinement Agent" },
+  planner: { icon: "📐", label: "Planning Agent" },
+  reviewer: { icon: "🔍", label: "Review Agent" },
+  researcher: { icon: "🔎", label: "Research Agent" },
+  general: { icon: "💬", label: "General Agent" },
+  challenger: { icon: "⚔️", label: "Challenger Agent" },
 };
 
 const MODE_LABELS: Record<string, { short: string; icon: string }> = {
   "https://agentclientprotocol.com/protocol/session-modes#agent": { short: "Agent", icon: "🤖" },
   "https://agentclientprotocol.com/protocol/session-modes#plan": { short: "Plan", icon: "📋" },
-  "https://agentclientprotocol.com/protocol/session-modes#autopilot": { short: "Autopilot", icon: "🚀" },
+  "https://agentclientprotocol.com/protocol/session-modes#autopilot": {
+    short: "Autopilot",
+    icon: "🚀",
+  },
 };
 
 const MODE_CYCLE = [
@@ -47,7 +50,10 @@ const DEFAULT_COMMANDS: ChatCommand[] = [
   { name: "direction-gate", description: "Structured review before strategic direction changes" },
   { name: "sprint-planning", description: "Quick sprint planning for manual use" },
   { name: "tdd-workflow", description: "Test-driven development cycle" },
-  { name: "copilot-authoring", description: "Reference for creating Copilot customization artifacts" },
+  {
+    name: "copilot-authoring",
+    description: "Reference for creating Copilot customization artifacts",
+  },
 ];
 
 export function SidePanel() {
@@ -75,6 +81,9 @@ export function SidePanel() {
   const acpSession = acpSessionId ? acpSessions.find((s) => s.sessionId === acpSessionId) : null;
   const acpOutput = acpSessionId ? (sessionOutput.get(acpSessionId) ?? "") : "";
 
+  // Strip trailing ```json blocks from agent-to-agent session output for readability
+  const displayOutput = acpOutput.replace(/\n*```json\s*\n[\s\S]*?\n```\s*$/g, "").trimEnd();
+
   const [input, setInput] = useState("");
   const [showSlashMenu, setShowSlashMenu] = useState(false);
   const [slashFilter, setSlashFilter] = useState("");
@@ -84,7 +93,7 @@ export function SidePanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const activeMessages = activeChatId ? chatMessages[activeChatId] ?? [] : [];
+  const activeMessages = activeChatId ? (chatMessages[activeChatId] ?? []) : [];
   const streaming = activeChatId ? chatStreaming[activeChatId] : undefined;
   const thinking = activeChatId ? chatThinking[activeChatId] : undefined;
   const toolCalls = activeChatId ? chatToolCalls[activeChatId] : undefined;
@@ -99,7 +108,8 @@ export function SidePanel() {
   })();
   const configs = activeChatId ? chatConfig[activeChatId] : undefined;
   const activeSession = chatSessions.find((s) => s.id === activeChatId);
-  const isLoading = !activeSession && !isAcpView && activeChatId !== "__global__" && activeChatId !== null;
+  const isLoading =
+    !activeSession && !isAcpView && activeChatId !== "__global__" && activeChatId !== null;
 
   const role = activeSession?.role ?? sidePanelRole ?? "agent";
   const meta = ROLE_META[role] ?? { icon: "🤖", label: role };
@@ -121,9 +131,8 @@ export function SidePanel() {
     send({ type: "chat:close", sessionId });
     const store = useDashboardStore.getState();
     const remaining = store.chatSessions.filter((s) => s.id !== sessionId);
-    const nextActive = sessionId === activeChatId
-      ? (generalChatId ?? remaining[0]?.id ?? null)
-      : activeChatId;
+    const nextActive =
+      sessionId === activeChatId ? (generalChatId ?? remaining[0]?.id ?? null) : activeChatId;
     useDashboardStore.setState({
       chatSessions: remaining,
       activeChatId: nextActive,
@@ -199,8 +208,10 @@ export function SidePanel() {
     }
   };
 
-  const filteredCommands = allCommands.filter((c) =>
-    c.name.toLowerCase().includes(slashFilter) || c.description.toLowerCase().includes(slashFilter),
+  const filteredCommands = allCommands.filter(
+    (c) =>
+      c.name.toLowerCase().includes(slashFilter) ||
+      c.description.toLowerCase().includes(slashFilter),
   );
 
   return (
@@ -216,11 +227,16 @@ export function SidePanel() {
               className={`session-tab${isActive ? " session-tab-active" : ""}`}
               onClick={() => switchToSession(s.id)}
             >
-              <span className="session-tab-label">{m.icon} {m.label}</span>
+              <span className="session-tab-label">
+                {m.icon} {m.label}
+              </span>
               {s.id !== generalChatId && (
                 <button
                   className="session-tab-close"
-                  onClick={(e) => { e.stopPropagation(); closeSession(s.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    closeSession(s.id);
+                  }}
                 >
                   ✕
                 </button>
@@ -232,7 +248,9 @@ export function SidePanel() {
         {acpSession && (
           <div
             className={`session-tab session-tab-acp${isAcpView ? " session-tab-active" : ""}`}
-            onClick={() => useDashboardStore.setState({ activeChatId: `acp:${acpSession.sessionId}` })}
+            onClick={() =>
+              useDashboardStore.setState({ activeChatId: `acp:${acpSession.sessionId}` })
+            }
           >
             <span className="session-tab-label">
               ⚡ {(ROLE_META[acpSession.role] ?? { label: acpSession.role }).label}
@@ -240,7 +258,10 @@ export function SidePanel() {
             </span>
             <button
               className="session-tab-close"
-              onClick={(e) => { e.stopPropagation(); closeAcpSession(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                closeAcpSession();
+              }}
             >
               ✕
             </button>
@@ -255,13 +276,11 @@ export function SidePanel() {
             <span className="side-panel-status connected">
               {acpSession && !acpSession.endedAt ? "⚡ Running" : "✅ Completed"}
             </span>
-            {acpSession?.model && (
-              <span className="acp-session-model">{acpSession.model}</span>
-            )}
+            {acpSession?.model && <span className="acp-session-model">{acpSession.model}</span>}
           </div>
           <div className="side-panel-messages acp-output">
-            {acpOutput ? (
-              <Markdown text={acpOutput} />
+            {displayOutput ? (
+              <Markdown text={displayOutput} />
             ) : (
               <div className="side-panel-empty acp-loading">
                 <span className="acp-spinner" />
@@ -283,7 +302,11 @@ export function SidePanel() {
                     e.preventDefault();
                     const text = input.trim();
                     if (text && acpSessionId) {
-                      send({ type: "session:send-message", sessionId: acpSessionId, message: text });
+                      send({
+                        type: "session:send-message",
+                        sessionId: acpSessionId,
+                        message: text,
+                      });
                       setInput("");
                     }
                   }
@@ -307,288 +330,333 @@ export function SidePanel() {
           )}
         </>
       ) : (
-      <>
-      {/* Status bar */}
-      <div className="side-panel-header">
-        {isLoading && <span className="side-panel-status loading">Connecting…</span>}
-        {activeSession && <span className="side-panel-status connected">● Connected</span>}
-        {configs && configs.filter((c) => c.category !== "mode" && c.category !== "model" && c.category !== "thought_level").length > 0 && (
-          <div className="side-panel-config-wrapper">
-            <button
-              className="side-panel-settings-btn"
-              onClick={() => setShowSettings(!showSettings)}
-              title="Session settings"
-            >
-              ⚙️
-            </button>
-            {showSettings && (
-              <div className="side-panel-settings-panel">
-                {configs.filter((c) => c.category !== "mode" && c.category !== "model" && c.category !== "thought_level").map((cfg) => (
-                  <div key={cfg.id} className="settings-group">
-                    <label className="settings-label">{cfg.name}</label>
-                    <select
-                      className="settings-select"
-                      value={cfg.currentValue}
-                      onChange={(e) => {
-                        if (activeChatId) {
-                          send({ type: "chat:set-config", sessionId: activeChatId, optionId: cfg.id, value: e.target.value });
-                        }
-                      }}
-                    >
-                      {cfg.options.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.name}</option>
-                      ))}
-                    </select>
+        <>
+          {/* Status bar */}
+          <div className="side-panel-header">
+            {isLoading && <span className="side-panel-status loading">Connecting…</span>}
+            {activeSession && <span className="side-panel-status connected">● Connected</span>}
+            {configs &&
+              configs.filter(
+                (c) =>
+                  c.category !== "mode" && c.category !== "model" && c.category !== "thought_level",
+              ).length > 0 && (
+                <div className="side-panel-config-wrapper">
+                  <button
+                    className="side-panel-settings-btn"
+                    onClick={() => setShowSettings(!showSettings)}
+                    title="Session settings"
+                  >
+                    ⚙️
+                  </button>
+                  {showSettings && (
+                    <div className="side-panel-settings-panel">
+                      {configs
+                        .filter(
+                          (c) =>
+                            c.category !== "mode" &&
+                            c.category !== "model" &&
+                            c.category !== "thought_level",
+                        )
+                        .map((cfg) => (
+                          <div key={cfg.id} className="settings-group">
+                            <label className="settings-label">{cfg.name}</label>
+                            <select
+                              className="settings-select"
+                              value={cfg.currentValue}
+                              onChange={(e) => {
+                                if (activeChatId) {
+                                  send({
+                                    type: "chat:set-config",
+                                    sessionId: activeChatId,
+                                    optionId: cfg.id,
+                                    value: e.target.value,
+                                  });
+                                }
+                              }}
+                            >
+                              {cfg.options.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+          </div>
+
+          <div className="side-panel-messages">
+            {activeMessages.length === 0 && !streaming && !isLoading && (
+              <div className="side-panel-empty">Session ready. Send a message to start.</div>
+            )}
+            {isLoading && activeMessages.length === 0 && (
+              <div className="side-panel-empty">Loading {meta.label} agent…</div>
+            )}
+            {activeMessages.map((m, i) => (
+              <div key={i} className={`chat-msg chat-${m.role}`}>
+                <span className="chat-role">
+                  {m.role === "assistant" ? meta.label : m.role === "user" ? "You" : m.role}
+                </span>
+                <div className="chat-content">
+                  <Markdown text={m.content} />
+                </div>
+              </div>
+            ))}
+
+            {/* Thinking indicator */}
+            {thinking && !streaming && (
+              <div className="chat-thinking">
+                <span className="chat-thinking-label">💭 Thinking…</span>
+                <div className="chat-thinking-content">{thinking.slice(-200)}</div>
+              </div>
+            )}
+
+            {/* Active tool calls */}
+            {toolCalls && toolCalls.length > 0 && (
+              <div className="chat-tool-calls">
+                {toolCalls.map((tc) => (
+                  <div
+                    key={tc.toolCallId}
+                    className={`chat-tool-call chat-tool-${tc.status ?? "running"}`}
+                  >
+                    <span className="chat-tool-icon">
+                      {tc.status === "completed" ? "✓" : tc.status === "failed" ? "✗" : "⟳"}
+                    </span>
+                    <span className="chat-tool-kind">{TOOL_KIND_ICONS[tc.kind ?? ""] ?? "🔧"}</span>
+                    <span className="chat-tool-title">{tc.title}</span>
+                    {tc.locations && tc.locations.length > 0 && (
+                      <span className="chat-tool-locations">
+                        {tc.locations.map((l, i) => (
+                          <span key={i} className="chat-tool-location">
+                            {l.path.split("/").pop()}
+                            {l.line ? `:${l.line}` : ""}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        )}
-      </div>
 
-      <div className="side-panel-messages">
-        {activeMessages.length === 0 && !streaming && !isLoading && (
-          <div className="side-panel-empty">
-            Session ready. Send a message to start.
-          </div>
-        )}
-        {isLoading && activeMessages.length === 0 && (
-          <div className="side-panel-empty">
-            Loading {meta.label} agent…
-          </div>
-        )}
-        {activeMessages.map((m, i) => (
-          <div key={i} className={`chat-msg chat-${m.role}`}>
-            <span className="chat-role">
-              {m.role === "assistant" ? meta.label : m.role === "user" ? "You" : m.role}
-            </span>
-            <div className="chat-content"><Markdown text={m.content} /></div>
-          </div>
-        ))}
-
-        {/* Thinking indicator */}
-        {thinking && !streaming && (
-          <div className="chat-thinking">
-            <span className="chat-thinking-label">💭 Thinking…</span>
-            <div className="chat-thinking-content">{thinking.slice(-200)}</div>
-          </div>
-        )}
-
-        {/* Active tool calls */}
-        {toolCalls && toolCalls.length > 0 && (
-          <div className="chat-tool-calls">
-            {toolCalls.map((tc) => (
-              <div key={tc.toolCallId} className={`chat-tool-call chat-tool-${tc.status ?? "running"}`}>
-                <span className="chat-tool-icon">
-                  {tc.status === "completed" ? "✓" : tc.status === "failed" ? "✗" : "⟳"}
-                </span>
-                <span className="chat-tool-kind">{TOOL_KIND_ICONS[tc.kind ?? ""] ?? "🔧"}</span>
-                <span className="chat-tool-title">{tc.title}</span>
-                {tc.locations && tc.locations.length > 0 && (
-                  <span className="chat-tool-locations">
-                    {tc.locations.map((l, i) => (
-                      <span key={i} className="chat-tool-location">
-                        {l.path.split("/").pop()}{l.line ? `:${l.line}` : ""}
-                      </span>
-                    ))}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Plan progress */}
-        {plan && plan.length > 0 && (
-          <div className="chat-plan">
-            <div className="chat-plan-header">
-              📋 Plan ({plan.filter((e) => e.status === "completed").length}/{plan.length})
-            </div>
-            {plan.map((entry, i) => (
-              <div key={i} className={`chat-plan-entry chat-plan-${entry.status}`}>
-                <span className="chat-plan-check">
-                  {entry.status === "completed" ? "✓" : entry.status === "in_progress" ? "⟳" : "○"}
-                </span>
-                <span className="chat-plan-text">{entry.content}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {streaming && (
-          <div className="chat-msg chat-assistant">
-            <span className="chat-role">{meta.label}</span>
-            <div className="chat-content chat-streaming">
-              <Markdown text={streaming} />
-              <span className="streaming-cursor">▌</span>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Usage bar */}
-      {usage && (
-        <div className="chat-usage-bar">
-          <span className="chat-usage-tokens">
-            Tokens: {usage.used.toLocaleString()} / {usage.size.toLocaleString()}
-          </span>
-          <div className="chat-usage-meter">
-            <div
-              className="chat-usage-fill"
-              style={{ width: `${Math.min(100, (usage.used / usage.size) * 100)}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Slash command menu */}
-      {showSlashMenu && filteredCommands.length > 0 && (
-        <div className="slash-menu">
-          {filteredCommands.map((cmd) => (
-            <button
-              key={cmd.name}
-              className="slash-menu-item"
-              onMouseDown={(e) => { e.preventDefault(); selectCommand(cmd); }}
-            >
-              <span className="slash-menu-name">/{cmd.name}</span>
-              <span className="slash-menu-desc">{cmd.description}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="side-panel-input-row">
-        <textarea
-          ref={inputRef}
-          className="side-panel-input"
-          placeholder="Type / for commands, or ask something…"
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          onBlur={() => setTimeout(() => setShowSlashMenu(false), 200)}
-          rows={2}
-          autoFocus
-        />
-        {(streaming || thinking) && (
-          <button
-            className="btn btn-danger btn-icon"
-            onClick={() => {
-              if (activeChatId) send({ type: "chat:cancel", sessionId: activeChatId });
-            }}
-            title="Stop"
-          >
-            ■
-          </button>
-        )}
-        <button className="btn btn-primary btn-icon" onClick={handleSend} title="Send">
-          ▶
-        </button>
-      </div>
-
-      {/* Mode & Model selectors */}
-      {activeChatId && (
-        <div className="side-panel-mode-bar">
-          <div className="mode-selector-wrapper">
-            <button
-              className="mode-selector-btn"
-              onClick={() => { setShowModeMenu(!showModeMenu); setShowModelMenu(false); }}
-            >
-              {(() => {
-                const modeId = activeSession?.modeId ?? MODE_CYCLE[0]!;
-                const m = MODE_LABELS[modeId] ?? MODE_LABELS[MODE_CYCLE[0]!]!;
-                return `${m.icon} ${m.short}`;
-              })()}
-              <span className="mode-selector-arrow">▲</span>
-            </button>
-            {showModeMenu && activeChatId && (
-              <div className="mode-selector-menu">
-                {MODE_CYCLE.map((modeId) => {
-                  const m = MODE_LABELS[modeId]!;
-                  const currentMode = activeSession?.modeId ?? MODE_CYCLE[0];
-                  const isActive = currentMode === modeId;
-                  return (
-                    <button
-                      key={modeId}
-                      className={`mode-selector-option${isActive ? " active" : ""}`}
-                      onClick={() => {
-                        send({ type: "chat:set-mode", sessionId: activeChatId, mode: modeId });
-                        setShowModeMenu(false);
-                      }}
-                    >
-                      {m.icon} {m.short}
-                    </button>
-                  );
-                })}
+            {/* Plan progress */}
+            {plan && plan.length > 0 && (
+              <div className="chat-plan">
+                <div className="chat-plan-header">
+                  📋 Plan ({plan.filter((e) => e.status === "completed").length}/{plan.length})
+                </div>
+                {plan.map((entry, i) => (
+                  <div key={i} className={`chat-plan-entry chat-plan-${entry.status}`}>
+                    <span className="chat-plan-check">
+                      {entry.status === "completed"
+                        ? "✓"
+                        : entry.status === "in_progress"
+                          ? "⟳"
+                          : "○"}
+                    </span>
+                    <span className="chat-plan-text">{entry.content}</span>
+                  </div>
+                ))}
               </div>
             )}
+
+            {streaming && (
+              <div className="chat-msg chat-assistant">
+                <span className="chat-role">{meta.label}</span>
+                <div className="chat-content chat-streaming">
+                  <Markdown text={streaming} />
+                  <span className="streaming-cursor">▌</span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-          {(() => {
-            const modelCfg = configs?.find((c) => c.category === "model");
-            const reasoningCfg = configs?.find((c) => c.category === "thought_level");
-            if (!modelCfg) return null;
-            const currentOpt = modelCfg.options.find((o) => o.value === modelCfg.currentValue);
-            const shortLabel = currentOpt?.name ?? modelCfg.currentValue;
-            const reasoningLabel = reasoningCfg
-              ? reasoningCfg.options.find((o) => o.value === reasoningCfg.currentValue)?.name ?? reasoningCfg.currentValue
-              : null;
-            return (
+
+          {/* Usage bar */}
+          {usage && (
+            <div className="chat-usage-bar">
+              <span className="chat-usage-tokens">
+                Tokens: {usage.used.toLocaleString()} / {usage.size.toLocaleString()}
+              </span>
+              <div className="chat-usage-meter">
+                <div
+                  className="chat-usage-fill"
+                  style={{ width: `${Math.min(100, (usage.used / usage.size) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Slash command menu */}
+          {showSlashMenu && filteredCommands.length > 0 && (
+            <div className="slash-menu">
+              {filteredCommands.map((cmd) => (
+                <button
+                  key={cmd.name}
+                  className="slash-menu-item"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectCommand(cmd);
+                  }}
+                >
+                  <span className="slash-menu-name">/{cmd.name}</span>
+                  <span className="slash-menu-desc">{cmd.description}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="side-panel-input-row">
+            <textarea
+              ref={inputRef}
+              className="side-panel-input"
+              placeholder="Type / for commands, or ask something…"
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onBlur={() => setTimeout(() => setShowSlashMenu(false), 200)}
+              rows={2}
+              autoFocus
+            />
+            {(streaming || thinking) && (
+              <button
+                className="btn btn-danger btn-icon"
+                onClick={() => {
+                  if (activeChatId) send({ type: "chat:cancel", sessionId: activeChatId });
+                }}
+                title="Stop"
+              >
+                ■
+              </button>
+            )}
+            <button className="btn btn-primary btn-icon" onClick={handleSend} title="Send">
+              ▶
+            </button>
+          </div>
+
+          {/* Mode & Model selectors */}
+          {activeChatId && (
+            <div className="side-panel-mode-bar">
               <div className="mode-selector-wrapper">
                 <button
                   className="mode-selector-btn"
-                  onClick={() => { setShowModelMenu(!showModelMenu); setShowModeMenu(false); }}
+                  onClick={() => {
+                    setShowModeMenu(!showModeMenu);
+                    setShowModelMenu(false);
+                  }}
                 >
-                  🧠 {shortLabel}{reasoningLabel ? ` · ${reasoningLabel}` : ""}
+                  {(() => {
+                    const modeId = activeSession?.modeId ?? MODE_CYCLE[0]!;
+                    const m = MODE_LABELS[modeId] ?? MODE_LABELS[MODE_CYCLE[0]!]!;
+                    return `${m.icon} ${m.short}`;
+                  })()}
                   <span className="mode-selector-arrow">▲</span>
                 </button>
-                {showModelMenu && (
-                  <div className="mode-selector-menu model-menu">
-                    <div className="model-menu-section">Model</div>
-                    {modelCfg.options.map((opt) => (
-                      <button
-                        key={opt.value}
-                        className={`mode-selector-option${opt.value === modelCfg.currentValue ? " active" : ""}`}
-                        onClick={() => {
-                          if (activeChatId) {
-                            send({ type: "chat:set-config", sessionId: activeChatId, optionId: modelCfg.id, value: opt.value });
-                          }
-                          setShowModelMenu(false);
-                        }}
-                      >
-                        {opt.name}
-                      </button>
-                    ))}
-                    {reasoningCfg && (
-                      <>
-                        <div className="model-menu-divider" />
-                        <div className="model-menu-section">Reasoning</div>
-                        <div className="model-menu-reasoning">
-                          {reasoningCfg.options.map((opt) => (
-                            <button
-                              key={opt.value}
-                              className={`reasoning-chip${opt.value === reasoningCfg.currentValue ? " active" : ""}`}
-                              onClick={() => {
-                                if (activeChatId) {
-                                  send({ type: "chat:set-config", sessionId: activeChatId, optionId: reasoningCfg.id, value: opt.value });
-                                }
-                              }}
-                            >
-                              {opt.name}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
+                {showModeMenu && activeChatId && (
+                  <div className="mode-selector-menu">
+                    {MODE_CYCLE.map((modeId) => {
+                      const m = MODE_LABELS[modeId]!;
+                      const currentMode = activeSession?.modeId ?? MODE_CYCLE[0];
+                      const isActive = currentMode === modeId;
+                      return (
+                        <button
+                          key={modeId}
+                          className={`mode-selector-option${isActive ? " active" : ""}`}
+                          onClick={() => {
+                            send({ type: "chat:set-mode", sessionId: activeChatId, mode: modeId });
+                            setShowModeMenu(false);
+                          }}
+                        >
+                          {m.icon} {m.short}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            );
-          })()}
-          <span className="mode-hint">Shift+Tab</span>
-        </div>
-      )}
-      </>
+              {(() => {
+                const modelCfg = configs?.find((c) => c.category === "model");
+                const reasoningCfg = configs?.find((c) => c.category === "thought_level");
+                if (!modelCfg) return null;
+                const currentOpt = modelCfg.options.find((o) => o.value === modelCfg.currentValue);
+                const shortLabel = currentOpt?.name ?? modelCfg.currentValue;
+                const reasoningLabel = reasoningCfg
+                  ? (reasoningCfg.options.find((o) => o.value === reasoningCfg.currentValue)
+                      ?.name ?? reasoningCfg.currentValue)
+                  : null;
+                return (
+                  <div className="mode-selector-wrapper">
+                    <button
+                      className="mode-selector-btn"
+                      onClick={() => {
+                        setShowModelMenu(!showModelMenu);
+                        setShowModeMenu(false);
+                      }}
+                    >
+                      🧠 {shortLabel}
+                      {reasoningLabel ? ` · ${reasoningLabel}` : ""}
+                      <span className="mode-selector-arrow">▲</span>
+                    </button>
+                    {showModelMenu && (
+                      <div className="mode-selector-menu model-menu">
+                        <div className="model-menu-section">Model</div>
+                        {modelCfg.options.map((opt) => (
+                          <button
+                            key={opt.value}
+                            className={`mode-selector-option${opt.value === modelCfg.currentValue ? " active" : ""}`}
+                            onClick={() => {
+                              if (activeChatId) {
+                                send({
+                                  type: "chat:set-config",
+                                  sessionId: activeChatId,
+                                  optionId: modelCfg.id,
+                                  value: opt.value,
+                                });
+                              }
+                              setShowModelMenu(false);
+                            }}
+                          >
+                            {opt.name}
+                          </button>
+                        ))}
+                        {reasoningCfg && (
+                          <>
+                            <div className="model-menu-divider" />
+                            <div className="model-menu-section">Reasoning</div>
+                            <div className="model-menu-reasoning">
+                              {reasoningCfg.options.map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  className={`reasoning-chip${opt.value === reasoningCfg.currentValue ? " active" : ""}`}
+                                  onClick={() => {
+                                    if (activeChatId) {
+                                      send({
+                                        type: "chat:set-config",
+                                        sessionId: activeChatId,
+                                        optionId: reasoningCfg.id,
+                                        value: opt.value,
+                                      });
+                                    }
+                                  }}
+                                >
+                                  {opt.name}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+              <span className="mode-hint">Shift+Tab</span>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
