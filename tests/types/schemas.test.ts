@@ -148,6 +148,23 @@ describe("normalizeRetroFields", () => {
     expect(improvements[0].target).toBe("config");
   });
 
+  it("coerces file-path targets to valid enum values", () => {
+    const result = normalizeRetroFields({
+      improvements: [
+        { title: "Update planner", description: "d", target: ".aiscrum/roles/planner/" },
+        { title: "Fix ceremonies", description: "d", target: "src/ceremonies/" },
+        { title: "Update config", description: "d", target: ".aiscrum/config.yaml" },
+      ],
+    });
+    const improvements = result.improvements as Array<Record<string, unknown>>;
+    expect(improvements[0].target).toBe("agent");
+    expect(improvements[1].target).toBe("process");
+    expect(improvements[2].target).toBe("config");
+    // Verify they pass schema validation
+    const parsed = RetroResultSchema.parse(result);
+    expect(parsed.improvements).toHaveLength(3);
+  });
+
   it("passes through RetroResultSchema", () => {
     const normalized = normalizeRetroFields({
       went_well: ["fast delivery"],
