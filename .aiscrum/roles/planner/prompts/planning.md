@@ -31,6 +31,8 @@ Fetch all open issues from the repository. Eligible issues are those:
 
 - Labeled with a `type:*` label (feature, bug, chore, etc.)
 - NOT labeled `status:planned`, `status:in-progress`, or `needs:stakeholder-decision`
+- NOT labeled `type:escalation` (escalation issues are handled separately, never plan them)
+- NOT labeled `human-decision-needed`
 - NOT assigned to another milestone
 - Having testable acceptance criteria in the issue body
 

@@ -88,9 +88,9 @@ export function extractJson<T = unknown>(text: string): T {
 }
 
 /**
- * Parse an agent response against a Zod schema, retrying once on validation failure.
- * On first failure, calls `retryFn` with a format hint derived from the schema error.
- * Logs the first failure as a warning. Throws on second failure.
+ * Parse an agent response against a Zod schema, retrying up to twice on validation failure.
+ * On each failure, calls `retryFn` with a format hint derived from the schema error.
+ * Logs failures as warnings. Throws after all retries are exhausted.
  *
  * @param jsonExample - Optional JSON example string to include in the retry hint.
  *   Providing this dramatically improves retry success by showing the LLM the exact
@@ -103,34 +103,43 @@ export async function parseWithRetry<S extends z.ZodTypeAny>(
   jsonExample?: string,
 ): Promise<z.output<S>> {
   const log = logger.child({ module: "parseWithRetry" });
+  const MAX_RETRIES = 2;
 
-  try {
-    return schema.parse(extractJson(rawResponse));
-  } catch (firstError: unknown) {
-    const errMsg = firstError instanceof Error ? firstError.message : String(firstError);
-    log.warn({ error: errMsg }, "schema validation failed — retrying with format hint");
-
-    const hintLines = [
-      "Your previous response could not be parsed as JSON.",
-      `Error: ${errMsg}`,
-      "",
-      "IMPORTANT: You MUST include a JSON block in your response.",
-      "Write your analysis as readable text first, then end with a ```json fenced code block.",
-    ];
-
-    if (jsonExample) {
-      hintLines.push(
-        "",
-        "The JSON must match this exact structure:",
-        "```json",
-        jsonExample,
-        "```",
+  let lastResponse = rawResponse;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return schema.parse(extractJson(lastResponse));
+    } catch (err: unknown) {
+      if (attempt === MAX_RETRIES) {
+        throw err;
+      }
+      const errMsg = err instanceof Error ? err.message : String(err);
+      log.warn(
+        { error: errMsg, attempt: attempt + 1, maxRetries: MAX_RETRIES },
+        "schema validation failed — retrying with format hint",
       );
+
+      const hintLines = [
+        "Your previous response could not be parsed as JSON.",
+        `Error: ${errMsg}`,
+        "",
+        "IMPORTANT: You MUST respond with ONLY a JSON block — no markdown, no explanation.",
+        "Your entire response must be a single ```json fenced code block, nothing else.",
+      ];
+
+      if (jsonExample) {
+        hintLines.push(
+          "",
+          "The JSON must match this exact structure:",
+          "```json",
+          jsonExample,
+          "```",
+        );
+      }
+
+      lastResponse = await retryFn(hintLines.join("\n"));
     }
-
-    hintLines.push("", "Do NOT change your analysis — only add the JSON block at the end.");
-
-    const retryResponse = await retryFn(hintLines.join("\n"));
-    return schema.parse(extractJson(retryResponse));
   }
+  /* istanbul ignore next — unreachable but satisfies TS return type */
+  throw new Error("parseWithRetry: exhausted retries");
 }

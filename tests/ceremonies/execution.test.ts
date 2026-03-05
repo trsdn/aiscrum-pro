@@ -95,7 +95,9 @@ vi.mock("node:fs/promises", () => ({
   default: {
     readFile: vi.fn().mockImplementation((filePath: string) => {
       if (filePath.includes("item-planner")) {
-        return Promise.resolve("Plan for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}");
+        return Promise.resolve(
+          "Create a detailed implementation plan for issue #{{ISSUE_NUMBER}}: {{ISSUE_TITLE}}",
+        );
       }
       if (filePath.includes("tdd")) {
         return Promise.resolve(
@@ -186,6 +188,14 @@ function makeMockClient() {
             summary: "Criteria met",
             criteria: [],
           }),
+          stopReason: "end_turn",
+        });
+      }
+      // Item planner prompts ask for an implementation plan
+      if (typeof prompt === "string" && prompt.includes("implementation plan")) {
+        return Promise.resolve({
+          response:
+            '```json\n{"summary":"Plan","steps":[{"order":1,"action":"modify","file":"src/foo.ts","description":"change"}]}\n```',
           stopReason: "end_turn",
         });
       }

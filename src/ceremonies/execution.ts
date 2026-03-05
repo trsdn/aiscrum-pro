@@ -102,10 +102,24 @@ async function planPhase(ctx: ExecutionContext): Promise<PlanResult> {
     implementationPlan = planResult.response;
 
     try {
-      const planJson = extractJson<{
-        summary: string;
-        steps: Array<{ file?: string; action?: string }>;
-      }>(implementationPlan);
+      let planText = implementationPlan;
+      let planJson: { summary: string; steps: Array<{ file?: string; action?: string }> };
+      try {
+        planJson = extractJson(planText);
+      } catch {
+        // Retry: ask the planner to re-format as JSON
+        log.warn("item planner JSON extraction failed — retrying with format hint");
+        const retryHint = [
+          "Your implementation plan could not be parsed as JSON.",
+          "Please restate your plan in this exact JSON format inside a ```json fenced code block:",
+          "```json",
+          '{ "summary": "...", "steps": [{ "order": 1, "action": "create|modify|test", "file": "path/to/file", "description": "..." }], "test_strategy": "...", "risks": [], "estimated_diff_lines": 50 }',
+          "```",
+        ].join("\n");
+        const retryResult = await client.sendPrompt(sessionId, retryHint, config.sessionTimeoutMs);
+        planText = retryResult.response;
+        planJson = extractJson(planText);
+      }
       log.info(
         { summary: planJson.summary, stepCount: planJson.steps?.length ?? 0 },
         "implementation plan created",

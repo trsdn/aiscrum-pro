@@ -52,10 +52,10 @@ describe("parseWithRetry", () => {
     expect(retryFn.mock.calls[0][0]).toContain("could not be parsed");
   });
 
-  it("throws on second failure after retry", async () => {
+  it("throws after exhausting all retries", async () => {
     const retryFn = vi.fn().mockResolvedValue("still no json");
     await expect(parseWithRetry(schema, "bad", retryFn)).rejects.toThrow();
-    expect(retryFn).toHaveBeenCalledOnce();
+    expect(retryFn).toHaveBeenCalledTimes(2);
   });
 
   it("retries on schema validation failure (valid JSON but wrong shape)", async () => {
