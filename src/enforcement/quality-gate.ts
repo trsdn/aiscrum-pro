@@ -7,6 +7,22 @@ import type { QualityCheck, QualityResult } from "../types.js";
 
 const execFile = promisify(execFileCb);
 
+export interface CustomGateEntry {
+  name: string;
+  command: string | string[];
+  required: boolean;
+  category:
+    | "lint"
+    | "test"
+    | "type"
+    | "build"
+    | "diff"
+    | "security"
+    | "format"
+    | "domain"
+    | "custom";
+}
+
 export interface QualityGateConfig {
   requireTests: boolean;
   requireLint: boolean;
@@ -18,6 +34,7 @@ export interface QualityGateConfig {
   typecheckCommand: string | string[];
   buildCommand: string | string[];
   expectedFiles?: string[];
+  customGates?: CustomGateEntry[];
 }
 
 /** Normalize a command to an array, logging a warning for legacy string usage. */
@@ -134,11 +151,29 @@ export async function runQualityGate(
     });
   }
 
-  // 6. Compute diff stat for diff-size check
+  // 6. Run custom gates
+  if (config.customGates && config.customGates.length > 0) {
+    for (const gate of config.customGates) {
+      const result = await runCommand(gate.command, worktreePath);
+      checks.push({
+        name: gate.name,
+        passed: gate.required ? result.ok : true,
+        detail: result.ok
+          ? `${gate.name} passed`
+          : `${gate.name} failed${gate.required ? "" : " (advisory)"}${result.output ? `: ${result.output}` : ""}`,
+        category: gate.category,
+      });
+      if (!result.ok && !gate.required) {
+        log.warn({ gate: gate.name }, "advisory gate failed (non-blocking)");
+      }
+    }
+  }
+
+  // 7. Compute diff stat for diff-size check
   try {
     const stat = await diffStat(branch, baseBranch);
 
-    // 7. Check diff size
+    // 8. Check diff size
     const diffPassed = stat.linesChanged <= config.maxDiffLines;
     checks.push({
       name: "diff-size",

@@ -46,6 +46,15 @@ quality_gates:
   tests: "npm test"
   lint: "npm run lint"
   types: "npx tsc --noEmit"
+  # custom_gates:
+  #   - name: format-check
+  #     command: [npx, prettier, --check, src/]
+  #     required: true
+  #     category: format
+  #   - name: security-scan
+  #     command: [npx, audit-ci, --moderate]
+  #     required: true
+  #     category: security
 `;
 
 /**
