@@ -6,7 +6,7 @@ import type { SprintEventBus } from "../events.js";
 import { listIssues } from "../github/issues.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, extractJson } from "./helpers.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 import { RefinementResponseSchema } from "../types/schemas.js";
 
 /**
@@ -59,9 +59,7 @@ export async function runRefinement(
     if (sessionConfig.instructions) {
       fullPrompt = sessionConfig.instructions + "\n\n" + fullPrompt;
     }
-    if (sessionConfig.model) {
-      await client.setModel(sessionId, sessionConfig.model);
-    }
+    await applySessionSettings(client, sessionId, sessionConfig);
     const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
     const parsed = RefinementResponseSchema.parse(extractJson(result.response));
 

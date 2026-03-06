@@ -4,6 +4,7 @@ import type { SprintConfig, SprintResult } from "../../src/types.js";
 // --- Mocks ---
 
 vi.mock("../../src/acp/session-config.js", () => ({
+  applySessionSettings: vi.fn(),
   resolveSessionConfig: vi.fn().mockResolvedValue({
     mcpServers: [],
     instructions: "",
@@ -191,7 +192,12 @@ describe("runSprintReview", () => {
       cwd: "/tmp/test-project",
       mcpServers: [{ name: "test-server", command: "test" }],
     });
-    expect(mockClient.setModel).toHaveBeenCalledWith("session-rev-1", "gpt-4");
+    const { applySessionSettings } = await import("../../src/acp/session-config.js");
+    expect(applySessionSettings).toHaveBeenCalledWith(mockClient, "session-rev-1", {
+      mcpServers: [{ name: "test-server", command: "test" }],
+      instructions: "review instructions",
+      model: "gpt-4",
+    });
   });
 
   it("cleans up session on error", async () => {

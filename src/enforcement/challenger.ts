@@ -4,7 +4,7 @@ import { logger } from "../logger.js";
 import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig } from "../types.js";
 import { ChallengerActionSchema } from "../types/schemas.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 import { parseWithRetry } from "../ceremonies/helpers.js";
 
 export interface ChallengerResult {
@@ -70,9 +70,7 @@ export async function runChallengerReview(
     "```",
   ].join("\n");
 
-  if (sessionConfig.model) {
-    await client.setModel(sessionId, sessionConfig.model);
-  }
+  await applySessionSettings(client, sessionId, sessionConfig);
 
   const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
 

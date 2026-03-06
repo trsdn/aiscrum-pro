@@ -5,6 +5,7 @@ import type { SprintConfig, SprintResult, ReviewResult } from "../../src/types.j
 // ── Mocks ──────────────────────────────────────────────────────────────────────
 
 vi.mock("../../src/acp/session-config.js", () => ({
+  applySessionSettings: vi.fn(),
   resolveSessionConfig: vi.fn().mockResolvedValue({
     mcpServers: [],
     instructions: "",

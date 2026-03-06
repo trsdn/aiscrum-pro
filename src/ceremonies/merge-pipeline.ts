@@ -3,7 +3,7 @@ import type { SprintConfig, IssueResult } from "../types.js";
 import { mergeBranch } from "../git/merge.js";
 import { deleteBranch } from "../git/worktree.js";
 import { logger } from "../logger.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 
 export interface MergePipelineResult {
   merged: number[];
@@ -109,9 +109,7 @@ export async function resolveConflictsViaAcp(
     if (sessionConfig.instructions) {
       fullPrompt = sessionConfig.instructions + "\n\n" + fullPrompt;
     }
-    if (sessionConfig.model) {
-      await client.setModel(sessionId, sessionConfig.model);
-    }
+    await applySessionSettings(client, sessionId, sessionConfig);
 
     const result = await client.sendPrompt(sessionId, fullPrompt);
 

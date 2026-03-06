@@ -5,7 +5,7 @@
 import type { AcpClient } from "../acp/client.js";
 import type { SprintConfig, SprintIssue, CodeReviewResult } from "../types.js";
 import { CodeReviewActionSchema } from "../types/schemas.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 import { diffStat } from "../git/diff-analysis.js";
 import { parseWithRetry } from "../ceremonies/helpers.js";
 import { logger } from "../logger.js";
@@ -44,9 +44,7 @@ export async function runCodeReview(
   let outcome: "approved" | "changes_requested" | "failed" = "failed";
 
   try {
-    if (sessionConfig.model) {
-      await client.setModel(sessionId, sessionConfig.model);
-    }
+    await applySessionSettings(client, sessionId, sessionConfig);
 
     const prompt = [
       ...(sessionConfig.instructions ? [sessionConfig.instructions, ""] : []),

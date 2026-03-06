@@ -28,6 +28,7 @@ export type McpServerEntry = McpServerStdio | McpServerHttp | McpServerSse;
 
 export interface PhaseConfig {
   model?: string;
+  thought_level?: "medium" | "high";
   mcp_servers: McpServerEntry[];
   instructions: string[];
 }

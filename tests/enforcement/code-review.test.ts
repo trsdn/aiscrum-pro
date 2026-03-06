@@ -3,6 +3,7 @@ import { runCodeReview } from "../../src/enforcement/code-review.js";
 import type { SprintConfig, SprintIssue } from "../../src/types.js";
 
 vi.mock("../../src/acp/session-config.js", () => ({
+  applySessionSettings: vi.fn(),
   resolveSessionConfig: vi.fn().mockResolvedValue({
     mcpServers: [],
     model: "claude-sonnet-4",
@@ -128,7 +129,7 @@ describe("runCodeReview", () => {
     expect(client.endSession).toHaveBeenCalledWith("review-session-1");
   });
 
-  it("sets the reviewer model", async () => {
+  it("applies session settings with the reviewer model", async () => {
     client.sendPrompt.mockResolvedValue({
       response: '```json\n{"decision":"approved","reasoning":"ok","summary":"ok","issues":[]}\n```',
     });
@@ -141,7 +142,12 @@ describe("runCodeReview", () => {
       "/tmp/worktrees/issue-42",
     );
 
-    expect(client.setModel).toHaveBeenCalledWith("review-session-1", "claude-sonnet-4");
+    const { applySessionSettings } = await import("../../src/acp/session-config.js");
+    expect(applySessionSettings).toHaveBeenCalledWith(client, "review-session-1", {
+      mcpServers: [],
+      model: "claude-sonnet-4",
+      instructions: null,
+    });
   });
 
   it("ends session even if sendPrompt throws", async () => {

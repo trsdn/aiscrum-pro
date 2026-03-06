@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { McpServer } from "@agentclientprotocol/sdk";
 import type { SprintConfig, McpServerEntry, PhaseConfig } from "../types.js";
+import type { AcpClient } from "./client.js";
 import { logger } from "../logger.js";
 
 /** Known ceremony phase names used as keys in `copilot.phases`. */
@@ -24,6 +25,7 @@ export interface ResolvedSessionConfig {
   mcpServers: McpServer[];
   instructions: string;
   model?: string;
+  thoughtLevel?: string;
 }
 
 /** Convert our config entry to the ACP SDK McpServer type. */
@@ -97,6 +99,24 @@ export async function resolveSessionConfig(
 
   // Model from phase config
   const model = phaseConfig?.model;
+  const thoughtLevel = phaseConfig?.thought_level;
 
-  return { mcpServers, instructions, model };
+  return { mcpServers, instructions, model, thoughtLevel };
+}
+
+/**
+ * Apply model and thought_level settings to an ACP session.
+ * Call after createSession to configure the session before sending prompts.
+ */
+export async function applySessionSettings(
+  client: AcpClient,
+  sessionId: string,
+  config: ResolvedSessionConfig,
+): Promise<void> {
+  if (config.model) {
+    await client.setModel(sessionId, config.model);
+  }
+  if (config.thoughtLevel) {
+    await client.setConfigOption(sessionId, "thought_level", config.thoughtLevel);
+  }
 }

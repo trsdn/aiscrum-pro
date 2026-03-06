@@ -15,7 +15,7 @@ import { listIssues } from "../github/issues.js";
 import { createSprintLog } from "../documentation/sprint-log.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, parseWithRetry } from "./helpers.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 
 /**
  * Run the sprint planning ceremony: send the planner agent instructions
@@ -62,9 +62,7 @@ export async function runSprintPlanning(
     if (sessionConfig.instructions) {
       fullPrompt = sessionConfig.instructions + "\n\n" + fullPrompt;
     }
-    if (sessionConfig.model) {
-      await client.setModel(sessionId, sessionConfig.model);
-    }
+    await applySessionSettings(client, sessionId, sessionConfig);
     // Retry full prompt on timeout/crash; use parseWithRetry for JSON parse errors
     const MAX_PLANNING_ATTEMPTS = 2;
     let plan: SprintPlan | undefined;

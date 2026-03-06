@@ -6,7 +6,7 @@ import type { SprintEventBus } from "../events.js";
 import { calculateSprintMetrics, topFailedGates } from "../metrics.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, sanitizePromptInput, parseWithRetry } from "./helpers.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 import { getPRStatus } from "../git/merge.js";
 import { ReviewResultSchema } from "../types/schemas.js";
 
@@ -146,9 +146,7 @@ export async function runSprintReview(
     if (sessionConfig.instructions) {
       fullPrompt = sessionConfig.instructions + "\n\n" + fullPrompt;
     }
-    if (sessionConfig.model) {
-      await client.setModel(sessionId, sessionConfig.model);
-    }
+    await applySessionSettings(client, sessionId, sessionConfig);
     const response = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
 
     const reviewJsonExample = JSON.stringify(

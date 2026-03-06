@@ -3,6 +3,7 @@ import type { AcpClient } from "../../src/acp/client.js";
 import type { SprintConfig } from "../../src/types.js";
 
 vi.mock("../../src/acp/session-config.js", () => ({
+  applySessionSettings: vi.fn(),
   resolveSessionConfig: vi.fn().mockResolvedValue({
     mcpServers: [],
     instructions: "",

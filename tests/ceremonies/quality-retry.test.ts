@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { SprintConfig, SprintIssue, QualityResult } from "../../src/types.js";
 
 vi.mock("../../src/acp/session-config.js", () => ({
+  applySessionSettings: vi.fn(),
   resolveSessionConfig: vi.fn().mockResolvedValue({
     mcpServers: [],
     instructions: "",

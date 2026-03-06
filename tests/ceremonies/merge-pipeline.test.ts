@@ -12,6 +12,7 @@ vi.mock("../../src/git/worktree.js", () => ({
 }));
 
 vi.mock("../../src/acp/session-config.js", () => ({
+  applySessionSettings: vi.fn(),
   resolveSessionConfig: vi.fn().mockResolvedValue({
     mcpServers: [],
     instructions: "",

@@ -4,6 +4,7 @@ import type { SprintConfig } from "../../src/types.js";
 // --- Mocks ---
 
 vi.mock("../../src/acp/session-config.js", () => ({
+  applySessionSettings: vi.fn(),
   resolveSessionConfig: vi.fn().mockResolvedValue({
     mcpServers: [],
     instructions: "",
@@ -170,7 +171,7 @@ describe("runRefinement", () => {
     });
   });
 
-  it("passes session config model to setModel when configured", async () => {
+  it("applies session settings when model is configured", async () => {
     const mockClient = makeMockClient();
     vi.mocked(resolveSessionConfig).mockResolvedValue({
       mcpServers: [],
@@ -181,7 +182,12 @@ describe("runRefinement", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await runRefinement(mockClient as any, makeConfig());
 
-    expect(mockClient.setModel).toHaveBeenCalledWith("session-ref-1", "claude-sonnet-4");
+    const { applySessionSettings } = await import("../../src/acp/session-config.js");
+    expect(applySessionSettings).toHaveBeenCalledWith(mockClient, "session-ref-1", {
+      mcpServers: [],
+      instructions: "custom instructions",
+      model: "claude-sonnet-4",
+    });
   });
 
   it("returns empty array when no idea issues exist", async () => {

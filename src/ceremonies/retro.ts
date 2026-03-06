@@ -13,7 +13,7 @@ import type { SprintEventBus } from "../events.js";
 import { calculateSprintMetrics } from "../metrics.js";
 import { logger } from "../logger.js";
 import { substitutePrompt, extractJson, sanitizePromptInput } from "./helpers.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 import { createIssue } from "../github/issues.js";
 import { RetroResultSchema, normalizeRetroFields } from "../types/schemas.js";
 
@@ -78,9 +78,7 @@ export async function runSprintRetro(
     if (sessionConfig.instructions) {
       fullPrompt = sessionConfig.instructions + "\n\n" + fullPrompt;
     }
-    if (sessionConfig.model) {
-      await client.setModel(sessionId, sessionConfig.model);
-    }
+    await applySessionSettings(client, sessionId, sessionConfig);
     const response = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
 
     let rawRetro: Record<string, unknown>;
@@ -185,9 +183,7 @@ async function applyImprovement(
   });
   eventBus?.emitTyped("session:start", { sessionId, role: "retro-apply" });
   try {
-    if (sessionConfig.model) {
-      await client.setModel(sessionId, sessionConfig.model);
-    }
+    await applySessionSettings(client, sessionId, sessionConfig);
 
     let targetInstruction: string;
     switch (improvement.target) {

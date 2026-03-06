@@ -4,7 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { AcpClient } from "../acp/client.js";
 import { ACP_MODES } from "../acp/client.js";
-import { resolveSessionConfig } from "../acp/session-config.js";
+import { resolveSessionConfig, applySessionSettings } from "../acp/session-config.js";
 import type {
   SprintConfig,
   SprintIssue,
@@ -77,9 +77,7 @@ async function planPhase(ctx: ExecutionContext): Promise<PlanResult> {
 
   try {
     await client.setMode(sessionId, ACP_MODES.PLAN);
-    if (plannerConfig.model) {
-      await client.setModel(sessionId, plannerConfig.model);
-    }
+    await applySessionSettings(client, sessionId, plannerConfig);
     log.info("planner session started in Plan mode");
     progress("planning implementation");
 
@@ -190,9 +188,7 @@ async function tddPhase(ctx: ExecutionContext, implementationPlan: string): Prom
 
   try {
     await client.setMode(sessionId, ACP_MODES.AGENT);
-    if (testConfig.model) {
-      await client.setModel(sessionId, testConfig.model);
-    }
+    await applySessionSettings(client, sessionId, testConfig);
     log.info("test-engineer session started");
     progress("writing tests (TDD)");
 
@@ -257,9 +253,7 @@ async function implementPhase(
   let acpOutputLines: string[] = [];
   try {
     await client.setMode(sessionId, ACP_MODES.AGENT);
-    if (workerConfig.model) {
-      await client.setModel(sessionId, workerConfig.model);
-    }
+    await applySessionSettings(client, sessionId, workerConfig);
     log.info("developer session started in Agent mode");
     progress("implementing");
 
@@ -381,9 +375,7 @@ async function acceptanceCriteriaReview(
   let acOutcome: "approved" | "changes_requested" | "failed" = "failed";
 
   try {
-    if (reviewerConfig.model) {
-      await client.setModel(sessionId, reviewerConfig.model);
-    }
+    await applySessionSettings(client, sessionId, reviewerConfig);
 
     const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
 
