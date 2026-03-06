@@ -67,6 +67,22 @@ export interface ExecutionLimits {
   backlogLabels: string[];
 }
 
+export interface CustomGateSetting {
+  name: string;
+  command: string | string[];
+  required: boolean;
+  category:
+    | "lint"
+    | "test"
+    | "type"
+    | "build"
+    | "diff"
+    | "security"
+    | "format"
+    | "domain"
+    | "custom";
+}
+
 export interface QualityGateSettings {
   requireTests: boolean;
   requireLint: boolean;
@@ -77,6 +93,7 @@ export interface QualityGateSettings {
   lintCommand: string | string[];
   typecheckCommand: string | string[];
   buildCommand: string | string[];
+  customGates?: CustomGateSetting[];
 }
 
 // --- Configuration ---

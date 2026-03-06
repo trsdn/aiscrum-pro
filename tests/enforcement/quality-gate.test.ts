@@ -295,6 +295,137 @@ describe("runQualityGate", () => {
       expect.any(Function),
     );
   });
+
+  it("should run custom gates and include results", async () => {
+    mockGlob.mockResolvedValue(["foo.test.ts"] as never);
+    mockExecSuccess();
+
+    const config = makeConfig({
+      customGates: [
+        {
+          name: "format-check",
+          command: ["ruff", "format", "--check"],
+          required: true,
+          category: "format",
+        },
+        {
+          name: "security-scan",
+          command: ["bandit", "-r", "src/"],
+          required: true,
+          category: "security",
+        },
+      ],
+    });
+
+    const result = await runQualityGate(config, "/tmp/wt", "feat/1", "main");
+
+    expect(result.passed).toBe(true);
+    const formatCheck = result.checks.find((c) => c.name === "format-check");
+    expect(formatCheck).toBeDefined();
+    expect(formatCheck?.passed).toBe(true);
+    expect(formatCheck?.category).toBe("format");
+    const securityCheck = result.checks.find((c) => c.name === "security-scan");
+    expect(securityCheck).toBeDefined();
+    expect(securityCheck?.passed).toBe(true);
+    expect(securityCheck?.category).toBe("security");
+    // 5 standard + 2 custom
+    expect(result.checks).toHaveLength(7);
+  });
+
+  it("should fail when a required custom gate fails", async () => {
+    mockGlob.mockResolvedValue(["foo.test.ts"] as never);
+    // Alternate success/failure: standard commands succeed, then custom fails
+    let callCount = 0;
+    mockExecFile.mockImplementation(((
+      _cmd: unknown,
+      _args: unknown,
+      _opts: unknown,
+      cb?: (...a: unknown[]) => void,
+    ) => {
+      callCount++;
+      // First 3 calls are test/lint/types (pass), 4th is the custom gate (fail)
+      if (callCount <= 3) {
+        if (cb) cb(null, { stdout: "ok", stderr: "" });
+        else if (typeof _opts === "function")
+          (_opts as (...a: unknown[]) => void)(null, { stdout: "ok", stderr: "" });
+      } else {
+        const err = new Error("format check failed");
+        if (cb) cb(err);
+        else if (typeof _opts === "function") (_opts as (...a: unknown[]) => void)(err);
+      }
+    }) as unknown as typeof execFile);
+
+    const config = makeConfig({
+      customGates: [
+        {
+          name: "format-check",
+          command: ["ruff", "format", "--check"],
+          required: true,
+          category: "format",
+        },
+      ],
+    });
+
+    const result = await runQualityGate(config, "/tmp/wt", "feat/1", "main");
+
+    expect(result.passed).toBe(false);
+    const formatCheck = result.checks.find((c) => c.name === "format-check");
+    expect(formatCheck?.passed).toBe(false);
+  });
+
+  it("should not block on advisory (non-required) custom gate failure", async () => {
+    mockGlob.mockResolvedValue(["foo.test.ts"] as never);
+    let callCount = 0;
+    mockExecFile.mockImplementation(((
+      _cmd: unknown,
+      _args: unknown,
+      _opts: unknown,
+      cb?: (...a: unknown[]) => void,
+    ) => {
+      callCount++;
+      if (callCount <= 3) {
+        if (cb) cb(null, { stdout: "ok", stderr: "" });
+        else if (typeof _opts === "function")
+          (_opts as (...a: unknown[]) => void)(null, { stdout: "ok", stderr: "" });
+      } else {
+        const err = new Error("coverage below threshold");
+        if (cb) cb(err);
+        else if (typeof _opts === "function") (_opts as (...a: unknown[]) => void)(err);
+      }
+    }) as unknown as typeof execFile);
+
+    const config = makeConfig({
+      customGates: [
+        {
+          name: "coverage",
+          command: ["pytest", "--cov-fail-under=93"],
+          required: false,
+          category: "test",
+        },
+      ],
+    });
+
+    const result = await runQualityGate(config, "/tmp/wt", "feat/1", "main");
+
+    // Advisory gate failure should NOT block
+    expect(result.passed).toBe(true);
+    const coverageCheck = result.checks.find((c) => c.name === "coverage");
+    expect(coverageCheck?.passed).toBe(true); // marked as passed because required=false
+    expect(coverageCheck?.detail).toContain("advisory");
+  });
+
+  it("should work with no custom gates (backward compatible)", async () => {
+    mockGlob.mockResolvedValue(["foo.test.ts"] as never);
+    mockExecSuccess();
+
+    // No customGates field at all
+    const config = makeConfig();
+
+    const result = await runQualityGate(config, "/tmp/wt", "feat/1", "main");
+
+    expect(result.passed).toBe(true);
+    expect(result.checks).toHaveLength(5);
+  });
 });
 
 describe("verifyMainBranch", () => {

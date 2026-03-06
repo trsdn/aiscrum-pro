@@ -80,6 +80,15 @@ const SprintSchema = z.object({
 
 // --- Quality Gates (inline in config.yaml) ---
 
+const CustomGateSchema = z.object({
+  name: z.string().min(1),
+  command: z.union([z.string(), z.array(z.string())]),
+  required: z.boolean().default(true),
+  category: z
+    .enum(["lint", "test", "type", "build", "diff", "security", "format", "domain", "custom"])
+    .default("custom"),
+});
+
 const QualityGatesSchema = z.object({
   require_tests: z.boolean().default(true),
   require_lint: z.boolean().default(true),
@@ -93,6 +102,7 @@ const QualityGatesSchema = z.object({
     .default(["npm", "run", "typecheck"]),
   build_command: z.union([z.string(), z.array(z.string())]).default(["npm", "run", "build"]),
   require_challenger: z.boolean().default(true),
+  custom_gates: z.array(CustomGateSchema).default([]),
 });
 
 const EscalationSchema = z

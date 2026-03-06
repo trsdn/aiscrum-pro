@@ -225,6 +225,62 @@ quality_gates:
     expect(config.quality_gates.require_tests).toBe(false);
     expect(config.quality_gates.max_diff_lines).toBe(100);
   });
+
+  it("parses custom_gates from config", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "config-custom-gates-"));
+    const configFile = path.join(dir, "config.yaml");
+
+    fs.writeFileSync(
+      configFile,
+      `
+project:
+  name: "custom-gates-test"
+quality_gates:
+  require_build: false
+  custom_gates:
+    - name: format-check
+      command: [ruff, format, --check, src/]
+      required: true
+      category: format
+    - name: security-scan
+      command: [bandit, -r, src/]
+      required: false
+      category: security
+`,
+      "utf-8",
+    );
+
+    const config = loadConfig(configFile);
+    expect(config.quality_gates.custom_gates).toHaveLength(2);
+    expect(config.quality_gates.custom_gates[0]!.name).toBe("format-check");
+    expect(config.quality_gates.custom_gates[0]!.command).toEqual([
+      "ruff",
+      "format",
+      "--check",
+      "src/",
+    ]);
+    expect(config.quality_gates.custom_gates[0]!.required).toBe(true);
+    expect(config.quality_gates.custom_gates[0]!.category).toBe("format");
+    expect(config.quality_gates.custom_gates[1]!.required).toBe(false);
+    expect(config.quality_gates.custom_gates[1]!.category).toBe("security");
+  });
+
+  it("defaults custom_gates to empty array when not specified", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "config-no-custom-"));
+    const configFile = path.join(dir, "config.yaml");
+
+    fs.writeFileSync(
+      configFile,
+      `
+project:
+  name: "no-custom-gates"
+`,
+      "utf-8",
+    );
+
+    const config = loadConfig(configFile);
+    expect(config.quality_gates.custom_gates).toEqual([]);
+  });
 });
 
 describe("substituteEnvVars", () => {

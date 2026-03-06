@@ -71,6 +71,7 @@ export function buildSprintConfig(config: ConfigFile, sprintNumber: number): Spr
       lintCommand: config.quality_gates.lint_command,
       typecheckCommand: config.quality_gates.typecheck_command,
       buildCommand: config.quality_gates.build_command,
+      customGates: config.quality_gates.custom_gates,
     },
     ntfy: {
       enabled: config.escalation.notifications.ntfy,
