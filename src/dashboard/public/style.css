@@ -453,11 +453,6 @@ footer {
 
 .chat-input-row .btn { align-self: flex-end; }
 
-/* Adjust main grid when chat is open */
-main.chat-open {
-  grid-template-columns: minmax(180px, 280px) minmax(180px, 1fr) minmax(180px, 300px) 380px;
-}
-
 /* GitHub links */
 .gh-link {
   color: var(--blue);
@@ -652,7 +647,7 @@ main.chat-open {
 
 /* Grid adjustment when chat is open — 4 columns */
 main.chat-open {
-  grid-template-columns: minmax(180px, 280px) minmax(180px, 1fr) minmax(180px, 300px) 380px;
+  grid-template-columns: minmax(200px, 360px) minmax(200px, 1fr) minmax(200px, 380px) 380px;
 }
 
 /* Grid adjustment — session-open no longer needed (always visible) */
@@ -814,14 +809,15 @@ main.chat-open {
   border-bottom-color: var(--blue);
 }
 
-/* Tab content */
+/* Tab content — display:contents lets children flow into main grid */
 .tab-content { display: none; }
-.tab-visible { display: flex !important; }
+.tab-visible { display: contents !important; }
 
-/* Panel full width (for backlog/ideas) */
+/* Panel full width (for backlog/ideas) — spans issues+activity columns */
 .panel-full {
   flex: 1;
   padding: 16px;
+  grid-column: span 2;
 }
 .backlog-header {
   display: flex;
@@ -1059,22 +1055,29 @@ main.chat-open {
    Responsive Breakpoints
    ============================================ */
 
-/* Tablet (< 1024px) */
+/* Tablet (< 1024px) — stack vertically */
 @media (max-width: 1024px) {
-  /* Stack main content vertically */
-  .tab-visible {
+  main {
     grid-template-columns: 1fr !important;
-    gap: 0;
-  }
-
-  /* Session panel goes below main content */
-  .session-panel {
-    position: relative;
-    max-height: 300px;
     overflow-y: auto;
   }
 
-  /* Chat panel overlays */
+  .panel {
+    min-width: 0;
+    resize: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel:last-child { border-bottom: none; }
+
+  .panel-full { grid-column: 1; }
+
+  .session-panel {
+    max-height: 300px;
+    border-left: none;
+  }
+
   .chat-panel {
     position: fixed;
     top: 0;
@@ -1083,9 +1086,13 @@ main.chat-open {
     width: 100%;
     max-width: 400px;
     z-index: 100;
+    background: var(--bg-panel);
   }
 
-  /* Header wraps */
+  main.chat-open {
+    grid-template-columns: 1fr !important;
+  }
+
   header {
     flex-wrap: wrap;
     gap: 8px;
@@ -1094,12 +1101,6 @@ main.chat-open {
   .header-right {
     flex-wrap: wrap;
     gap: 8px;
-  }
-
-  /* Make main scrollable */
-  main {
-    overflow-y: auto;
-    grid-template-columns: 1fr !important;
   }
 }
 
@@ -1115,59 +1116,60 @@ main.chat-open {
 
   .header-right {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 6px;
   }
 
-  /* Phase stepper scrolls horizontally */
   .phase-stepper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 8px 12px;
-    gap: 6px;
+    padding: 6px 12px;
+    gap: 4px;
   }
 
   .step {
     font-size: 11px;
-    padding: 3px 8px;
+    padding: 2px 8px;
     white-space: nowrap;
+    flex-shrink: 0;
   }
 
-  /* Tab navigation scrolls */
+  .step-arrow { flex-shrink: 0; }
+
   .tab-nav {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    gap: 4px;
+    gap: 0;
     padding: 0 8px;
+    -webkit-mask-image: linear-gradient(to right, #000 85%, transparent);
+    mask-image: linear-gradient(to right, #000 85%, transparent);
   }
 
   .tab-btn {
     white-space: nowrap;
     font-size: 12px;
     padding: 6px 10px;
+    flex-shrink: 0;
   }
 
-  /* Panels take full width */
   .panel {
-    border-radius: 0;
+    min-width: 0;
+    border-right: none;
   }
 
-  /* Session panel below with collapsible behavior */
   .session-panel {
     max-height: 200px;
   }
 
-  /* Chat takes full screen */
   .chat-panel {
     max-width: 100%;
   }
 
-  /* Issue steps wrap */
   .issue-steps {
     flex-wrap: wrap;
     padding-left: 0;
   }
 
-  /* Buttons smaller */
   .btn {
     padding: 4px 8px;
     font-size: 12px;
@@ -1177,7 +1179,6 @@ main.chat-open {
     padding: 2px 6px;
   }
 
-  /* Backlog items stack */
   .backlog-item {
     flex-wrap: wrap;
     gap: 4px;
