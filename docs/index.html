@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AiScrum Pro — Autonomous AI Sprint Engine</title>
+  <meta name="description" content="An autonomous AI team that runs full Scrum sprints — planning, coding, testing, reviewing — while you sleep. Powered by GitHub Copilot ACP.">
+  <meta property="og:title" content="AiScrum Pro — Autonomous AI Sprint Engine">
+  <meta property="og:description" content="An autonomous AI team that runs full Scrum sprints — planning, coding, testing, reviewing — while you sleep.">
+  <meta property="og:image" content="https://trsdn.github.io/aiscrum-pro/logos/aiscrum-pro-logo.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" href="logos/aiscrum-pro-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Base ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep: #08080d;
+      --bg-surface: #0e0e16;
+      --bg-elevated: #15151f;
+      --bg-card: #1a1a28;
+      --border: #2a2a3d;
+      --text-primary: #e8e6f0;
+      --text-secondary: #9896a8;
+      --text-muted: #6b6980;
+      --accent-indigo: #6366f1;
+      --accent-purple: #8b5cf6;
+      --accent-violet: #a78bfa;
+      --accent-emerald: #34d399;
+      --accent-rose: #fb7185;
+      --gradient-main: linear-gradient(135deg, #4f46e5, #7c3aed, #a855f7);
+      --gradient-subtle: linear-gradient(135deg, rgba(79,70,229,0.15), rgba(124,58,237,0.08));
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-heading: 'Syne', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise Texture Overlay ────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ── Typography ───────────────────────────────────── */
+    h1, h2, h3, h4 { font-family: var(--font-heading); line-height: 1.15; }
+    h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
+    h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); font-weight: 700; }
+
+    a {
+      color: var(--accent-violet);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    a:hover { color: var(--accent-emerald); }
+
+    /* ── Utility ──────────────────────────────────────── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 clamp(1.5rem, 4vw, 3rem);
+    }
+
+    .section {
+      padding: clamp(4rem, 8vw, 8rem) 0;
+      position: relative;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: var(--font-heading);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .badge--indigo {
+      background: rgba(99, 102, 241, 0.12);
+      color: var(--accent-violet);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    /* ── Reveal Animations ────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(32px);
+      transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+
+    /* ── Navigation ───────────────────────────────────── */
+    .nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 1rem 0;
+      transition: background 0.3s, backdrop-filter 0.3s, box-shadow 0.3s;
+    }
+    .nav.scrolled {
+      background: rgba(8, 8, 13, 0.85);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .nav__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav__logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .nav__logo img { height: 28px; }
+    .nav__logo span {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+    .nav__links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+    .nav__links a {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+    }
+    .nav__links a:hover { color: var(--text-primary); }
+
+    @media (max-width: 768px) {
+      .nav__links { display: none; }
+    }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero__glow {
+      position: absolute;
+      width: 800px;
+      height: 800px;
+      border-radius: 50%;
+      filter: blur(160px);
+      opacity: 0.2;
+      pointer-events: none;
+    }
+    .hero__glow--1 {
+      top: -200px;
+      right: -200px;
+      background: radial-gradient(circle, #4f46e5, transparent 70%);
+    }
+    .hero__glow--2 {
+      bottom: -300px;
+      left: -200px;
+      background: radial-gradient(circle, #7c3aed, transparent 70%);
+    }
+    .hero__glow--3 {
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, #a855f7, transparent 70%);
+      opacity: 0.06;
+    }
+
+    .hero__content {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .hero__logo {
+      width: clamp(220px, 40vw, 360px);
+      margin-bottom: 2rem;
+      filter: drop-shadow(0 0 60px rgba(99, 102, 241, 0.15));
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .hero__tagline {
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 5.5vw, 4rem);
+      line-height: 1.15;
+      color: var(--text-primary);
+      margin-bottom: 1.5rem;
+      font-weight: 400;
+    }
+    .hero__tagline em {
+      font-style: italic;
+      background: var(--gradient-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero__sub {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--text-secondary);
+      max-width: 640px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.8;
+    }
+
+    .hero__actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 10px;
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.3s var(--ease-out-expo);
+      cursor: pointer;
+      border: none;
+    }
+    .btn--primary {
+      background: var(--gradient-main);
+      color: white;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .btn--primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+      color: white;
+    }
+    .btn--secondary {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn--secondary:hover {
+      background: var(--bg-card);
+      border-color: rgba(99, 102, 241, 0.3);
+      color: var(--text-primary);
+      transform: translateY(-2px);
+    }
+
+    .hero__scroll {
+      position: absolute;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-family: var(--font-mono);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ── Intro / What Is This ─────────────────────────── */
+    .intro__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .intro__grid { grid-template-columns: 1fr; gap: 2rem; }
+    }
+
+    .intro__text h2 {
+      margin-bottom: 1.5rem;
+    }
+    .intro__text h2 span {
+      background: var(--gradient-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .intro__text p {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      margin-bottom: 1rem;
+    }
+    .intro__text p strong { color: var(--text-primary); }
+
+    .intro__diagram {
+      position: relative;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      overflow: hidden;
+    }
+    .intro__diagram::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient-subtle);
+      pointer-events: none;
+    }
+
+    .operating-model {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .model-box {
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+      min-width: 160px;
+    }
+    .model-box--human {
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+    .model-box--ai {
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+    .model-box__icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .model-box__title {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 0.25rem;
+    }
+    .model-box__sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .model-arrows {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+    .model-arrows span {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
+
+    /* ── Sprint Cycle ─────────────────────────────────── */
+    .cycle { background: var(--bg-surface); }
+    .cycle__header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .cycle__header h2 { margin-bottom: 0.75rem; }
+    .cycle__header p {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .cycle__steps {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 1rem;
+      position: relative;
+    }
+    @media (max-width: 900px) {
+      .cycle__steps {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+    }
+
+    .cycle__step {
+      position: relative;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem 1.25rem;
+      text-align: center;
+      transition: all 0.4s var(--ease-out-expo);
+    }
+    .cycle__step:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 32px rgba(99, 102, 241, 0.08);
+    }
+    .cycle__step-num {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-indigo);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.1em;
+    }
+    .cycle__step-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.75rem;
+      display: block;
+    }
+    .cycle__step h3 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .cycle__step p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .cycle__connector {
+      display: none;
+    }
+    @media (min-width: 901px) {
+      .cycle__connector {
+        display: block;
+        position: absolute;
+        top: 50%;
+        right: -0.75rem;
+        transform: translateY(-50%);
+        color: var(--accent-indigo);
+        font-size: 1.2rem;
+        z-index: 2;
+        opacity: 0.5;
+      }
+    }
+
+    /* ── Features ─────────────────────────────────────── */
+    .features__header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .features__header h2 { margin-bottom: 0.75rem; }
+    .features__header p {
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .features__grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+    }
+    @media (max-width: 900px) {
+      .features__grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 600px) {
+      .features__grid { grid-template-columns: 1fr; }
+    }
+
+    .feature-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.75rem;
+      transition: all 0.4s var(--ease-out-expo);
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--gradient-main);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover {
+      border-color: rgba(99, 102, 241, 0.2);
+      transform: translateY(-2px);
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-card__icon {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── Comparison Table ─────────────────────────────── */
+    .comparison { background: var(--bg-surface); }
+    .comparison__header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .comparison__header h2 { margin-bottom: 0.75rem; }
+
+    .comparison__table-wrap {
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+
+    .comparison__table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    .comparison__table th,
+    .comparison__table td {
+      padding: 1rem 1.5rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .comparison__table th {
+      font-family: var(--font-heading);
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+    }
+    .comparison__table th:nth-child(3) {
+      color: var(--accent-violet);
+    }
+    .comparison__table td:first-child {
+      font-weight: 600;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .comparison__table td:nth-child(2) {
+      color: var(--text-muted);
+    }
+    .comparison__table td:nth-child(3) {
+      color: var(--accent-emerald);
+    }
+    .comparison__table tr:last-child td { border-bottom: none; }
+    .comparison__table tr:hover td {
+      background: rgba(99, 102, 241, 0.03);
+    }
+
+    /* ── Screenshots ──────────────────────────────────── */
+    .screenshots__header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .screenshots__header h2 { margin-bottom: 0.75rem; }
+    .screenshots__header p {
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .screenshots__grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    @media (max-width: 700px) {
+      .screenshots__grid { grid-template-columns: 1fr; }
+    }
+
+    .screenshot-card {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-surface);
+      transition: all 0.4s var(--ease-out-expo);
+    }
+    .screenshot-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      transform: scale(1.015);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.4);
+    }
+    .screenshot-card--featured {
+      grid-column: span 2;
+    }
+    @media (max-width: 700px) {
+      .screenshot-card--featured { grid-column: span 1; }
+    }
+    .screenshot-card img {
+      width: 100%;
+      display: block;
+    }
+    .screenshot-card__label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(transparent, rgba(8,8,13,0.95));
+      font-family: var(--font-heading);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    /* ── Guardrails ───────────────────────────────────── */
+    .guardrails { background: var(--bg-surface); }
+    .guardrails__header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .guardrails__header h2 { margin-bottom: 0.75rem; }
+    .guardrails__header p {
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .guardrails__grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    @media (max-width: 700px) {
+      .guardrails__grid { grid-template-columns: 1fr; }
+    }
+
+    .guardrail-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.4s var(--ease-out-expo);
+    }
+    .guardrail-card:hover {
+      border-color: rgba(99, 102, 241, 0.2);
+    }
+    .guardrail-card__icon {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+    .guardrail-card h3 {
+      margin-bottom: 0.5rem;
+    }
+    .guardrail-card p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* ── Framework ─────────────────────────────────────── */
+    .framework__inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .framework__inner { grid-template-columns: 1fr; gap: 2rem; }
+    }
+
+    .framework__text h2 {
+      margin-bottom: 1rem;
+    }
+    .framework__text h2 span {
+      background: var(--gradient-main);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .framework__text p {
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+      font-size: 1.05rem;
+    }
+
+    .manifesto {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .manifesto::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--gradient-main);
+    }
+    .manifesto__title {
+      font-family: var(--font-heading);
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent-violet);
+      margin-bottom: 1.25rem;
+    }
+    .manifesto__values {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .manifesto__values li {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      padding-left: 1rem;
+      position: relative;
+    }
+    .manifesto__values li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--accent-indigo);
+    }
+    .manifesto__values strong {
+      color: var(--text-primary);
+    }
+
+    /* ── Quick Start ──────────────────────────────────── */
+    .quickstart { background: var(--bg-surface); }
+    .quickstart__header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .quickstart__header h2 { margin-bottom: 0.75rem; }
+
+    .quickstart__terminal {
+      max-width: 700px;
+      margin: 0 auto;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .terminal__bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+    }
+    .terminal__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .terminal__dot--red { background: #ff5f57; }
+    .terminal__dot--yellow { background: #febc2e; }
+    .terminal__dot--green { background: #28c840; }
+    .terminal__title {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-left: 0.5rem;
+    }
+
+    .terminal__body {
+      padding: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      line-height: 2;
+      color: var(--text-secondary);
+    }
+    .terminal__body .prompt {
+      color: var(--accent-emerald);
+      user-select: none;
+    }
+    .terminal__body .cmd { color: var(--text-primary); }
+    .terminal__body .comment { color: var(--text-muted); }
+    .terminal__body .output { color: var(--accent-violet); opacity: 0.8; }
+
+    /* ── CTA ──────────────────────────────────────────── */
+    .cta {
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta__glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(160px);
+      opacity: 0.1;
+      pointer-events: none;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, #6366f1, transparent 70%);
+    }
+    .cta h2 {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 1rem;
+    }
+    .cta p {
+      position: relative;
+      z-index: 1;
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .cta__actions {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── Footer ───────────────────────────────────────── */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 3rem 0;
+    }
+    .footer__inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .footer__left {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .footer__left img { height: 22px; opacity: 0.6; }
+    .footer__left span {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .footer__links {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+    }
+    .footer__links a {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .footer__links a:hover { color: var(--text-secondary); }
+
+    /* ── Divider ──────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <div class="container nav__inner">
+      <a href="#" class="nav__logo">
+        <img src="logos/aiscrum-pro-icon.png" alt="">
+        <span>AiScrum Pro</span>
+      </a>
+      <ul class="nav__links">
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#dashboard">Dashboard</a></li>
+        <li><a href="#guardrails">Guardrails</a></li>
+        <li><a href="https://trsdn.github.io/ai-scrum/" target="_blank">Framework ↗</a></li>
+        <li><a href="https://github.com/trsdn/aiscrum-pro" target="_blank">GitHub ↗</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero__glow hero__glow--1"></div>
+    <div class="hero__glow hero__glow--2"></div>
+    <div class="hero__glow hero__glow--3"></div>
+    <div class="container hero__content">
+      <img src="logos/aiscrum-pro-logo.png" alt="AiScrum Pro" class="hero__logo reveal">
+      <h1 class="hero__tagline reveal reveal-delay-1">
+        An autonomous AI team that runs<br>
+        full Scrum sprints <em>while you sleep</em>
+      </h1>
+      <p class="hero__sub reveal reveal-delay-2">
+        AiScrum Pro orchestrates GitHub Copilot CLI to execute complete sprint cycles — refinement, planning, parallel execution, code review, and retrospectives — with real quality gates, drift control, and escalation boundaries.
+      </p>
+      <div class="hero__actions reveal reveal-delay-3">
+        <a href="https://github.com/trsdn/aiscrum-pro" class="btn btn--primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          View on GitHub
+        </a>
+        <a href="https://trsdn.github.io/ai-scrum/" class="btn btn--secondary" target="_blank">
+          Read the Framework →
+        </a>
+      </div>
+    </div>
+    <div class="hero__scroll">↓ scroll</div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Intro -->
+  <section class="section" id="intro">
+    <div class="container intro__grid">
+      <div class="intro__text reveal">
+        <span class="badge badge--indigo">Built on AI-Scrum</span>
+        <h2 style="margin-top: 1rem;">The engine behind the <span>framework</span></h2>
+        <p>
+          The <a href="https://trsdn.github.io/ai-scrum/" target="_blank">AI-Scrum Framework</a> defines
+          <strong>how humans and AI collaborate</strong> — with a manifesto, ceremonies, boundaries, and escalation rules.
+        </p>
+        <p>
+          AiScrum Pro is the <strong>runtime that executes it</strong>. It connects to GitHub Copilot via the
+          Agent Client Protocol and runs sprints autonomously — creating branches, writing code, running tests,
+          opening PRs, tracking velocity, and improving its own process with each retro.
+        </p>
+        <p>
+          <strong>You are the Stakeholder.</strong> You set direction, drop ideas, approve deliverables.
+          The AI team handles everything else.
+        </p>
+      </div>
+      <div class="intro__diagram reveal reveal-delay-2">
+        <div class="operating-model">
+          <div class="model-box model-box--human">
+            <div class="model-box__icon">👤</div>
+            <div class="model-box__title">Stakeholder</div>
+            <div class="model-box__sub">Sets direction</div>
+            <div class="model-box__sub">Reviews work</div>
+            <div class="model-box__sub">Has veto</div>
+          </div>
+          <div class="model-arrows">
+            <span>direction →</span>
+            <span>← deliverables</span>
+            <span>← escalations</span>
+            <span>decisions →</span>
+          </div>
+          <div class="model-box model-box--ai">
+            <div class="model-box__icon">🤖</div>
+            <div class="model-box__title">AI Team</div>
+            <div class="model-box__sub">Lead Agent</div>
+            <div class="model-box__sub">Worker Agents</div>
+            <div class="model-box__sub">Challenger Agent</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Sprint Cycle -->
+  <section class="section cycle" id="how-it-works">
+    <div class="container">
+      <div class="cycle__header reveal">
+        <span class="badge badge--indigo">Sprint Lifecycle</span>
+        <h2 style="margin-top: 1rem;">Five ceremonies, fully automated</h2>
+        <p>Start a sprint and come back to finished, tested, reviewed code.</p>
+      </div>
+      <div class="cycle__steps">
+        <div class="cycle__step reveal reveal-delay-1">
+          <div class="cycle__step-num">01</div>
+          <span class="cycle__step-icon">🔍</span>
+          <h3>Refine</h3>
+          <p>Ideas decomposed into concrete issues with acceptance criteria</p>
+          <span class="cycle__connector">→</span>
+        </div>
+        <div class="cycle__step reveal reveal-delay-2">
+          <div class="cycle__step-num">02</div>
+          <span class="cycle__step-icon">📋</span>
+          <h3>Plan</h3>
+          <p>ICE scoring, scope selection, milestone assignment, dependency graph</p>
+          <span class="cycle__connector">→</span>
+        </div>
+        <div class="cycle__step reveal reveal-delay-3">
+          <div class="cycle__step-num">03</div>
+          <span class="cycle__step-icon">⚡</span>
+          <h3>Execute</h3>
+          <p>Parallel workers in isolated git worktrees, each quality-gated</p>
+          <span class="cycle__connector">→</span>
+        </div>
+        <div class="cycle__step reveal reveal-delay-4">
+          <div class="cycle__step-num">04</div>
+          <span class="cycle__step-icon">📊</span>
+          <h3>Review</h3>
+          <p>Sprint metrics, velocity tracking, deliverable summary for stakeholder</p>
+          <span class="cycle__connector">→</span>
+        </div>
+        <div class="cycle__step reveal reveal-delay-5">
+          <div class="cycle__step-num">05</div>
+          <span class="cycle__step-icon">🔄</span>
+          <h3>Retro</h3>
+          <p>Process improvements applied to agent prompts and workflows</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="features__header reveal">
+        <span class="badge badge--indigo">Capabilities</span>
+        <h2 style="margin-top: 1rem;">Not a chatbot wrapper</h2>
+        <p>A structured sprint engine with real project management, quality enforcement, and process improvement.</p>
+      </div>
+      <div class="features__grid">
+        <div class="feature-card reveal reveal-delay-1">
+          <span class="feature-card__icon">🔀</span>
+          <h3>Parallel Execution</h3>
+          <p>Multiple issues worked simultaneously via isolated git worktrees with automatic merge pipelines.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-2">
+          <span class="feature-card__icon">🛡️</span>
+          <h3>7 Quality Gates</h3>
+          <p>Tests exist, tests pass, lint clean, types clean, build passes, scope check, diff size — enforced on every issue.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-3">
+          <span class="feature-card__icon">📈</span>
+          <h3>Velocity Tracking</h3>
+          <p>Sprint metrics, issue completion rates, cycle time analysis. Every sprint gets smarter.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-1">
+          <span class="feature-card__icon">🌐</span>
+          <h3>Web Dashboard</h3>
+          <p>Real-time sprint control center with 9 views, live agent chat, and historical sprint navigation.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-2">
+          <span class="feature-card__icon">💬</span>
+          <h3>Agent Chat</h3>
+          <p>Open ad-hoc ACP sessions with pre-configured roles — researcher, planner, reviewer, challenger.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-3">
+          <span class="feature-card__icon">🔔</span>
+          <h3>Push Notifications</h3>
+          <p>ntfy.sh integration for real-time alerts when sprints complete, issues block, or decisions are needed.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-1">
+          <span class="feature-card__icon">🧪</span>
+          <h3>Test Isolation</h3>
+          <p>Run test sprints with separate prefix, milestones, and branches — fully isolated from production.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-2">
+          <span class="feature-card__icon">📝</span>
+          <h3>Sprint Documentation</h3>
+          <p>Automatic sprint logs, huddle notes, velocity reports, and ADR maintenance.</p>
+        </div>
+        <div class="feature-card reveal reveal-delay-3">
+          <span class="feature-card__icon">⚙️</span>
+          <h3>Config-Driven</h3>
+          <p>One Zod-validated YAML file controls the entire engine — models, gates, parallelism, merge strategy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Comparison -->
+  <section class="section comparison" id="comparison">
+    <div class="container">
+      <div class="comparison__header reveal">
+        <span class="badge badge--indigo">Why AiScrum Pro</span>
+        <h2 style="margin-top: 1rem;">Structure beats ad-hoc</h2>
+      </div>
+      <div class="comparison__table-wrap reveal reveal-delay-1">
+        <table class="comparison__table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Ad-hoc AI Coding</th>
+              <th>AiScrum Pro ✦</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Planning</td><td>None — chat until it works</td><td>ICE-scored sprint backlog, dependency graphs</td></tr>
+            <tr><td>Execution</td><td>One issue, manually driven</td><td>Parallel workers via git worktrees</td></tr>
+            <tr><td>Quality</td><td>"It should work"</td><td>7 enforced gates per issue</td></tr>
+            <tr><td>Memory</td><td>Lost every session</td><td>Sprint logs, velocity, issue comments, ADRs</td></tr>
+            <tr><td>Scope control</td><td>Feature chasing</td><td>Drift detection, sprint lock, escalation</td></tr>
+            <tr><td>Improvement</td><td>Static prompts</td><td>Retro-driven process evolution</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Screenshots -->
+  <section class="section" id="dashboard">
+    <div class="container">
+      <div class="screenshots__header reveal">
+        <span class="badge badge--indigo">Dashboard</span>
+        <h2 style="margin-top: 1rem;">Your sprint control center</h2>
+        <p>Monitor progress, chat with agents, navigate sprint history — all in one place.</p>
+      </div>
+      <div class="screenshots__grid">
+        <div class="screenshot-card screenshot-card--featured reveal">
+          <img src="screenshots/sprint-board.png" alt="Sprint Board" loading="lazy">
+          <div class="screenshot-card__label">Sprint Board</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-1">
+          <img src="screenshots/backlog.png" alt="Product Backlog" loading="lazy">
+          <div class="screenshot-card__label">Product Backlog</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-2">
+          <img src="screenshots/report.png" alt="Sprint Report" loading="lazy">
+          <div class="screenshot-card__label">Sprint Report</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-1">
+          <img src="screenshots/blocked.png" alt="Blocked Issues" loading="lazy">
+          <div class="screenshot-card__label">Blocked Issues</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-2">
+          <img src="screenshots/decisions.png" alt="Decisions Pending" loading="lazy">
+          <div class="screenshot-card__label">Decisions Pending</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-1">
+          <img src="screenshots/ideas.png" alt="Ideas Inbox" loading="lazy">
+          <div class="screenshot-card__label">Ideas Inbox</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-2">
+          <img src="screenshots/settings.png" alt="Settings" loading="lazy">
+          <div class="screenshot-card__label">Settings</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-1">
+          <img src="screenshots/logs.png" alt="Logs" loading="lazy">
+          <div class="screenshot-card__label">Logs</div>
+        </div>
+        <div class="screenshot-card reveal reveal-delay-2">
+          <img src="screenshots/sprint-backlog.png" alt="Sprint Backlog" loading="lazy">
+          <div class="screenshot-card__label">Sprint Backlog</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Guardrails -->
+  <section class="section guardrails" id="guardrails">
+    <div class="container">
+      <div class="guardrails__header reveal">
+        <span class="badge badge--indigo">Controls</span>
+        <h2 style="margin-top: 1rem;">Autonomy with accountability</h2>
+        <p>Autonomous execution needs boundaries. Every one of these is built in and enforced.</p>
+      </div>
+      <div class="guardrails__grid">
+        <div class="guardrail-card reveal reveal-delay-1">
+          <span class="guardrail-card__icon">🔒</span>
+          <h3>Drift Control</h3>
+          <p>Sprint scope is locked after planning. Discovered work goes to backlog, never into the current sprint. If &gt;2 unplanned issues appear, the engine escalates immediately.</p>
+        </div>
+        <div class="guardrail-card reveal reveal-delay-2">
+          <span class="guardrail-card__icon">⚖️</span>
+          <h3>Escalation Model</h3>
+          <p>The AI decides <em>how</em>, never <em>what</em>. Strategic direction changes, ADR modifications, scope changes, and dependency additions always require stakeholder approval.</p>
+        </div>
+        <div class="guardrail-card reveal reveal-delay-3">
+          <span class="guardrail-card__icon">🏛️</span>
+          <h3>Challenger Agent</h3>
+          <p>An adversarial reviewer that challenges assumptions, finds blind spots, and prevents groupthink before sprint review. The team's built-in devil's advocate.</p>
+        </div>
+        <div class="guardrail-card reveal reveal-delay-4">
+          <span class="guardrail-card__icon">📋</span>
+          <h3>Definition of Done</h3>
+          <p>Acceptance criteria before coding. Tests that verify behavior. PR reviewed. CI green. Issue closed with summary. No shortcuts, no exceptions.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Framework -->
+  <section class="section" id="framework">
+    <div class="container framework__inner">
+      <div class="framework__text reveal">
+        <span class="badge badge--indigo">Foundation</span>
+        <h2 style="margin-top: 1rem;">Built on the <span>AI-Scrum Framework</span></h2>
+        <p>
+          AiScrum Pro implements the <a href="https://trsdn.github.io/ai-scrum/" target="_blank">AI-Scrum Framework</a> —
+          an open-source methodology for human-AI software development built on real Scrum principles.
+        </p>
+        <p>
+          The framework defines the roles, ceremonies, boundaries, and values.
+          AiScrum Pro is the TypeScript engine that executes them via the Agent Client Protocol.
+        </p>
+        <a href="https://trsdn.github.io/ai-scrum/" class="btn btn--secondary" target="_blank" style="margin-top: 0.5rem;">
+          Read the full framework →
+        </a>
+      </div>
+      <div class="manifesto reveal reveal-delay-2">
+        <div class="manifesto__title">AI-Scrum Manifesto</div>
+        <ul class="manifesto__values">
+          <li><strong>Autonomous execution</strong> over constant approval</li>
+          <li><strong>Verified evidence</strong> over claimed completion</li>
+          <li><strong>Sprint discipline</strong> over feature chasing</li>
+          <li><strong>Continuous process improvement</strong> over static workflows</li>
+        </ul>
+        <p style="margin-top: 1.25rem; font-size: 0.85rem; color: var(--text-muted); font-style: italic;">
+          "While there is value in the items on the right, we value the items on the left more."
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Quick Start -->
+  <section class="section quickstart">
+    <div class="container">
+      <div class="quickstart__header reveal">
+        <span class="badge badge--indigo">Get Started</span>
+        <h2 style="margin-top: 1rem;">Up and running in 60 seconds</h2>
+      </div>
+      <div class="quickstart__terminal reveal reveal-delay-1">
+        <div class="terminal__bar">
+          <span class="terminal__dot terminal__dot--red"></span>
+          <span class="terminal__dot terminal__dot--yellow"></span>
+          <span class="terminal__dot terminal__dot--green"></span>
+          <span class="terminal__title">~/my-project</span>
+        </div>
+        <div class="terminal__body">
+          <div><span class="comment"># Clone and install</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">git clone https://github.com/trsdn/aiscrum-pro && cd aiscrum-pro</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">npm install</span></div>
+          <div style="height: 0.5rem;"></div>
+          <div><span class="comment"># Launch the dashboard</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">npx tsx src/index.ts web</span></div>
+          <div><span class="output">🏃 AiScrum Pro dashboard → http://localhost:9100</span></div>
+          <div style="height: 0.5rem;"></div>
+          <div><span class="comment"># Or run a full sprint cycle</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">npx tsx src/index.ts full-cycle --sprint 1</span></div>
+          <div><span class="output">🔍 Refining ideas... → 📋 Planning sprint... → ⚡ Executing...</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- CTA -->
+  <section class="section cta">
+    <div class="container">
+      <div class="cta__glow"></div>
+      <h2 class="reveal">Let the AI team handle the sprint</h2>
+      <p class="reveal reveal-delay-1">Open source. TypeScript. Config-driven. Your code, your rules, your repo.</p>
+      <div class="cta__actions reveal reveal-delay-2">
+        <a href="https://github.com/trsdn/aiscrum-pro" class="btn btn--primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+          Star on GitHub
+        </a>
+        <a href="https://trsdn.github.io/ai-scrum/" class="btn btn--secondary" target="_blank">
+          AI-Scrum Framework →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__left">
+        <img src="logos/aiscrum-pro-icon.png" alt="">
+        <span>AiScrum Pro — MIT License</span>
+      </div>
+      <ul class="footer__links">
+        <li><a href="https://github.com/trsdn/aiscrum-pro" target="_blank">GitHub</a></li>
+        <li><a href="https://trsdn.github.io/ai-scrum/" target="_blank">AI-Scrum Framework</a></li>
+        <li><a href="https://github.com/trsdn/aiscrum-pro/blob/main/CONTRIBUTING.md" target="_blank">Contributing</a></li>
+        <li><a href="https://github.com/trsdn/aiscrum-pro/blob/main/CHANGELOG.md" target="_blank">Changelog</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Nav scroll state
+    const nav = document.getElementById('nav');
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          nav.classList.toggle('scrolled', window.scrollY > 40);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    });
+  </script>
+</body>
+</html>
