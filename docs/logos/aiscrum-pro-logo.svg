@@ -22,5 +22,5 @@
   </g>
 
   <!-- Wordmark -->
-  <text x="92" y="62" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif" font-size="38" font-weight="700" fill="#1E1B4B" letter-spacing="-1">Ai<tspan fill="#4F46E5">Scrum</tspan><tspan dx="4" font-weight="300" fill="#7C3AED">Pro</tspan></text>
+  <text x="92" y="62" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif" font-size="38" font-weight="700" fill="#E0E7FF" letter-spacing="-1">Ai<tspan fill="#4F46E5">Scrum</tspan><tspan dx="4" font-weight="300" fill="#7C3AED">Pro</tspan></text>
 </svg>
