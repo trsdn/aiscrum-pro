@@ -1469,7 +1469,7 @@ export class DashboardWebServer {
           const mapped = ghIssues.map((i) => ({
             number: i.number,
             title: i.title,
-            status: (i.state === "closed" ? "done" : "planned") as "planned" | "done",
+            status: (i.state.toLowerCase() === "closed" ? "done" : "planned") as "planned" | "done",
           }));
           this.issueCache?.set(sprintNumber, mapped);
           res.writeHead(200);
@@ -1498,7 +1498,7 @@ export class DashboardWebServer {
       const mapped: IssueEntry[] = ghIssues.map((i) => ({
         number: i.number,
         title: i.title,
-        status: (i.state === "closed" ? "done" : "planned") as "planned" | "done",
+        status: (i.state.toLowerCase() === "closed" ? "done" : "planned") as "planned" | "done",
       }));
       this.issueCache?.set(sprintNumber, mapped);
       return mapped;

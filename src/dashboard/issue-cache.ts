@@ -85,11 +85,11 @@ export class SprintIssueCache {
     }
   }
 
-  /** Refresh all cached sprints. */
+  /** Refresh all cached sprints from GitHub (ignores saved state). */
   private async refreshAll(): Promise<void> {
     const promises: Promise<void>[] = [];
     for (let i = 1; i <= this.options.maxSprint; i++) {
-      promises.push(this.loadSprint(i));
+      promises.push(this.refreshFromGitHub(i));
     }
     await Promise.allSettled(promises);
   }
@@ -101,7 +101,7 @@ export class SprintIssueCache {
     this.loading.add(sprintNumber);
 
     try {
-      // Try saved state first (instant, no API call)
+      // Try saved state first (instant, no API call) — only for initial preload
       if (this.options.loadState) {
         const state = this.options.loadState(sprintNumber);
         if (state?.result?.results && state.result.results.length > 0) {
@@ -128,27 +128,7 @@ export class SprintIssueCache {
         }
       }
 
-      // Fetch from GitHub milestone
-      const ghIssues = await listIssues({
-        milestone: `${this.options.sprintPrefix ?? "Sprint"} ${sprintNumber}`,
-        state: "all",
-      });
-
-      if (ghIssues.length > 0) {
-        this.cache.set(
-          sprintNumber,
-          ghIssues.map((i: GitHubIssue) => ({
-            number: i.number,
-            title: i.title,
-            status: (i.state.toLowerCase() === "closed"
-              ? "done"
-              : "planned") as CachedIssue["status"],
-          })),
-        );
-      } else {
-        // No issues found — cache empty array to avoid re-fetching
-        this.cache.set(sprintNumber, []);
-      }
+      await this.fetchFromGitHub(sprintNumber);
     } catch (err: unknown) {
       log.debug({ err, sprintNumber }, "Failed to load issues for sprint");
       // Don't overwrite existing cache on failure
@@ -157,6 +137,42 @@ export class SprintIssueCache {
       }
     } finally {
       this.loading.delete(sprintNumber);
+    }
+  }
+
+  /** Refresh a single sprint from GitHub (for background refresh — skips saved state). */
+  private async refreshFromGitHub(sprintNumber: number): Promise<void> {
+    if (this.loading.has(sprintNumber)) return;
+    this.loading.add(sprintNumber);
+    try {
+      await this.fetchFromGitHub(sprintNumber);
+    } catch (err: unknown) {
+      log.debug({ err, sprintNumber }, "Failed to refresh issues for sprint");
+    } finally {
+      this.loading.delete(sprintNumber);
+    }
+  }
+
+  /** Fetch issues from GitHub milestone and update cache. */
+  private async fetchFromGitHub(sprintNumber: number): Promise<void> {
+    const ghIssues = await listIssues({
+      milestone: `${this.options.sprintPrefix ?? "Sprint"} ${sprintNumber}`,
+      state: "all",
+    });
+
+    if (ghIssues.length > 0) {
+      this.cache.set(
+        sprintNumber,
+        ghIssues.map((i: GitHubIssue) => ({
+          number: i.number,
+          title: i.title,
+          status: (i.state.toLowerCase() === "closed"
+            ? "done"
+            : "planned") as CachedIssue["status"],
+        })),
+      );
+    } else {
+      this.cache.set(sprintNumber, []);
     }
   }
 }
