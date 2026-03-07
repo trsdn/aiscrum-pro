@@ -1941,17 +1941,21 @@ export class DashboardWebServer {
 
     // Include sprints discovered from GitHub milestones
     for (const ms of this.knownMilestones) {
+      const milestoneClosed = ms.state.toLowerCase() === "closed";
       if (!sprintMap.has(ms.sprintNumber)) {
         sprintMap.set(ms.sprintNumber, {
           milestoneNumber: ms.milestoneNumber,
-          phase: ms.state.toLowerCase() === "closed" ? "complete" : "init",
+          phase: milestoneClosed ? "complete" : "init",
           isActive: ms.sprintNumber === activeNum,
         });
       } else {
-        // Enrich existing entry with milestoneNumber
         const existing = sprintMap.get(ms.sprintNumber)!;
         if (!existing.milestoneNumber) {
           existing.milestoneNumber = ms.milestoneNumber;
+        }
+        // Milestone-closed is authoritative — override phase
+        if (milestoneClosed && existing.phase !== "complete") {
+          existing.phase = "complete";
         }
       }
     }
