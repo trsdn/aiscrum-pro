@@ -140,7 +140,9 @@ export class SprintIssueCache {
           ghIssues.map((i: GitHubIssue) => ({
             number: i.number,
             title: i.title,
-            status: (i.state === "closed" ? "done" : "planned") as CachedIssue["status"],
+            status: (i.state.toLowerCase() === "closed"
+              ? "done"
+              : "planned") as CachedIssue["status"],
           })),
         );
       } else {
