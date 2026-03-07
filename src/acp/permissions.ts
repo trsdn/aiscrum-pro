@@ -70,14 +70,13 @@ export function createPermissionHandler(
           );
           return { outcome: { outcome: "selected", optionId: allowOption.optionId } };
         }
-        if (!matched) {
-          if (rejectOption) {
-            log.warn({ tool: toolName, session: sessionId }, "permission denied by session policy");
-            return { outcome: { outcome: "selected", optionId: rejectOption.optionId } };
-          }
-          log.warn({ tool: toolName, session: sessionId }, "permission cancelled — no allow match");
-          return { outcome: { outcome: "cancelled" } };
+        // Tool not allowed by session policy OR no allow option available — deny
+        if (rejectOption) {
+          log.warn({ tool: toolName, session: sessionId }, "permission denied by session policy");
+          return { outcome: { outcome: "selected", optionId: rejectOption.optionId } };
         }
+        log.warn({ tool: toolName, session: sessionId }, "permission cancelled by session policy");
+        return { outcome: { outcome: "cancelled" } };
       }
     }
 

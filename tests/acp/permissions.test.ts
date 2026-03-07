@@ -301,4 +301,20 @@ describe("createPermissionHandler with session registry", () => {
     );
     expect(result.outcome).toEqual({ outcome: "cancelled" });
   });
+
+  it("denies when tool matches session policy but no allow option provided", async () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("sess-1", { allowPatterns: ["edit"] });
+    const handler = createPermissionHandler(
+      { autoApprove: true, allowPatterns: [] },
+      silentLog,
+      registry,
+    );
+
+    // Tool "edit" matches policy, but only reject option available — must NOT fall through to global
+    const result = await handler(
+      makeRequest("edit", [{ kind: "reject_once", optionId: "r1" }], "sess-1"),
+    );
+    expect(result.outcome).toEqual({ outcome: "selected", optionId: "r1" });
+  });
 });
