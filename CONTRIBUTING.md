@@ -11,8 +11,8 @@ Thank you for your interest in contributing! This guide covers setup, workflow, 
 
 ```bash
 # Clone and install
-git clone <repo-url>
-cd ai-scrum-autonomous-v2
+git clone https://github.com/trsdn/aiscrum-pro.git
+cd aiscrum-pro
 npm install
 ```
 

@@ -16,8 +16,8 @@
 
 ```bash
 # Clone and install
-git clone https://github.com/<owner>/ai-scrum-autonomous-v2.git
-cd ai-scrum-autonomous-v2
+git clone https://github.com/trsdn/aiscrum-pro.git
+cd aiscrum-pro
 npm ci
 
 # Build

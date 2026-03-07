@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0] — 2026-03-07
+
+### Added
+- GitHub Pages landing site at [trsdn.github.io/aiscrum-pro](https://trsdn.github.io/aiscrum-pro/) (PR #462)
+- Example `.aiscrum/` configurations for TypeScript, Python, React, and Go (PR #464)
+- 126 tests validating example configs against Zod schema and role structure (PR #465)
+- SVG logo with horizontal, icon-only, and dark background variants (PR #459)
+
+### Changed
+- **Rebrand**: Renamed from "AI Scrum Sprint Runner" to "AiScrum Pro" across 40+ files (PR #458)
+- Repo renamed: `ai-scrum-autonomous-v2` → `aiscrum-pro`
+- README rewritten with compelling narrative, AI-Scrum framework reference, all 9 dashboard screenshots (PR #461)
+- Logo PNGs regenerated with transparent backgrounds (PR #463)
+- Fixed PR template and bug report template (pytest/ruff/mypy → npm/eslint/tsc)
+
+### Removed
+- Tracked junk files: `.mdviewerplus-preview.html`, `.copilot/session-state/` (PR #460)
+
 ## [0.3.0] — 2026-02-28
 
 ### Added
@@ -18,7 +36,7 @@
 - Acceptance criteria validation before execution (PR #171)
 - Scope-drift quality gate check per issue (PR #173)
 - Challenger review wired into execution flow (PR #173)
-- MUST escalation pauses sprint runner (PR #173)
+- MUST escalation pauses sprint engine (PR #173)
 - Quality gate config-driven from YAML (PR #173)
 - ACP circuit breaker: 3 failures → 60s cooldown (PR #168)
 - Zod response schemas for ACP responses (PR #168)

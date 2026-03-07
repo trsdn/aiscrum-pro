@@ -32,7 +32,7 @@ The system is organized into focused modules under `src/`:
 ### Core Flow
 
 ```
-Config (YAML + Zod) → Sprint Runner → Ceremonies Pipeline → ACP Sessions → Copilot CLI
+Config (YAML + Zod) → AiScrum Pro → Ceremonies Pipeline → ACP Sessions → Copilot CLI
                                           ↓
                               Enforcement (quality gates, drift control)
                                           ↓
@@ -51,7 +51,7 @@ Config (YAML + Zod) → Sprint Runner → Ceremonies Pipeline → ACP Sessions �
 ### Install
 
 ```bash
-git clone <repo-url> && cd ai-scrum-autonomous-v2
+git clone https://github.com/trsdn/aiscrum-pro.git && cd aiscrum-pro
 npm install
 npm run build
 ```
@@ -116,7 +116,7 @@ src/                   TypeScript source code
 ├── documentation/     Sprint logs and velocity tracking
 ├── dashboard/         Web dashboard (HTTP + WebSocket)
 ├── config.ts          YAML config loader with Zod validation
-├── runner.ts          Main sprint runner orchestrator
+├── runner.ts          Main sprint engine orchestrator
 ├── logger.ts          Structured logging (pino)
 ├── metrics.ts         Sprint metrics collection
 ├── types.ts           Shared type definitions
