@@ -141,7 +141,12 @@ aiscrum status                          # Active worker status
 
 ## Configuration
 
-Everything is config-driven. One YAML file controls the entire sprint engine.
+Everything is config-driven. One YAML file controls the entire sprint engine. Ready-to-use examples for **[TypeScript](examples/typescript/)**, **[Python](examples/python/)**, **[React](examples/react/)**, and **[Go](examples/go/)** — just copy and go:
+
+```bash
+cp -r examples/python/.aiscrum .aiscrum    # Pick your stack
+$EDITOR .aiscrum/config.yaml               # Set project name
+```
 
 ```yaml
 # .aiscrum/config.yaml — Zod-validated at startup
@@ -257,6 +262,7 @@ Git hooks are installed automatically on `npm install`:
 | [Process Constitution](docs/constitution/PROCESS.md) | Full development process — ceremonies, DoD, ICE scoring, labels |
 | [Philosophy](docs/constitution/PHILOSOPHY.md) | Values and principles |
 | [ADRs](docs/architecture/ADR.md) | Architectural Decision Records |
+| [Examples](examples/) | Ready-to-copy `.aiscrum/` configs for TypeScript, Python, React, Go |
 | [Changelog](CHANGELOG.md) | Version history |
 
 ## License
