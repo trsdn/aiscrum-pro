@@ -4,7 +4,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { McpServer } from "@agentclientprotocol/sdk";
-import type { SprintConfig, McpServerEntry, PhaseConfig } from "../types.js";
+import type { SprintConfig, McpServerEntry, PhaseConfig, ResolvedToolPolicy } from "../types.js";
+import { resolveToolPolicy } from "../types/config.js";
 import type { AcpClient } from "./client.js";
 import { logger } from "../logger.js";
 
@@ -26,6 +27,7 @@ export interface ResolvedSessionConfig {
   instructions: string;
   model?: string;
   thoughtLevel?: string;
+  toolPolicy?: ResolvedToolPolicy;
 }
 
 /** Convert our config entry to the ACP SDK McpServer type. */
@@ -101,11 +103,16 @@ export async function resolveSessionConfig(
   const model = phaseConfig?.model;
   const thoughtLevel = phaseConfig?.thought_level;
 
-  return { mcpServers, instructions, model, thoughtLevel };
+  // Tool policy from phase config
+  const toolPolicy = phaseConfig?.tool_policy
+    ? resolveToolPolicy(phaseConfig.tool_policy)
+    : undefined;
+
+  return { mcpServers, instructions, model, thoughtLevel, toolPolicy };
 }
 
 /**
- * Apply model and thought_level settings to an ACP session.
+ * Apply model, thought_level, and tool_policy settings to an ACP session.
  * Call after createSession to configure the session before sending prompts.
  */
 export async function applySessionSettings(
@@ -118,5 +125,8 @@ export async function applySessionSettings(
   }
   if (config.thoughtLevel) {
     await client.setConfigOption(sessionId, "thought_level", config.thoughtLevel);
+  }
+  if (config.toolPolicy) {
+    client.permissionRegistry.register(sessionId, config.toolPolicy);
   }
 }

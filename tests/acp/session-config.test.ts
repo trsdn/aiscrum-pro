@@ -251,4 +251,56 @@ describe("resolveSessionConfig", () => {
     expect(result.mcpServers[0].name).toBe("g");
     expect(result.model).toBeUndefined();
   });
+
+  it("resolves tool_policy preset to patterns", async () => {
+    const config = makeConfig({
+      phases: {
+        reviewer: {
+          model: "claude-opus-4.6",
+          tool_policy: "verifier",
+          mcp_servers: [],
+          instructions: [],
+        },
+      },
+    });
+
+    const result = await resolveSessionConfig(config, "reviewer");
+    expect(result.toolPolicy).toBeDefined();
+    expect(result.toolPolicy!.allowPatterns).toContain("view");
+    expect(result.toolPolicy!.allowPatterns).toContain("bash");
+    expect(result.toolPolicy!.allowPatterns).not.toContain("edit");
+  });
+
+  it("resolves custom capabilities tool_policy", async () => {
+    const config = makeConfig({
+      phases: {
+        retro: {
+          tool_policy: { capabilities: ["codebase_read", "file_edit"] },
+          mcp_servers: [],
+          instructions: [],
+        },
+      },
+    });
+
+    const result = await resolveSessionConfig(config, "retro" as CeremonyPhase);
+    expect(result.toolPolicy).toBeDefined();
+    expect(result.toolPolicy!.allowPatterns).toContain("view");
+    expect(result.toolPolicy!.allowPatterns).toContain("edit");
+    expect(result.toolPolicy!.allowPatterns).not.toContain("bash");
+  });
+
+  it("returns undefined toolPolicy when not configured", async () => {
+    const config = makeConfig({
+      phases: {
+        worker: {
+          model: "gpt-5.3",
+          mcp_servers: [],
+          instructions: [],
+        },
+      },
+    });
+
+    const result = await resolveSessionConfig(config, "worker");
+    expect(result.toolPolicy).toBeUndefined();
+  });
 });

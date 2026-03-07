@@ -26,9 +26,80 @@ export type McpServerEntry = McpServerStdio | McpServerHttp | McpServerSse;
 
 // --- Phase Configuration ---
 
+/** Tool capability that can be granted to a phase. */
+export type ToolCapability =
+  | "codebase_read"
+  | "file_edit"
+  | "file_create"
+  | "shell_execute"
+  | "github_read"
+  | "github_write";
+
+/** Tool name patterns mapped to each capability. */
+export const CAPABILITY_PATTERNS: Record<ToolCapability, string[]> = {
+  codebase_read: ["view", "grep", "glob"],
+  file_edit: ["edit"],
+  file_create: ["create"],
+  shell_execute: ["bash", "write_bash", "read_bash", "stop_bash", "list_bash"],
+  github_read: [
+    "github-mcp-server-issue_read",
+    "github-mcp-server-pull_request_read",
+    "github-mcp-server-list_",
+    "github-mcp-server-search_",
+    "github-mcp-server-get_",
+    "github-mcp-server-actions_",
+  ],
+  github_write: [
+    "github-mcp-server-create_",
+    "github-mcp-server-update_",
+    "github-mcp-server-add_",
+    "github-mcp-server-merge_",
+    "github-mcp-server-push_",
+    "github-mcp-server-delete_",
+    "github-mcp-server-fork_",
+  ],
+};
+
+/** Preset → capability mapping. */
+export const PRESET_CAPABILITIES: Record<string, ToolCapability[]> = {
+  full: [
+    "codebase_read",
+    "file_edit",
+    "file_create",
+    "shell_execute",
+    "github_read",
+    "github_write",
+  ],
+  developer: ["codebase_read", "file_edit", "file_create", "shell_execute", "github_read"],
+  verifier: ["codebase_read", "shell_execute", "github_read"],
+  orchestrator: ["codebase_read", "github_read", "github_write"],
+  author: ["codebase_read", "file_edit", "file_create", "github_read"],
+  observer: ["codebase_read", "github_read"],
+};
+
+/** Resolved tool policy ready for the permission handler. */
+export interface ResolvedToolPolicy {
+  /** Flat list of tool-name patterns to allow. */
+  allowPatterns: string[];
+}
+
+/** Resolve a tool_policy config value to a flat allow-pattern list. */
+export function resolveToolPolicy(
+  policy: string | { capabilities: ToolCapability[] },
+): ResolvedToolPolicy {
+  const capabilities: ToolCapability[] =
+    typeof policy === "string"
+      ? (PRESET_CAPABILITIES[policy] ?? PRESET_CAPABILITIES["full"]!)
+      : policy.capabilities;
+
+  const patterns = capabilities.flatMap((cap) => CAPABILITY_PATTERNS[cap] ?? []);
+  return { allowPatterns: [...new Set(patterns)] };
+}
+
 export interface PhaseConfig {
   model?: string;
   thought_level?: "medium" | "high";
+  tool_policy?: string | { capabilities: ToolCapability[] };
   mcp_servers: McpServerEntry[];
   instructions: string[];
 }

@@ -11,7 +11,9 @@ import {
 import { logger as defaultLogger, type Logger } from "../logger.js";
 import {
   createPermissionHandler,
+  createSessionPermissionRegistry,
   type PermissionConfig,
+  type SessionPermissionRegistry,
   DEFAULT_PERMISSION_CONFIG,
 } from "./permissions.js";
 
@@ -149,6 +151,9 @@ export class AcpClient {
   private readonly onCommandsUpdate?: (sessionId: string, commands: AcpCommand[]) => void;
   private readonly onConfigUpdate?: (sessionId: string, configs: AcpConfigOption[]) => void;
 
+  /** Per-session tool policy registry. */
+  readonly permissionRegistry: SessionPermissionRegistry;
+
   // Accumulate streamed chunks per session
   private sessionChunks = new Map<string, string[]>();
 
@@ -174,9 +179,11 @@ export class AcpClient {
     this.onPlanUpdate = options.onPlanUpdate;
     this.onCommandsUpdate = options.onCommandsUpdate;
     this.onConfigUpdate = options.onConfigUpdate;
+    this.permissionRegistry = createSessionPermissionRegistry();
     this.permissionHandler = createPermissionHandler(
       options.permissions ?? DEFAULT_PERMISSION_CONFIG,
       this.log,
+      this.permissionRegistry,
     );
   }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   createPermissionHandler,
+  createSessionPermissionRegistry,
   DEFAULT_PERMISSION_CONFIG,
   type PermissionConfig,
 } from "../../src/acp/permissions.js";
@@ -13,10 +14,12 @@ function makeRequest(
     { kind: "allow_once", optionId: "allow-1" },
     { kind: "reject_once", optionId: "reject-1" },
   ],
+  sessionId?: string,
 ): RequestPermissionRequest {
   return {
     toolCall: { name: toolName },
     options,
+    ...(sessionId ? { sessionId } : {}),
   } as RequestPermissionRequest;
 }
 
@@ -178,5 +181,124 @@ describe("createPermissionHandler", () => {
         optionId: "r1",
       });
     });
+  });
+});
+
+describe("SessionPermissionRegistry", () => {
+  it("registers and retrieves a policy", () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("session-1", { allowPatterns: ["view", "grep"] });
+    expect(registry.getPolicy("session-1")).toEqual({ allowPatterns: ["view", "grep"] });
+  });
+
+  it("returns undefined for unregistered sessions", () => {
+    const registry = createSessionPermissionRegistry();
+    expect(registry.getPolicy("unknown")).toBeUndefined();
+  });
+
+  it("unregisters a session", () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("session-1", { allowPatterns: ["view"] });
+    registry.unregister("session-1");
+    expect(registry.getPolicy("session-1")).toBeUndefined();
+  });
+});
+
+describe("createPermissionHandler with session registry", () => {
+  it("allows tools matching session policy", async () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("sess-1", { allowPatterns: ["view", "grep", "glob"] });
+    const handler = createPermissionHandler(DEFAULT_PERMISSION_CONFIG, silentLog, registry);
+
+    const result = await handler(makeRequest("view", undefined, "sess-1"));
+    expect(result.outcome).toEqual({ outcome: "selected", optionId: "allow-1" });
+  });
+
+  it("denies tools NOT in session policy", async () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("sess-1", { allowPatterns: ["view", "grep"] });
+    const handler = createPermissionHandler(DEFAULT_PERMISSION_CONFIG, silentLog, registry);
+
+    const result = await handler(makeRequest("bash", undefined, "sess-1"));
+    expect(result.outcome).toEqual({ outcome: "selected", optionId: "reject-1" });
+  });
+
+  it("denies edit for verifier preset", async () => {
+    const registry = createSessionPermissionRegistry();
+    // verifier: codebase_read + shell_execute + github_read
+    registry.register("reviewer-session", {
+      allowPatterns: ["view", "grep", "glob", "bash", "github-mcp-server-issue_read"],
+    });
+    const handler = createPermissionHandler(DEFAULT_PERMISSION_CONFIG, silentLog, registry);
+
+    const editResult = await handler(makeRequest("edit", undefined, "reviewer-session"));
+    expect(editResult.outcome).toEqual({ outcome: "selected", optionId: "reject-1" });
+
+    const bashResult = await handler(makeRequest("bash", undefined, "reviewer-session"));
+    expect(bashResult.outcome).toEqual({ outcome: "selected", optionId: "allow-1" });
+  });
+
+  it("falls back to global config when session has no policy", async () => {
+    const registry = createSessionPermissionRegistry();
+    const handler = createPermissionHandler(
+      { autoApprove: true, allowPatterns: [] },
+      silentLog,
+      registry,
+    );
+
+    // No policy registered for this session → global autoApprove
+    const result = await handler(makeRequest("bash", undefined, "unregistered-session"));
+    expect(result.outcome).toEqual({ outcome: "selected", optionId: "allow-1" });
+  });
+
+  it("session policy takes precedence over global autoApprove", async () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("locked-session", { allowPatterns: ["view"] });
+    // Global says autoApprove, but session says only "view"
+    const handler = createPermissionHandler(
+      { autoApprove: true, allowPatterns: [] },
+      silentLog,
+      registry,
+    );
+
+    const result = await handler(makeRequest("bash", undefined, "locked-session"));
+    expect(result.outcome).toEqual({ outcome: "selected", optionId: "reject-1" });
+  });
+
+  it("allows GitHub MCP read tools via substring match", async () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("planner-session", {
+      allowPatterns: ["view", "grep", "glob", "github-mcp-server-list_", "github-mcp-server-get_"],
+    });
+    const handler = createPermissionHandler(DEFAULT_PERMISSION_CONFIG, silentLog, registry);
+
+    const result = await handler(
+      makeRequest("github-mcp-server-list_issues", undefined, "planner-session"),
+    );
+    expect(result.outcome).toEqual({ outcome: "selected", optionId: "allow-1" });
+  });
+
+  it("denies GitHub MCP write tools when only read is allowed", async () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("observer-session", {
+      allowPatterns: ["view", "grep", "glob", "github-mcp-server-issue_read"],
+    });
+    const handler = createPermissionHandler(DEFAULT_PERMISSION_CONFIG, silentLog, registry);
+
+    const result = await handler(
+      makeRequest("github-mcp-server-create_issue", undefined, "observer-session"),
+    );
+    expect(result.outcome).toEqual({ outcome: "selected", optionId: "reject-1" });
+  });
+
+  it("cancels when no reject option available for denied tool", async () => {
+    const registry = createSessionPermissionRegistry();
+    registry.register("sess-1", { allowPatterns: ["view"] });
+    const handler = createPermissionHandler(DEFAULT_PERMISSION_CONFIG, silentLog, registry);
+
+    const result = await handler(
+      makeRequest("bash", [{ kind: "allow_once", optionId: "a1" }], "sess-1"),
+    );
+    expect(result.outcome).toEqual({ outcome: "cancelled" });
   });
 });

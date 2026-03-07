@@ -362,3 +362,163 @@ describe("prefixToSlug", () => {
     expect(prefixToSlug("Sprint!@#")).toBe("sprint");
   });
 });
+
+describe("tool_policy config parsing", () => {
+  it("accepts a preset string in phase config", () => {
+    const yaml = `
+project:
+  name: "test"
+copilot:
+  phases:
+    reviewer:
+      model: "claude-opus-4.6"
+      tool_policy: "verifier"
+`;
+    const config = loadConfig(writeTmpConfig(yaml));
+    expect(config.copilot.phases.reviewer?.tool_policy).toBe("verifier");
+  });
+
+  it("accepts a custom capabilities object", () => {
+    const yaml = `
+project:
+  name: "test"
+copilot:
+  phases:
+    retro:
+      tool_policy:
+        capabilities:
+          - codebase_read
+          - file_edit
+          - github_read
+`;
+    const config = loadConfig(writeTmpConfig(yaml));
+    const policy = config.copilot.phases.retro?.tool_policy;
+    expect(policy).toEqual({
+      capabilities: ["codebase_read", "file_edit", "github_read"],
+    });
+  });
+
+  it("accepts all six preset names", () => {
+    for (const preset of ["full", "developer", "verifier", "orchestrator", "author", "observer"]) {
+      const yaml = `
+project:
+  name: "test"
+copilot:
+  phases:
+    worker:
+      tool_policy: "${preset}"
+`;
+      const config = loadConfig(writeTmpConfig(yaml));
+      expect(config.copilot.phases.worker?.tool_policy).toBe(preset);
+    }
+  });
+
+  it("rejects invalid preset names", () => {
+    const yaml = `
+project:
+  name: "test"
+copilot:
+  phases:
+    worker:
+      tool_policy: "admin"
+`;
+    expect(() => loadConfig(writeTmpConfig(yaml))).toThrow();
+  });
+
+  it("rejects invalid capability names", () => {
+    const yaml = `
+project:
+  name: "test"
+copilot:
+  phases:
+    worker:
+      tool_policy:
+        capabilities:
+          - codebase_read
+          - super_admin
+`;
+    expect(() => loadConfig(writeTmpConfig(yaml))).toThrow();
+  });
+
+  it("defaults to no tool_policy when omitted (backward compatible)", () => {
+    const yaml = `
+project:
+  name: "test"
+copilot:
+  phases:
+    worker:
+      model: "gpt-5.3-codex"
+`;
+    const config = loadConfig(writeTmpConfig(yaml));
+    expect(config.copilot.phases.worker?.tool_policy).toBeUndefined();
+  });
+});
+
+describe("resolveToolPolicy", () => {
+  // Import dynamically to avoid circular deps
+  it("resolves preset to correct patterns", async () => {
+    const { resolveToolPolicy } = await import("../src/types/config.js");
+    const policy = resolveToolPolicy("verifier");
+    expect(policy.allowPatterns).toContain("view");
+    expect(policy.allowPatterns).toContain("grep");
+    expect(policy.allowPatterns).toContain("glob");
+    expect(policy.allowPatterns).toContain("bash");
+    expect(policy.allowPatterns).not.toContain("edit");
+    expect(policy.allowPatterns).not.toContain("create");
+  });
+
+  it("observer preset has no edit/create/bash", async () => {
+    const { resolveToolPolicy } = await import("../src/types/config.js");
+    const policy = resolveToolPolicy("observer");
+    expect(policy.allowPatterns).toContain("view");
+    expect(policy.allowPatterns).not.toContain("edit");
+    expect(policy.allowPatterns).not.toContain("create");
+    expect(policy.allowPatterns).not.toContain("bash");
+  });
+
+  it("full preset includes everything", async () => {
+    const { resolveToolPolicy } = await import("../src/types/config.js");
+    const policy = resolveToolPolicy("full");
+    expect(policy.allowPatterns).toContain("view");
+    expect(policy.allowPatterns).toContain("edit");
+    expect(policy.allowPatterns).toContain("create");
+    expect(policy.allowPatterns).toContain("bash");
+    expect(policy.allowPatterns.some((p) => p.includes("github-mcp-server"))).toBe(true);
+  });
+
+  it("orchestrator has github_write but no bash/edit", async () => {
+    const { resolveToolPolicy } = await import("../src/types/config.js");
+    const policy = resolveToolPolicy("orchestrator");
+    expect(policy.allowPatterns).toContain("view");
+    expect(policy.allowPatterns).not.toContain("bash");
+    expect(policy.allowPatterns).not.toContain("edit");
+    expect(policy.allowPatterns.some((p) => p.includes("create_"))).toBe(true);
+  });
+
+  it("author has edit/create but no bash/github_write", async () => {
+    const { resolveToolPolicy } = await import("../src/types/config.js");
+    const policy = resolveToolPolicy("author");
+    expect(policy.allowPatterns).toContain("edit");
+    expect(policy.allowPatterns).toContain("create");
+    expect(policy.allowPatterns).not.toContain("bash");
+    expect(policy.allowPatterns.some((p) => p.includes("github-mcp-server-create_"))).toBe(false);
+  });
+
+  it("resolves custom capabilities", async () => {
+    const { resolveToolPolicy } = await import("../src/types/config.js");
+    const policy = resolveToolPolicy({
+      capabilities: ["codebase_read", "shell_execute"],
+    });
+    expect(policy.allowPatterns).toContain("view");
+    expect(policy.allowPatterns).toContain("bash");
+    expect(policy.allowPatterns).not.toContain("edit");
+    expect(policy.allowPatterns).not.toContain("create");
+  });
+
+  it("deduplicates patterns", async () => {
+    const { resolveToolPolicy } = await import("../src/types/config.js");
+    const policy = resolveToolPolicy("full");
+    const uniquePatterns = [...new Set(policy.allowPatterns)];
+    expect(policy.allowPatterns.length).toBe(uniquePatterns.length);
+  });
+});

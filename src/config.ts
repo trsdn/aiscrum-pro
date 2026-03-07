@@ -40,10 +40,44 @@ const McpServerEntrySchema = z.discriminatedUnion("type", [
   McpServerSseSchema,
 ]);
 
+// --- Tool policy presets for per-phase tool boundaries ---
+
+const TOOL_POLICY_PRESETS = [
+  "full",
+  "developer",
+  "verifier",
+  "orchestrator",
+  "author",
+  "observer",
+] as const;
+
+const ToolPolicyPresetSchema = z.enum(TOOL_POLICY_PRESETS);
+
+const ToolPolicyCustomSchema = z.object({
+  capabilities: z
+    .array(
+      z.enum([
+        "codebase_read",
+        "file_edit",
+        "file_create",
+        "shell_execute",
+        "github_read",
+        "github_write",
+      ]),
+    )
+    .min(1),
+});
+
+const ToolPolicySchema = z.union([ToolPolicyPresetSchema, ToolPolicyCustomSchema]);
+
+export { TOOL_POLICY_PRESETS };
+export type ToolPolicyPreset = (typeof TOOL_POLICY_PRESETS)[number];
+
 const PhaseConfigSchema = z.object({
   model: z.string().optional(),
   thought_level: z.enum(["medium", "high"]).optional(),
   mode: z.enum(["autonomous", "manual"]).optional(),
+  tool_policy: ToolPolicySchema.optional(),
   mcp_servers: z.array(McpServerEntrySchema).default([]),
   instructions: z.array(z.string()).default([]),
 });
