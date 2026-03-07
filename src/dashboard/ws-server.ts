@@ -1005,6 +1005,23 @@ export class DashboardWebServer {
     }
 
     if (pathname === "/api/sprints") {
+      const refresh = url.searchParams.get("refresh") === "true";
+      if (refresh) {
+        const prefix = this.options.sprintPrefix ?? "Sprint";
+        listSprintMilestones(prefix)
+          .then((milestones) => {
+            this.knownMilestones = milestones;
+            const sprints = this.listSprints();
+            res.writeHead(200);
+            res.end(JSON.stringify(sprints));
+          })
+          .catch(() => {
+            const sprints = this.listSprints();
+            res.writeHead(200);
+            res.end(JSON.stringify(sprints));
+          });
+        return;
+      }
       const sprints = this.listSprints();
       res.writeHead(200);
       res.end(JSON.stringify(sprints));

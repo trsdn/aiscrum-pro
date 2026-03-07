@@ -957,13 +957,19 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     Promise.all([
       fetch(`/api/sprints/${n}/state`).then((r) => (r.ok ? r.json() : null)),
       fetch(`/api/sprints/${n}/issues?refresh=true`).then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/sprints?refresh=true").then((r) => (r.ok ? r.json() : null)),
     ])
-      .then(([stateData, issuesData]) => {
+      .then(([stateData, issuesData, sprintsData]) => {
         const s = (stateData as SprintState) ?? store.state;
         const iss = Array.isArray(issuesData) ? (issuesData as SprintIssue[]) : store.issues;
         stateCache.set(n, { state: s, issues: iss });
         if (get().viewingSprintNumber === n || get().activeSprintNumber === n) {
           set({ state: s, issues: iss });
+        }
+        if (Array.isArray(sprintsData)) {
+          set({
+            availableSprints: sprintsData as { sprintNumber: number; milestoneNumber?: number }[],
+          });
         }
       })
       .catch(() => {});
