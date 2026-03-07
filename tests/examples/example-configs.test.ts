@@ -75,6 +75,116 @@ describe("example configs", () => {
         expect(config.quality_gates.test_command).toBeDefined();
         expect(config.quality_gates.lint_command).toBeDefined();
       });
+
+      it("has prompts for roles that need them", () => {
+        const promptMap: Record<string, string[]> = {
+          general: ["worker.md"],
+          planner: ["planning.md", "item-planner.md"],
+          refiner: ["refinement.md"],
+          reviewer: ["review.md"],
+          retro: ["retro.md"],
+          "test-engineer": ["tdd.md"],
+        };
+        for (const [role, prompts] of Object.entries(promptMap)) {
+          for (const prompt of prompts) {
+            const promptFile = path.join(
+              EXAMPLES_DIR,
+              stack,
+              ".aiscrum",
+              "roles",
+              role,
+              "prompts",
+              prompt,
+            );
+            expect(
+              fs.existsSync(promptFile),
+              `missing ${stack}/roles/${role}/prompts/${prompt}`,
+            ).toBe(true);
+          }
+        }
+      });
+
+      it("has skills for roles that need them", () => {
+        const skillMap: Record<string, string[]> = {
+          planner: ["sprint-planning"],
+          refiner: ["codebase-research", "issue-editing"],
+          reviewer: ["code-review", "tdd-workflow"],
+          retro: ["copilot-authoring"],
+        };
+        for (const [role, skills] of Object.entries(skillMap)) {
+          for (const skill of skills) {
+            const skillFile = path.join(
+              EXAMPLES_DIR,
+              stack,
+              ".aiscrum",
+              "roles",
+              role,
+              "skills",
+              skill,
+              "SKILL.md",
+            );
+            expect(
+              fs.existsSync(skillFile),
+              `missing ${stack}/roles/${role}/skills/${skill}/SKILL.md`,
+            ).toBe(true);
+          }
+        }
+      });
+    });
+  }
+});
+
+describe("prompts contain template variables", () => {
+  for (const stack of STACKS) {
+    it(`${stack} worker prompt has {{ISSUE_NUMBER}}`, () => {
+      const content = fs.readFileSync(
+        path.join(EXAMPLES_DIR, stack, ".aiscrum", "roles", "general", "prompts", "worker.md"),
+        "utf-8",
+      );
+      expect(content).toContain("{{ISSUE_NUMBER}}");
+      expect(content).toContain("{{ISSUE_TITLE}}");
+      expect(content).toContain("{{MAX_DIFF_LINES}}");
+    });
+
+    it(`${stack} planning prompt has {{SPRINT_NUMBER}}`, () => {
+      const content = fs.readFileSync(
+        path.join(EXAMPLES_DIR, stack, ".aiscrum", "roles", "planner", "prompts", "planning.md"),
+        "utf-8",
+      );
+      expect(content).toContain("{{SPRINT_NUMBER}}");
+      expect(content).toContain("{{PROJECT_NAME}}");
+    });
+  }
+});
+
+describe("skills have frontmatter", () => {
+  const allSkills = [
+    ["planner", "sprint-planning"],
+    ["refiner", "codebase-research"],
+    ["refiner", "issue-editing"],
+    ["reviewer", "code-review"],
+    ["reviewer", "tdd-workflow"],
+    ["retro", "copilot-authoring"],
+  ] as const;
+
+  for (const [role, skill] of allSkills) {
+    it(`${role}/${skill} has name and description frontmatter`, () => {
+      const content = fs.readFileSync(
+        path.join(
+          EXAMPLES_DIR,
+          "typescript",
+          ".aiscrum",
+          "roles",
+          role,
+          "skills",
+          skill,
+          "SKILL.md",
+        ),
+        "utf-8",
+      );
+      expect(content).toMatch(/^---/);
+      expect(content).toContain("name:");
+      expect(content).toContain("description:");
     });
   }
 });
