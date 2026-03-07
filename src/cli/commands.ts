@@ -28,6 +28,7 @@ import {
   parseSprintNumber,
   parseIssueNumber,
 } from "./helpers.js";
+import { validateConfig, formatReport } from "../validation/config-validator.js";
 import { initProject } from "./init.js";
 
 /** Register all CLI commands on the given Commander program. */
@@ -46,6 +47,7 @@ export function registerCommands(program: Command): void {
   registerMetrics(program);
   registerDriftReport(program);
   registerInit(program);
+  registerValidate(program);
 }
 
 // --- plan ---
@@ -806,6 +808,41 @@ function registerInit(program: Command): void {
       } catch (err: unknown) {
         logger.error({ err }, "Init failed");
         console.error("❌ Init failed:", err instanceof Error ? err.message : err);
+        process.exit(1);
+      }
+    });
+}
+
+function registerValidate(program: Command): void {
+  program
+    .command("validate")
+    .description("Validate .aiscrum/ configuration for correctness")
+    .option("--path <dir>", "Project directory to validate", process.cwd())
+    .action(async (opts) => {
+      try {
+        const projectPath = path.resolve(opts.path);
+        const configPath = path.join(projectPath, ".aiscrum", "config.yaml");
+
+        const fsSync = await import("node:fs");
+        if (!fsSync.existsSync(configPath)) {
+          console.error(`❌ No .aiscrum/config.yaml found at ${projectPath}`);
+          process.exit(1);
+        }
+
+        console.log(`🔍 Validating ${projectPath}/.aiscrum/\n`);
+
+        const { loadConfig } = await import("../config.js");
+        const config = loadConfig(configPath);
+        const report = await validateConfig(projectPath, config);
+
+        console.log(formatReport(report));
+
+        if (report.issues.some((i) => i.severity === "error")) {
+          process.exit(1);
+        }
+      } catch (err: unknown) {
+        logger.error({ err }, "Validation failed");
+        console.error("❌ Validation failed:", err instanceof Error ? err.message : err);
         process.exit(1);
       }
     });

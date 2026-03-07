@@ -20,7 +20,8 @@ export type CeremonyPhase =
   | "review"
   | "retro"
   | "challenger"
-  | "conflict-resolver";
+  | "conflict-resolver"
+  | "quality-reviewer";
 
 export interface ResolvedSessionConfig {
   mcpServers: McpServer[];
