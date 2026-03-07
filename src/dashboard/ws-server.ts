@@ -1900,7 +1900,7 @@ export class DashboardWebServer {
       if (!sprintMap.has(ms.sprintNumber)) {
         sprintMap.set(ms.sprintNumber, {
           milestoneNumber: ms.milestoneNumber,
-          phase: ms.state === "closed" ? "complete" : "init",
+          phase: ms.state.toLowerCase() === "closed" ? "complete" : "init",
           isActive: ms.sprintNumber === activeNum,
         });
       } else {

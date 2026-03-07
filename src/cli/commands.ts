@@ -353,7 +353,8 @@ function registerWeb(program: Command): void {
               typeof l === "string" ? l : l.name,
             );
             let status: "planned" | "in-progress" | "done" | "failed" = "planned";
-            if (completedIssues.has(i.number) || i.state === "closed") status = "done";
+            if (completedIssues.has(i.number) || i.state.toLowerCase() === "closed")
+              status = "done";
             else if (failedIssues.has(i.number)) status = "failed";
             else if (labels.includes("status:in-progress")) status = "in-progress";
             return { number: i.number, title: i.title, status };
@@ -456,7 +457,7 @@ function registerWeb(program: Command): void {
             currentIssues = milestoneIssues.map((i) => ({
               number: i.number,
               title: i.title,
-              status: i.state === "closed" ? ("done" as const) : ("planned" as const),
+              status: i.state.toLowerCase() === "closed" ? ("done" as const) : ("planned" as const),
             }));
           } catch {
             currentIssues = [];
