@@ -1295,17 +1295,18 @@
           <span class="terminal__title">~/my-project</span>
         </div>
         <div class="terminal__body">
-          <div><span class="comment"># Clone and install</span></div>
-          <div><span class="prompt">$ </span><span class="cmd">git clone https://github.com/trsdn/aiscrum-pro && cd aiscrum-pro</span></div>
-          <div><span class="prompt">$ </span><span class="cmd">npm install</span></div>
+          <div><span class="comment"># Pick a starter config for your stack</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">cp -r examples/python/.aiscrum .aiscrum</span></div>
           <div style="height: 0.5rem;"></div>
-          <div><span class="comment"># Launch the dashboard</span></div>
-          <div><span class="prompt">$ </span><span class="cmd">npx tsx src/index.ts web</span></div>
+          <div><span class="comment"># Install and launch</span></div>
+          <div><span class="prompt">$ </span><span class="cmd">npm install && npx tsx src/index.ts web</span></div>
           <div><span class="output">🏃 AiScrum Pro dashboard → http://localhost:9100</span></div>
           <div style="height: 0.5rem;"></div>
           <div><span class="comment"># Or run a full sprint cycle</span></div>
           <div><span class="prompt">$ </span><span class="cmd">npx tsx src/index.ts full-cycle --sprint 1</span></div>
           <div><span class="output">🔍 Refining ideas... → 📋 Planning sprint... → ⚡ Executing...</span></div>
+          <div style="height: 0.75rem;"></div>
+          <div><span class="comment"># Starter configs: typescript · python · react · go</span></div>
         </div>
       </div>
     </div>
