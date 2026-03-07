@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="docs/logos/aiscrum-pro-logo.png" alt="AiScrum Pro" width="480">
+  <a href="https://trsdn.github.io/aiscrum-pro/">
+    <img src="docs/logos/aiscrum-pro-logo.png" alt="AiScrum Pro" width="480">
+  </a>
 </p>
 
 <p align="center">
@@ -7,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://trsdn.github.io/aiscrum-pro/"><img src="https://img.shields.io/badge/Website-trsdn.github.io%2Faiscrum--pro-6366f1?style=flat&logo=github-pages&logoColor=white" alt="Website"></a>
   <a href="https://docs.github.com/en/copilot"><img src="https://img.shields.io/badge/Powered%20by-GitHub%20Copilot%20ACP-blue?logo=github" alt="Powered by GitHub Copilot ACP"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-%E2%89%A5%2020-339933?logo=node.js&logoColor=white" alt="Node.js ≥ 20"></a>
