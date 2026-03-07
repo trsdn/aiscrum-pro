@@ -47,7 +47,7 @@ export interface DashboardStore {
   issues: SprintIssue[];
   activeSprintNumber: number;
   viewingSprintNumber: number;
-  availableSprints: { sprintNumber: number; milestoneNumber?: number }[];
+  availableSprints: { sprintNumber: number; milestoneNumber?: number; phase?: string }[];
   repoUrl: string | null;
 
   // Activities & logs
@@ -869,7 +869,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
       .catch(() => {});
     fetch("/api/sprints")
       .then((r) => r.json())
-      .then((d: { sprintNumber: number; milestoneNumber?: number }[]) => {
+      .then((d: { sprintNumber: number; milestoneNumber?: number; phase?: string }[]) => {
         if (Array.isArray(d)) {
           set({ availableSprints: d });
           // Auto-navigate to latest sprint if none is active
@@ -941,7 +941,7 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
     // Refresh sprint list
     fetch("/api/sprints")
       .then((r) => r.json())
-      .then((d: { sprintNumber: number; milestoneNumber?: number }[]) => {
+      .then((d: { sprintNumber: number; milestoneNumber?: number; phase?: string }[]) => {
         if (Array.isArray(d)) set({ availableSprints: d });
       })
       .catch(() => {});
@@ -960,7 +960,11 @@ export const useDashboardStore = create<DashboardStore>()((set, get) => ({
       .then((sprintsData) => {
         if (Array.isArray(sprintsData)) {
           set({
-            availableSprints: sprintsData as { sprintNumber: number; milestoneNumber?: number }[],
+            availableSprints: sprintsData as {
+              sprintNumber: number;
+              milestoneNumber?: number;
+              phase?: string;
+            }[],
           });
         }
         return Promise.all([

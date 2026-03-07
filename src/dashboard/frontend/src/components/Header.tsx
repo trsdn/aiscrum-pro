@@ -136,14 +136,27 @@ export function Header() {
           ↻
         </button>
         <span className={`phase-badge phase-${phase}`}>{phase.toUpperCase()}</span>
-        {!isViewingActive && activeSprintNumber > 0 && (
-          <button
-            className="viewing-indicator btn-link"
-            onClick={() => setViewingSprint(activeSprintNumber)}
-          >
-            👁 viewing — Sprint {activeSprintNumber} running
-          </button>
-        )}
+        {(() => {
+          if (isViewingActive || !activeSprintNumber) return null;
+          const activeSprint = availableSprints.find((s) => s.sprintNumber === activeSprintNumber);
+          const ap = activeSprint?.phase;
+          const activeRunning =
+            ap &&
+            ap !== "init" &&
+            ap !== "complete" &&
+            ap !== "failed" &&
+            ap !== "stopped" &&
+            ap !== "cancelled";
+          if (!activeRunning) return null;
+          return (
+            <button
+              className="viewing-indicator btn-link"
+              onClick={() => setViewingSprint(activeSprintNumber)}
+            >
+              👁 viewing — Sprint {activeSprintNumber} running
+            </button>
+          );
+        })()}
       </div>
 
       <div className="header-right">
