@@ -1,11 +1,11 @@
 {
-  "name": "ai-scrum-sprint-runner",
+  "name": "aiscrum-pro",
   "version": "0.3.0",
   "description": "ACP-powered autonomous sprint engine for GitHub Copilot CLI",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "sprint-runner": "dist/index.js"
+    "aiscrum": "dist/index.js"
   },
   "scripts": {
     "build": "tsc && cd src/dashboard/frontend && npm run build",
@@ -27,10 +27,16 @@
     "copilot",
     "acp",
     "scrum",
-    "sprint-runner",
+    "aiscrum-pro",
     "ai-agent"
   ],
   "license": "MIT",
+  "author": "trsdn",
+  "homepage": "https://github.com/trsdn/ai-scrum-autonomous-v2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/trsdn/ai-scrum-autonomous-v2.git"
+  },
   "engines": {
     "node": ">=20.0.0"
   },

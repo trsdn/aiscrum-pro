@@ -153,7 +153,7 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     subgraph Input
-        YAML["sprint-runner.config.yaml"]
+        YAML[".aiscrum/config.yaml"]
         ENV["Environment Variables"]
     end
 

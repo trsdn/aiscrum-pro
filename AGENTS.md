@@ -1,10 +1,10 @@
-# AI-Scrum Sprint Runner — Agent Instructions
+# AiScrum Pro — Agent Instructions
 
 These instructions apply to all Copilot agents working in this repository.
 
 ## Project Overview
 
-ACP-powered autonomous sprint engine for GitHub Copilot CLI. Orchestrates full Scrum sprints programmatically via the Agent Client Protocol.
+ACP-powered autonomous Scrum engine for GitHub Copilot CLI. Orchestrates full Scrum sprints programmatically via the Agent Client Protocol.
 
 ## Project Priorities
 

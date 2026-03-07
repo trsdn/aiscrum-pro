@@ -80,7 +80,7 @@ export function redirectLogToFile(filePath: string): void {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   logDestination = pino.destination({ dest: filePath, sync: false });
   const opts = {
-    name: logger.bindings().name ?? "sprint-runner",
+    name: logger.bindings().name ?? "aiscrum",
     level: logger.level,
     redact: {
       paths: ["*.password", "*.token", "*.secret", "*.apiKey", "*.authorization"],
@@ -97,7 +97,7 @@ export function redirectLogToFile(filePath: string): void {
 export function createLogger(options: LoggerOptions = {}): Logger {
   const {
     level = "info",
-    name = "sprint-runner",
+    name = "aiscrum",
     pretty = process.env["NODE_ENV"] !== "production",
   } = options;
 

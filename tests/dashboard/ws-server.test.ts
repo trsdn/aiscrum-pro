@@ -84,7 +84,7 @@ describe("DashboardWebServer", () => {
     const res = await fetch(`http://127.0.0.1:${port}/`);
     expect(res.status).toBe(200);
     const text = await res.text();
-    expect(text).toContain("Sprint Runner");
+    expect(text).toContain("AiScrum Pro");
     expect(text).toContain("<!DOCTYPE html>");
   });
 

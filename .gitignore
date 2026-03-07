@@ -37,6 +37,7 @@ sprint-worktrees/
 
 # Dashboard log
 sprint-runner.log
+aiscrum.log
 scripts/e2e/results/*.json
 scripts/e2e/results/*.log
 scripts/prompt-bench/results/

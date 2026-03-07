@@ -22,7 +22,7 @@ gh copilot --version        # Verify Copilot CLI is installed
 
 **Recovery**:
 - Re-authenticate: `gh auth login`
-- Restart the sprint runner (sessions are cleaned up on restart)
+- Restart AiScrum Pro (sessions are cleaned up on restart)
 - Check Copilot CLI version compatibility
 
 ---
@@ -72,8 +72,8 @@ npm run build               # build-pass
 
 **Recovery**:
 - Fix failing checks in the worktree
-- Re-run: `sprint-runner check-quality --branch <branch>`
-- Adjust thresholds in `sprint-runner.config.yaml` under `quality_gates`
+- Re-run: `aiscrum check-quality --branch <branch>`
+- Adjust thresholds in `.aiscrum/config.yaml` under `quality_gates`
 
 ---
 
@@ -166,21 +166,21 @@ gh api repos/{owner}/{repo}/milestones --jq '.[].title'   # List milestones
 
 **Enable debug logging**:
 ```bash
-LOG_LEVEL=debug sprint-runner run
+LOG_LEVEL=debug aiscrum run
 ```
 
 **Log formats**:
 - **Interactive**: `pino-pretty` (colorized, human-readable)
 - **File/pipe**: JSON format (machine-parseable)
-- **File redirect**: Logs are written to `sprint-runner.log` when the TUI dashboard is active
+- **File redirect**: Logs are written to `aiscrum.log` when the TUI dashboard is active
 
 **Reading structured logs**:
 ```bash
 # Pretty-print JSON logs
-cat sprint-runner.log | npx pino-pretty
+cat aiscrum.log | npx pino-pretty
 
 # Filter by level
-cat sprint-runner.log | jq 'select(.level >= 40)'   # warn + error only
+cat aiscrum.log | jq 'select(.level >= 40)'   # warn + error only
 ```
 
 **Automatic redaction**: The following fields are automatically replaced with `[REDACTED]` in all log output:

@@ -1,5 +1,5 @@
 project:
-  name: ai-scrum-autonomous-v2
+  name: aiscrum-pro
   base_branch: main
 copilot:
   executable: copilot

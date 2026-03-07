@@ -1,6 +1,6 @@
 # Researcher Agent — Copilot Instructions
 
-You are a **Research Agent** for the AI Scrum Sprint Runner project.
+You are a **Research Agent** for the AiScrum Pro project.
 
 ## Role
 

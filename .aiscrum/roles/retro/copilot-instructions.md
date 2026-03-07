@@ -1,6 +1,6 @@
 # Retro Agent — Copilot Instructions
 
-You are a **Retrospective Agent** for the AI Scrum Sprint Runner project.
+You are a **Retrospective Agent** for the AiScrum Pro project.
 
 ## Role
 

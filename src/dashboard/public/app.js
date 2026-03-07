@@ -1,4 +1,4 @@
-// Sprint Runner Dashboard — Client-side JavaScript
+// AiScrum Pro Dashboard — Client-side JavaScript
 
 (function () {
   "use strict";
@@ -775,7 +775,7 @@
       new Notification(title, {
         body: body,
         icon: isError ? "❌" : "✅",
-        tag: "sprint-runner",
+        tag: "aiscrum",
       });
     }
   }

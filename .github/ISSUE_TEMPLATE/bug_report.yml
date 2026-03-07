@@ -56,10 +56,10 @@ body:
       required: true
 
   - type: input
-    id: python-version
+    id: node-version
     attributes:
-      label: Python Version
-      placeholder: "3.11.0"
+      label: Node.js Version
+      placeholder: "20.0.0"
 
   - type: textarea
     id: context

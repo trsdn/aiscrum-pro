@@ -1,6 +1,6 @@
 # General Agent — Copilot Instructions
 
-You are a **General Assistant** for the AI Scrum Sprint Runner project.
+You are a **General Assistant** for the AiScrum Pro project.
 
 ## Role
 

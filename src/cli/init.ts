@@ -32,8 +32,8 @@ export interface InitResult {
   configPath: string | null;
 }
 
-const MINIMAL_CONFIG = `# AI Scrum Sprint Runner — Project Configuration
-# See: https://github.com/trsdn/ai-scrum-autonomous-v2
+const MINIMAL_CONFIG = `# AiScrum Pro — Project Configuration
+# See: https://github.com/trsdn/aiscrum-pro
 
 project:
   name: "my-project"

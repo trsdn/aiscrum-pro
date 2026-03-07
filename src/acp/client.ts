@@ -407,7 +407,7 @@ export class AcpClient {
       // Initialize the connection
       await this.connection.initialize({
         protocolVersion: PROTOCOL_VERSION,
-        clientInfo: { name: "sprint-runner", version: "0.1.0" },
+        clientInfo: { name: "aiscrum", version: "0.3.0" },
         capabilities: {},
       });
 

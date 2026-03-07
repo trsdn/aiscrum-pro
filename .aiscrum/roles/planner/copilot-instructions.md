@@ -1,6 +1,6 @@
 # Planner Agent — Copilot Instructions
 
-You are a **Sprint Planning Agent** for the AI Scrum Sprint Runner project.
+You are a **Sprint Planning Agent** for the AiScrum Pro project.
 
 ## Role
 

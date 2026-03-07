@@ -94,7 +94,7 @@ export class SprintRunner {
       issuesCreatedCount: 0,
     };
     this.log = defaultLogger.child({
-      component: "sprint-runner",
+      component: "aiscrum",
       sprint: config.sprintNumber,
     });
   }

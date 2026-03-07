@@ -1,8 +1,11 @@
-# AI Scrum Sprint Runner
+# AiScrum Pro
 
 [![Optimized for GitHub Copilot CLI](https://img.shields.io/badge/Powered%20by-GitHub%20Copilot%20ACP-blue?logo=github)](https://docs.github.com/en/copilot)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Node.js ≥ 20](https://img.shields.io/badge/Node.js-%E2%89%A5%2020-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 
-**ACP-powered autonomous sprint engine** that orchestrates GitHub Copilot CLI via the Agent Client Protocol to run full Scrum sprints — planning, execution, review, and retrospective — without manual intervention.
+**ACP-powered autonomous Scrum engine for GitHub Copilot CLI** that orchestrates full Scrum sprints via the Agent Client Protocol — planning, execution, review, and retrospective — without manual intervention.
 
 The AI agent acts as **PO + Scrum Master**. The human is the **Stakeholder** with veto rights.
 
@@ -47,7 +50,7 @@ The dashboard opens at `http://localhost:9100` with live sprint status, issue tr
 
 ### Test Mode
 
-Run the sprint runner against dummy issues without affecting your real backlog:
+Run AiScrum Pro against dummy issues without affecting your real backlog:
 
 ```bash
 # 1. Create test data (2 sprints × 3 issues)
@@ -60,7 +63,7 @@ make test-web
 make test-cleanup
 ```
 
-Test mode uses `sprint-runner.test.yaml` with `prefix: "Test Sprint"` — separate milestones, branches, state files, and dashboard view. See [Testing](#testing-the-sprint-runner) for details.
+Test mode uses `config.test.yaml` with `prefix: "Test Sprint"` — separate milestones, branches, state files, and dashboard view. See [Testing](#testing-aiscrum-pro) for details.
 
 ### Quality Gates
 
@@ -99,7 +102,7 @@ To bypass in emergencies: `git commit --no-verify` / `git push --no-verify`
 | `pause` / `resume` | Pause/resume sprint execution |
 | `status` | Show active worker status |
 
-**Global option:** `--config <path>` — use a different config file (default: `sprint-runner.config.yaml`)
+**Global option:** `--config <path>` — use a different config file (default: `.aiscrum/config.yaml`)
 
 ### Examples
 
@@ -120,14 +123,14 @@ npx tsx src/index.ts plan --sprint 3
 npx tsx src/index.ts check-quality --branch feat/my-feature
 
 # Use test config (isolated sprints)
-npx tsx src/index.ts web --sprint 1 --config sprint-runner.test.yaml
+npx tsx src/index.ts web --sprint 1 --config .aiscrum/config.test.yaml
 ```
 
 ---
 
 ## Web Dashboard
 
-The dashboard (`sprint-runner web`) provides:
+The dashboard (`aiscrum web`) provides:
 
 | Area | What It Does |
 |------|-------------|
@@ -140,11 +143,21 @@ The dashboard (`sprint-runner web`) provides:
 | **GitHub Links** | Click issue numbers and sprint labels to open in GitHub |
 | **Browser Notifications** | Alert when sprints complete or errors occur |
 
+### Screenshots
+
+| Sprint Board | Sprint Report |
+|:---:|:---:|
+| ![Sprint Board](docs/screenshots/sprint-board.png) | ![Sprint Report](docs/screenshots/report.png) |
+
+| Settings | Logs |
+|:---:|:---:|
+| ![Settings](docs/screenshots/settings.png) | ![Logs](docs/screenshots/logs.png) |
+
 ---
 
 ## Configuration
 
-Configuration lives in `sprint-runner.config.yaml` (Zod-validated):
+Configuration lives in `.aiscrum/config.yaml` (Zod-validated):
 
 ```yaml
 project:
@@ -193,12 +206,12 @@ The `sprint.prefix` field controls naming for **everything**:
 Switch configs to isolate test runs completely:
 
 ```bash
-npx tsx src/index.ts web --config sprint-runner.test.yaml
+npx tsx src/index.ts web --config .aiscrum/config.test.yaml
 ```
 
 ---
 
-## Testing the Sprint Runner
+## Testing AiScrum Pro
 
 ### Setup → Run → Cleanup
 
@@ -207,7 +220,7 @@ npx tsx src/index.ts web --config sprint-runner.test.yaml
 ./scripts/test-setup.sh              # or: make test-setup
 
 # Run dashboard against test data
-npx tsx src/index.ts web --config sprint-runner.test.yaml    # or: make test-web
+npx tsx src/index.ts web --config .aiscrum/config.test.yaml    # or: make test-web
 
 # Remove all test artifacts (milestones, issues, branches, files)
 ./scripts/test-cleanup.sh            # or: make test-cleanup
@@ -259,7 +272,7 @@ make check             # Lint + types + tests
 └────────┬───────────────────────────────────────────┘
          │ SprintEventBus
 ┌────────┴───────────────────────────────────────────┐
-│              Sprint Runner (State Machine)          │
+│                AiScrum Pro (State Machine)          │
 │  init → refine → plan → execute → review → retro   │
 ├─────────────┬──────────────┬───────────────────────┤
 │ Ceremonies  │ Enforcement  │ Infrastructure         │

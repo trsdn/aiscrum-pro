@@ -85,7 +85,7 @@ export function Header() {
   return (
     <header className="header">
       <div className="header-left">
-        <h1>🏃 Sprint Runner</h1>
+        <h1>🏃 AiScrum Pro</h1>
         <span id="sprint-label" className="sprint-badge">{sprintLabel}</span>
         <button id="btn-prev" className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber - 1)} disabled={viewingSprintNumber <= 1}>◀</button>
         <button id="btn-next" className="btn btn-small" onClick={() => setViewingSprint(viewingSprintNumber + 1)} disabled={availableSprints.length > 0 && viewingSprintNumber > Math.max(...availableSprints.map(s => s.sprintNumber))}>▶</button>

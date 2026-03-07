@@ -1,16 +1,16 @@
-# AI Scrum Sprint Runner — Project Overview
+# AiScrum Pro — Project Overview
 
-> ACP-powered autonomous sprint engine that orchestrates GitHub Copilot CLI to run full Scrum sprints.
+> ACP-powered autonomous Scrum engine for GitHub Copilot CLI.
 
 ## What Is This?
 
-The AI Scrum Sprint Runner is a TypeScript CLI tool that automates the Scrum process end-to-end. It uses the **Agent Client Protocol (ACP)** to programmatically drive GitHub Copilot CLI sessions, executing sprint ceremonies — from refinement and planning through execution, review, and retrospective.
+AiScrum Pro is a TypeScript CLI tool that automates the Scrum process end-to-end. It uses the **Agent Client Protocol (ACP)** to programmatically drive GitHub Copilot CLI sessions, executing sprint ceremonies — from refinement and planning through execution, review, and retrospective.
 
 ### Role Model
 
 | Role | Actor |
 |------|-------|
-| **Product Owner + Scrum Master** | AI Agent (Sprint Runner) |
+| **Product Owner + Scrum Master** | AI Agent (AiScrum Pro) |
 | **Stakeholder** | Human operator |
 
 The human sets priorities and approves direction. The AI handles everything else: backlog refinement, sprint planning, issue execution (branching, coding, testing, PRs), quality enforcement, and documentation.
@@ -58,7 +58,7 @@ npm run build
 
 ### Configuration
 
-The runner is configured via `sprint-runner.config.yaml` (validated with Zod at load time). A test configuration is available at `sprint-runner.test.yaml`.
+The runner is configured via `.aiscrum/config.yaml` (validated with Zod at load time). A test configuration is available at `.aiscrum/config.test.yaml`.
 
 Key config sections:
 - **Repository** — owner, repo name, default branch
@@ -69,14 +69,14 @@ Key config sections:
 ## CLI Commands
 
 ```bash
-sprint-runner plan --sprint <N>                       # Sprint planning
-sprint-runner execute-issue --issue <N> --sprint <N>  # Execute single issue
-sprint-runner full-cycle --sprint <N>                 # Complete sprint cycle
-sprint-runner refine / review / retro --sprint <N>    # Individual ceremonies
-sprint-runner check-quality --branch <name>           # Quality gates
-sprint-runner status                                  # Current sprint status
-sprint-runner metrics / drift-report --sprint <N>     # Metrics & drift
-sprint-runner pause / resume                          # Pause/resume
+aiscrum plan --sprint <N>                       # Sprint planning
+aiscrum execute-issue --issue <N> --sprint <N>  # Execute single issue
+aiscrum full-cycle --sprint <N>                 # Complete sprint cycle
+aiscrum refine / review / retro --sprint <N>    # Individual ceremonies
+aiscrum check-quality --branch <name>           # Quality gates
+aiscrum status                                  # Current sprint status
+aiscrum metrics / drift-report --sprint <N>     # Metrics & drift
+aiscrum pause / resume                          # Pause/resume
 ```
 
 Dev mode: `npx tsx src/index.ts <command>`

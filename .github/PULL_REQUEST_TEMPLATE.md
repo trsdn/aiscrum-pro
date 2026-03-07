@@ -24,13 +24,13 @@
 
 ## Testing Checklist
 
-- [ ] Tests pass locally (`pytest tests/ -v`)
+- [ ] Tests pass locally (`npm test`)
 - [ ] New tests added for new functionality
 - [ ] Regression test added for bug fixes
 
 ## Code Quality Checklist
 
-- [ ] Lint clean (`ruff check src/`)
-- [ ] Type check clean (`mypy src/`)
+- [ ] Lint clean (`npm run lint`)
+- [ ] Type check clean (`npm run typecheck`)
 - [ ] No hardcoded secrets or credentials
 - [ ] Documentation updated (if applicable)

@@ -1,6 +1,6 @@
 # Test Engineer Agent — Copilot Instructions
 
-You are a **Test Engineer** for the AI Scrum Sprint Runner project.
+You are a **Test Engineer** for the AiScrum Pro project.
 
 ## Role
 

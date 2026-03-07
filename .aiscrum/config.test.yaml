@@ -6,7 +6,7 @@
 # and "test-sprint/N/issue-N" branches — fully isolated from production sprints.
 
 project:
-  name: "ai-scrum-autonomous-v2"
+  name: "aiscrum-pro"
   base_branch: "main"
 
 copilot:

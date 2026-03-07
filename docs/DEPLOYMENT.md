@@ -28,17 +28,17 @@ ls dist/index.js       # Entry point
 node dist/index.js --version
 
 # Global install (optional)
-npm link               # Makes `sprint-runner` available globally
+npm link               # Makes `aiscrum` available globally
 ```
 
 ---
 
 ## Configuration
 
-All configuration lives in `sprint-runner.config.yaml` at the project root. Initialize a project:
+All configuration lives in `.aiscrum/config.yaml` at the project root. Initialize a project:
 
 ```bash
-sprint-runner init     # Creates .aiscrum/ + config template
+aiscrum init     # Creates .aiscrum/ + config template
 ```
 
 ### Configuration Sections
@@ -121,7 +121,7 @@ git:
 escalation:
   notifications:
     ntfy: false                         # Enable ntfy.sh notifications
-    ntfy_topic: "my-sprint-runner"      # ntfy topic name
+    ntfy_topic: "my-aiscrum"      # ntfy topic name
 ```
 
 ### Environment Variable Substitution
@@ -150,7 +150,7 @@ npx tsx src/index.ts run
 node dist/index.js run
 
 # With web dashboard
-sprint-runner web --port 9100
+aiscrum web --port 9100
 ```
 
 ### Process management
@@ -159,13 +159,13 @@ sprint-runner web --port 9100
 
 ```ini
 [Unit]
-Description=AI Scrum Sprint Runner
+Description=AiScrum Pro
 After=network.target
 
 [Service]
 Type=simple
 User=deploy
-WorkingDirectory=/opt/sprint-runner
+WorkingDirectory=/opt/aiscrum
 ExecStart=/usr/bin/node dist/index.js run
 Restart=on-failure
 RestartSec=30
@@ -179,7 +179,7 @@ WantedBy=multi-user.target
 #### pm2
 
 ```bash
-pm2 start dist/index.js --name sprint-runner -- run
+pm2 start dist/index.js --name aiscrum -- run
 pm2 save
 pm2 startup
 ```
@@ -189,7 +189,7 @@ pm2 startup
 ## Web Dashboard
 
 ```bash
-sprint-runner web --port 9100
+aiscrum web --port 9100
 ```
 
 - **HTTP**: Serves static files at `http://localhost:9100`
@@ -204,10 +204,10 @@ sprint-runner web --port 9100
 ### CLI commands
 
 ```bash
-sprint-runner status               # Current sprint state
-sprint-runner metrics              # Sprint metrics summary
-sprint-runner drift-report         # Drift analysis
-sprint-runner check-quality        # Run quality gate checks
+aiscrum status               # Current sprint state
+aiscrum metrics              # Sprint metrics summary
+aiscrum drift-report         # Drift analysis
+aiscrum check-quality        # Run quality gate checks
 ```
 
 ### Log output
@@ -216,13 +216,13 @@ Logs use [pino](https://github.com/pinojs/pino) structured logging:
 
 ```bash
 # Pretty output (development)
-sprint-runner run | npx pino-pretty
+aiscrum run | npx pino-pretty
 
 # JSON output (production) — redirect to file
-sprint-runner run 2>&1 > sprint-runner.log
+aiscrum run 2>&1 > aiscrum.log
 
 # Filter errors
-cat sprint-runner.log | jq 'select(.level >= 50)'
+cat aiscrum.log | jq 'select(.level >= 50)'
 ```
 
 ---
@@ -232,7 +232,7 @@ cat sprint-runner.log | jq 'select(.level >= 50)'
 Push notifications via [ntfy.sh](https://ntfy.sh):
 
 ```bash
-# Configure in sprint-runner.config.yaml:
+# Configure in .aiscrum/config.yaml:
 escalation:
   notifications:
     ntfy: true

@@ -294,7 +294,7 @@ function registerWeb(program: Command): void {
       "Number of sprints to run (0=infinite, default: from config)",
       (v) => parseInt(v, 10),
     )
-    .option("--log-file <path>", "Log file path (default: sprint-runner.log)", "sprint-runner.log")
+    .option("--log-file <path>", "Log file path (default: aiscrum.log)", "aiscrum.log")
     .option("--no-open", "Don't auto-open browser")
     .action(async (opts) => {
       try {
@@ -738,7 +738,7 @@ function registerDriftReport(program: Command): void {
         if (changedFiles.length === 0) {
           console.log("⚠️  No changed files provided. Use --changed-files to specify files.");
           console.log(
-            "   Example: sprint-runner drift-report --sprint 1 --changed-files src/a.ts src/b.ts --expected-files src/a.ts",
+            "   Example: aiscrum drift-report --sprint 1 --changed-files src/a.ts src/b.ts --expected-files src/a.ts",
           );
           process.exit(0);
         }
@@ -775,7 +775,7 @@ function registerInit(program: Command): void {
     .option("--force", "Overwrite existing files", false)
     .action(async (opts) => {
       try {
-        console.log("🚀 Initializing AI Scrum Sprint Runner...\n");
+        console.log("🚀 Initializing AiScrum Pro...\n");
 
         const result = initProject({
           targetPath: opts.path,

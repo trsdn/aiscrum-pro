@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 
 /**
- * Sprint Runner CLI — ACP-powered autonomous sprint engine.
+ * AiScrum Pro CLI — ACP-powered autonomous Scrum engine.
  *
  * Usage:
- *   sprint-runner plan --sprint <N>
- *   sprint-runner execute-issue --issue <N> --sprint <N>
- *   sprint-runner check-quality --branch <branch>
- *   sprint-runner full-cycle --sprint <N>
- *   sprint-runner refine --sprint <N>
- *   sprint-runner review --sprint <N>
- *   sprint-runner retro --sprint <N>
- *   sprint-runner status
- *   sprint-runner pause
- *   sprint-runner resume
- *   sprint-runner metrics --sprint <N>
- *   sprint-runner drift-report --sprint <N>
+ *   aiscrum plan --sprint <N>
+ *   aiscrum execute-issue --issue <N> --sprint <N>
+ *   aiscrum check-quality --branch <branch>
+ *   aiscrum full-cycle --sprint <N>
+ *   aiscrum refine --sprint <N>
+ *   aiscrum review --sprint <N>
+ *   aiscrum retro --sprint <N>
+ *   aiscrum status
+ *   aiscrum pause
+ *   aiscrum resume
+ *   aiscrum metrics --sprint <N>
+ *   aiscrum drift-report --sprint <N>
  */
 
 import { readFileSync } from "node:fs";
@@ -33,8 +33,8 @@ const pkg = JSON.parse(readFileSync(resolve(__dirname, "..", "package.json"), "u
 const program = new Command();
 
 program
-  .name("sprint-runner")
-  .description("ACP-powered autonomous sprint engine for GitHub Copilot CLI")
+  .name("aiscrum")
+  .description("AiScrum Pro — ACP-powered autonomous Scrum engine for GitHub Copilot CLI")
   .version(pkg.version)
   .option("--config <path>", "Path to config file");
 

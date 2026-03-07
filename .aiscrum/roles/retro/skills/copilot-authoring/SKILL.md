@@ -28,7 +28,7 @@ The system loads ALL `.md` files from the role folder (except `log/`) into the a
 ```markdown
 # {Role Name} Agent — Copilot Instructions
 
-You are a **{Role Name} Agent** for the AI Scrum Sprint Runner project.
+You are a **{Role Name} Agent** for the AiScrum Pro project.
 
 ## Role
 One-sentence description.
