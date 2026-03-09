@@ -125,7 +125,11 @@ export async function applySessionSettings(
     await client.setModel(sessionId, config.model);
   }
   if (config.thoughtLevel) {
-    await client.setConfigOption(sessionId, "thought_level", config.thoughtLevel);
+    try {
+      await client.setConfigOption(sessionId, "thought_level", config.thoughtLevel);
+    } catch {
+      // thought_level not supported by this Copilot version — skip silently
+    }
   }
   if (config.toolPolicy) {
     client.permissionRegistry.register(sessionId, config.toolPolicy);
