@@ -681,6 +681,12 @@ function handleSprintEvent(name: string, payload: unknown, set: SetFn, get: GetF
       const label = issueNum ? `${desc} — #${issueNum}` : desc;
       const detail = [issueTitle, model].filter(Boolean).join(" · ") || null;
       addActivity(set, get(), "session", label, detail, "active");
+
+      // Auto-open ceremony sessions so user sees live streaming immediately
+      const sessionId = (p?.sessionId as string) ?? null;
+      if (sessionId && !get().viewingSessionId) {
+        get().openSession(sessionId);
+      }
       break;
     }
 
