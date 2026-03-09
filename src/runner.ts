@@ -300,6 +300,16 @@ export class SprintRunner {
         this.state.error = message;
         this.log.error({ error: message, stack }, "Sprint cycle failed");
         this.events.emitTyped("sprint:error", { error: message });
+
+        // Return unfinished issues to backlog
+        try {
+          await this.returnUnfinishedToBacklog();
+        } catch (cleanupErr) {
+          this.log.warn(
+            { err: String(cleanupErr) },
+            "Failed to return issues to backlog after sprint failure",
+          );
+        }
       }
 
       try {
@@ -557,6 +567,57 @@ export class SprintRunner {
         releaseLock(this.config);
       } catch {
         /* may not be locked */
+      }
+    }
+  }
+
+  /**
+   * Return unfinished issues to backlog after sprint failure.
+   * Removes milestone and status:planned label so they're visible in backlog.
+   */
+  private async returnUnfinishedToBacklog(): Promise<void> {
+    const milestoneTitle = `${this.config.sprintPrefix} ${this.config.sprintNumber}`;
+    const issues = await listIssues({
+      milestone: milestoneTitle,
+      state: "open",
+    });
+
+    if (issues.length === 0) return;
+
+    this.log.info({ count: issues.length }, "Returning unfinished issues to backlog");
+    this.events.emitTyped("log", {
+      level: "info",
+      message: `Returning ${issues.length} unfinished issues to backlog`,
+    });
+
+    for (const issue of issues) {
+      try {
+        // Remove milestone
+        await execGh([
+          "api",
+          "-X",
+          "PATCH",
+          `repos/{owner}/{repo}/issues/${issue.number}`,
+          "-f",
+          "milestone=null",
+        ]);
+        // Remove status:planned label
+        try {
+          await execGh([
+            "api",
+            "-X",
+            "DELETE",
+            `repos/{owner}/{repo}/issues/${issue.number}/labels/status:planned`,
+          ]);
+        } catch {
+          // label might not exist — ignore
+        }
+        this.log.info({ issueNumber: issue.number }, "Returned issue to backlog");
+      } catch (err) {
+        this.log.warn(
+          { issueNumber: issue.number, err: String(err) },
+          "Failed to return issue to backlog",
+        );
       }
     }
   }
