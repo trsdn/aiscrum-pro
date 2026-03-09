@@ -70,6 +70,23 @@ export async function runSprintPlanning(
     for (let attempt = 1; attempt <= MAX_PLANNING_ATTEMPTS; attempt++) {
       try {
         const result = await client.sendPrompt(sessionId, fullPrompt, config.sessionTimeoutMs);
+        // Log full response for debugging parse failures
+        const responseLogPath = path.join(
+          config.projectPath,
+          "docs",
+          "sprints",
+          `sprint-${config.sprintNumber}-planning-response-${attempt}.md`,
+        );
+        try {
+          await fs.mkdir(path.dirname(responseLogPath), { recursive: true });
+          await fs.writeFile(responseLogPath, result.response, "utf-8");
+          log.info(
+            { path: responseLogPath, length: result.response.length },
+            "Planning response logged",
+          );
+        } catch {
+          /* best effort */
+        }
         const planJsonExample = JSON.stringify(
           {
             sprintNumber: config.sprintNumber,
