@@ -75,7 +75,7 @@ export type ToolPolicyPreset = (typeof TOOL_POLICY_PRESETS)[number];
 
 const PhaseConfigSchema = z.object({
   model: z.string().optional(),
-  thought_level: z.enum(["medium", "high"]).optional(),
+  thought_level: z.enum(["medium", "high", "xhigh"]).optional(),
   mode: z.enum(["autonomous", "manual"]).optional(),
   tool_policy: ToolPolicySchema.optional(),
   mcp_servers: z.array(McpServerEntrySchema).default([]),

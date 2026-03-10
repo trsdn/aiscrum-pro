@@ -98,7 +98,7 @@ export function resolveToolPolicy(
 
 export interface PhaseConfig {
   model?: string;
-  thought_level?: "medium" | "high";
+  thought_level?: "medium" | "high" | "xhigh";
   tool_policy?: string | { capabilities: ToolCapability[] };
   mcp_servers: McpServerEntry[];
   instructions: string[];
