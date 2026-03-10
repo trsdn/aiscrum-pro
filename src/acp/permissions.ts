@@ -49,6 +49,14 @@ export function createPermissionHandler(
     const sessionId = "sessionId" in params ? (params.sessionId as string) : undefined;
     const options = params.options;
 
+    // Log full tool call for debugging permission issues
+    if (toolName === "unknown" && toolCall) {
+      log.debug(
+        { toolCallKeys: Object.keys(toolCall), toolCall: JSON.stringify(toolCall).slice(0, 200) },
+        "tool call structure",
+      );
+    }
+
     // Find the allow_once option (preferred) or first allow option
     const allowOption =
       options.find((o) => o.kind === "allow_once") ??
@@ -62,6 +70,13 @@ export function createPermissionHandler(
     if (registry && sessionId) {
       const sessionPolicy = registry.getPolicy(sessionId);
       if (sessionPolicy) {
+        // If we can't determine the tool name, allow it (don't block on unknown tools)
+        if (toolName === "unknown") {
+          log.debug({ session: sessionId }, "allowing unknown tool (name not parseable)");
+          if (allowOption) {
+            return { outcome: { outcome: "selected", optionId: allowOption.optionId } };
+          }
+        }
         const matched = sessionPolicy.allowPatterns.some((pattern) => toolName.includes(pattern));
         if (matched && allowOption) {
           log.debug(
