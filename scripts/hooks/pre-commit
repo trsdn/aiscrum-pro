@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Git exports GIT_DIR/GIT_INDEX_FILE/... to hooks. Those leak into subprocesses
+# and break tooling that shells out to git in other repositories.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX
+
 echo "🔍 Pre-commit: format check + lint + typecheck"
 
 npx prettier --check 'src/**/*.ts' 'tests/**/*.ts' || {
