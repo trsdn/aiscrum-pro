@@ -1,0 +1,66 @@
+name: CI
+
+# Quality gate for every pull request and every push to main.
+# Mirrors `npm run gate` (the local pre-push hook) so CI and local checks
+# cannot drift apart.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a PR cancels the previous, still-running check.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # NOTE: npm is deliberately NOT upgraded here. The npm bundled with
+      # Node 20 runs dependency install scripts, which esbuild (Vite + Vitest)
+      # needs for its platform binary. npm 12 blocks those by default.
+      # See .github/workflows/release.yml for the same constraint.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            src/dashboard/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install dashboard frontend dependencies
+        run: npm ci
+        working-directory: src/dashboard/frontend
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      # Guards the npm `files` allowlist: catches src/, tests/ or stray files
+      # leaking into the published tarball before a release does.
+      - name: Package contents check
+        run: npm pack --dry-run

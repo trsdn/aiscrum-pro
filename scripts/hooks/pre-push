@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Git exports GIT_DIR/GIT_INDEX_FILE/... to hooks. Those leak into subprocesses
+# and break tests that shell out to git in temporary repositories.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX
+
 echo "🚀 Pre-push: running full gate"
 npm run gate || {
   echo "❌ Gate failed. Fix issues before pushing."
