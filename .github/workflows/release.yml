@@ -1,0 +1,65 @@
+name: Release
+
+# Publishes aiscrum-pro to npm using npm Trusted Publishing (GitHub Actions OIDC).
+#
+# IMPORTANT: The file name must stay `.github/workflows/release.yml` — it is
+# registered as the trusted publisher on npmjs.com. Renaming it breaks OIDC auth.
+#
+# Trigger a release by pushing a version tag:
+#   npm version <patch|minor|major> && git push --follow-tags
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing (OIDC) requires npm >= 11.5.1
+      - name: Upgrade npm
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install dashboard frontend dependencies
+        run: npm ci
+        working-directory: src/dashboard/frontend
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package contents preview
+        run: npm pack --dry-run
+
+      # No NODE_AUTH_TOKEN / NPM_TOKEN: authentication happens via OIDC
+      # against the trusted publisher configured on npmjs.com.
+      - name: Publish
+        run: npm publish --access public

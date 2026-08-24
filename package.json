@@ -7,6 +7,12 @@
   "bin": {
     "aiscrum": "dist/index.js"
   },
+  "files": [
+    "dist",
+    ".aiscrum/roles",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc && cd src/dashboard/frontend && npm run build",
     "dev": "tsx src/index.ts",
@@ -21,7 +27,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test",
     "gate": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
-    "prepare": "test -d .git && ./scripts/setup-hooks.sh || true"
+    "prepare": "test -f scripts/setup-hooks.sh && git rev-parse --git-dir > /dev/null 2>&1 && ./scripts/setup-hooks.sh >&2 || true"
   },
   "keywords": [
     "copilot",

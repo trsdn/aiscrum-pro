@@ -8,8 +8,11 @@
 set -euo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-HOOKS_DIR="$REPO_ROOT/.git/hooks"
+# --git-common-dir resolves correctly in linked worktrees too (.git is a file there).
+HOOKS_DIR="$(cd "$(git rev-parse --git-common-dir)" && pwd)/hooks"
 SOURCE_DIR="$REPO_ROOT/scripts/hooks"
+
+mkdir -p "$HOOKS_DIR"
 
 echo "🔧 Installing git hooks..."
 
