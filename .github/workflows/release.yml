@@ -31,10 +31,17 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
-      # Trusted Publishing (OIDC) requires npm >= 11.5.1
-      - name: Upgrade npm
+      # Trusted Publishing (OIDC) requires npm >= 11.5.1.
+      #
+      # Pinned to the 11.x line on purpose — do NOT use npm@latest:
+      # npm 12 blocks dependency install scripts by default, which skips
+      # esbuild's postinstall (its platform binary). esbuild backs both Vite
+      # (dashboard frontend build) and Vitest, so the build and test steps
+      # below would break. Pinning also keeps a future npm major from
+      # breaking releases unannounced.
+      - name: Install npm (OIDC-capable, 11.x)
         run: |
-          npm install -g npm@latest
+          npm install -g "npm@^11.5.1"
           npm --version
 
       - name: Install dependencies
