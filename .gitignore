@@ -3,6 +3,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Release tarballs from `npm pack`
+*.tgz
+
 # Testing
 coverage/
 .vitest/

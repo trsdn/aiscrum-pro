@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Dependabot config covering all three real ecosystems: npm at the repo root, npm for the nested `src/dashboard/frontend`, and github-actions (weekly, grouped)
+- GitHub Release step in the release workflow — attaches the `npm pack` tarball and takes notes from this file
+- `scripts/release-notes.mjs` — extracts a single version's notes from CHANGELOG.md, with tests
+- Release guard: a tag that disagrees with `package.json`, or a version with no CHANGELOG section, now fails before anything is published
+
+### Changed
+- `npm publish` now passes `--provenance` explicitly, so an unattested publish fails loudly instead of shipping silently
+- Release workflow permissions moved from workflow scope to per-job scope (`id-token: write` only for publishing, `contents: write` only for the GitHub Release)
+
 ## [0.4.0] — 2026-03-07
 
 ### Added

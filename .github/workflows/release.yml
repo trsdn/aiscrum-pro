@@ -1,6 +1,7 @@
 name: Release
 
-# Publishes aiscrum-pro to npm using npm Trusted Publishing (GitHub Actions OIDC).
+# Publishes aiscrum-pro to npm using npm Trusted Publishing (GitHub Actions
+# OIDC), then mirrors the release on GitHub with notes taken from CHANGELOG.md.
 #
 # IMPORTANT: The file name must stay `.github/workflows/release.yml` — it is
 # registered as the trusted publisher on npmjs.com. Renaming it breaks OIDC auth.
@@ -14,14 +15,18 @@ on:
       - "v*"
   workflow_dispatch:
 
+# Least privilege by default; each job widens only what it needs.
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   publish:
     name: Publish to npm
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # Required for Trusted Publishing (OIDC) and provenance.
 
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +49,28 @@ jobs:
           npm install -g "npm@^11.5.1"
           npm --version
 
+      # A tag that disagrees with package.json publishes the wrong version
+      # number. Catch it before anything irreversible happens.
+      - name: Verify tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "${TAG#v}" != "$PKG_VERSION" ]; then
+            echo "::error::Tag $TAG does not match package.json version $PKG_VERSION."
+            exit 1
+          fi
+          echo "Releasing $PKG_VERSION"
+
+      # The GitHub Release job needs these notes. Fail here rather than after
+      # the package is already on npm and cannot be unpublished.
+      - name: Verify CHANGELOG has release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/release-notes.mjs "$TAG" > /dev/null
+
       - name: Install dependencies
         run: npm ci
 
@@ -63,10 +90,60 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Package contents preview
-        run: npm pack --dry-run
+      # Doubles as the `files` allowlist check: the log lists everything that
+      # is about to ship.
+      - name: Pack tarball
+        run: npm pack
+
+      - name: Upload tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: "*.tgz"
+          if-no-files-found: error
 
       # No NODE_AUTH_TOKEN / NPM_TOKEN: authentication happens via OIDC
       # against the trusted publisher configured on npmjs.com.
+      # `--provenance` is explicit so an unattested publish fails loudly
+      # instead of silently shipping without a supply-chain attestation.
       - name: Publish
-        run: npm publish --access public
+        run: npm publish --access public --provenance
+
+  github-release:
+    name: GitHub Release
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # Required to create the GitHub Release.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: artifacts
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          TAG: ${{ github.ref_name }}
+        run: node scripts/release-notes.mjs "$TAG" > release-notes.md
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # Re-runnable: update in place if the release already exists.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TAG" --notes-file release-notes.md
+            gh release upload "$TAG" artifacts/*.tgz --clobber
+          else
+            gh release create "$TAG" artifacts/*.tgz \
+              --title "$TAG" \
+              --notes-file release-notes.md \
+              --verify-tag
+          fi
