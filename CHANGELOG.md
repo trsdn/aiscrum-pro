@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Tag-triggered GitHub Releases: the release workflow now publishes a GitHub Release with notes taken from this file
+- `scripts/release-notes.mjs` — extracts a single version's notes from CHANGELOG.md, with tests
+- Release guards: a tag that disagrees with `package.json`, or a version with no CHANGELOG section, now fails before anything is published
+
 ## [0.4.0] — 2026-03-07
 
 ### Added
