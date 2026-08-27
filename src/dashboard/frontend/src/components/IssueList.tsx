@@ -35,7 +35,7 @@ export function IssueList() {
     <ul id="issue-list" className="issue-list">
       {issues.map((issue) => {
         const icon = STATUS_ICON[issue.status] ?? "·";
-        const statusClass = issue.status.replace("status:", "");
+        const statusClass = (issue.status || "planned").replace("status:", "");
         const link = repoUrl ? (
           <a href={`${repoUrl}/issues/${issue.number}`} target="_blank" rel="noopener noreferrer" className="issue-number">
             #{issue.number}

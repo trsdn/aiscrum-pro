@@ -212,9 +212,11 @@ function handleMessage(msg: ServerMessage, set: SetFn, get: GetFn): void {
       const current = get().issues;
       // Preserve runtime status/step/failReason from existing issues
       const statusMap = new Map(current.map((i) => [i.number, i]));
+      const runtimeStatuses = new Set(["in-progress", "done", "failed", "blocked"]);
       const merged = incoming.map((i) => {
         const prev = statusMap.get(i.number);
-        if (prev && prev.status !== "planned" && prev.status !== i.status) {
+        // Preserve runtime status and associated fields if previous status is a runtime status
+        if (prev && runtimeStatuses.has(prev.status)) {
           return { ...i, status: prev.status, step: prev.step, failReason: prev.failReason };
         }
         return i;
