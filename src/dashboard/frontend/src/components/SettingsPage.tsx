@@ -662,6 +662,13 @@ export function SettingsPage() {
       try {
         const skillsMap: Record<string, string> = {};
         for (const s of role.skills) skillsMap[s.dirName] = s.content;
+        
+        // Find old role to detect model changes
+        const oldRole = roles.find((r) => r.name === role.name);
+        const oldModel = oldRole?.model || "default";
+        const newModel = role.model || "default";
+        const modelChanged = oldModel !== newModel;
+        
         const res = await fetch("/api/roles", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -679,7 +686,13 @@ export function SettingsPage() {
           const updatedRoles = roles.map((r) => (r.name === role.name ? role : r));
           setRoles(updatedRoles);
           setSavedRoles(JSON.stringify(updatedRoles));
-          showToast(`✅ ${role.name} saved`, "success");
+          
+          // Show enhanced toast for model changes
+          if (modelChanged) {
+            showToast(`✅ ${role.name} model: ${oldModel} → ${newModel}`, "success");
+          } else {
+            showToast(`✅ ${role.name} saved`, "success");
+          }
         } else {
           showToast(`❌ Failed to save ${role.name}`, "error");
         }
@@ -687,7 +700,7 @@ export function SettingsPage() {
         showToast(`❌ ${String(e)}`, "error");
       }
     },
-    [showToast],
+    [roles, showToast],
   );
 
   // Updater helpers

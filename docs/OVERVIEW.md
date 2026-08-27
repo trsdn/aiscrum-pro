@@ -66,6 +66,16 @@ Key config sections:
 - **Sprint** — sprint length, velocity, planning parameters
 - **Quality gates** — lint, typecheck, test thresholds
 
+### Dashboard Settings
+
+The web dashboard (started with `aiscrum server`) provides a Settings page for runtime configuration:
+
+- **Agent Models** — Change which model each agent role uses (planner, worker, reviewer, etc.). Select from dropdown, click Save, and the change persists to `.aiscrum/config.yaml`. Changes apply to the next ceremony execution.
+- **Quality Gates** — Adjust linting, testing, and diff size thresholds
+- **Roles** — Edit agent instructions, prompts, and MCP server assignments
+
+Available models include Claude Sonnet 4.5, Claude Opus 4.6, GPT-4.1, GPT-5.1, and others.
+
 ## CLI Commands
 
 ```bash

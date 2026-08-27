@@ -1261,7 +1261,24 @@ export class DashboardWebServer {
                       Record<string, unknown>
                     >;
                     if (!phasesObj[name]) phasesObj[name] = {};
-                    if (model !== undefined) phasesObj[name].model = model || undefined;
+
+                    // Log model changes
+                    if (model !== undefined) {
+                      const oldModel = phasesObj[name].model as string | undefined;
+                      const newModel = model || undefined;
+                      if (oldModel !== newModel) {
+                        log.info(
+                          {
+                            role: name,
+                            oldModel: oldModel || "default",
+                            newModel: newModel || "default",
+                          },
+                          "Model updated for role",
+                        );
+                      }
+                      phasesObj[name].model = newModel;
+                    }
+
                     if (mode !== undefined) phasesObj[name].mode = mode || undefined;
                     if (mcpServers !== undefined)
                       phasesObj[name].mcp_servers = mcpServers.length > 0 ? mcpServers : undefined;

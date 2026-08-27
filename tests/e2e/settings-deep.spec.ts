@@ -166,6 +166,64 @@ test.describe("Agent Roles Editor", () => {
     }
   });
 
+  test("model selector is editable and persists changes with toast confirmation (#431)", async ({
+    page,
+  }) => {
+    // Open the first role editor
+    const roleHeaders = page.locator(".role-editor-header");
+    await roleHeaders.first().click();
+    await page.waitForTimeout(1000);
+
+    // Locate the Model select dropdown (first select in role-config-row)
+    const modelSelect = page.locator(".role-config-row select").first();
+    await expect(modelSelect).toBeVisible();
+    await expect(modelSelect).toBeEnabled(); // CRITICAL: Verify it's not disabled
+
+    // Get current value
+    const originalValue = await modelSelect.inputValue();
+
+    // Get all options to pick a different one
+    const options = await modelSelect.locator("option").all();
+    expect(options.length).toBeGreaterThan(1);
+
+    // Find a different option value
+    let newValue = originalValue;
+    for (const option of options) {
+      const value = await option.getAttribute("value");
+      if (value && value !== originalValue) {
+        newValue = value;
+        break;
+      }
+    }
+
+    // Change the model
+    await modelSelect.selectOption(newValue);
+    await page.waitForTimeout(500);
+
+    // Verify dirty state appears
+    const dirtyIndicator = page.locator(".role-editor-dirty, .settings-dirty");
+    await expect(dirtyIndicator.first()).toBeVisible({ timeout: 2000 });
+
+    // Find and click the Save button for this role
+    const saveButton = page.locator("button", { hasText: /💾.*Save/i }).first();
+    await expect(saveButton).toBeEnabled({ timeout: 2000 });
+    await saveButton.click();
+
+    // Wait for toast confirmation showing model change
+    const toast = page.locator(".settings-toast, .toast");
+    await expect(toast).toBeVisible({ timeout: 5000 });
+
+    // Verify toast contains model change confirmation (old → new)
+    const toastText = await toast.textContent();
+    expect(toastText).toContain("model:");
+
+    // Restore original value
+    await modelSelect.selectOption(originalValue);
+    await page.waitForTimeout(500);
+    await saveButton.click();
+    await expect(toast).toBeVisible({ timeout: 5000 });
+  });
+
   test("role has mode selector (autonomous/manual)", async ({ page }) => {
     await page.waitForTimeout(2000);
     const modeSelect = page.locator("select").filter({ hasText: /autonomous|manual/i });

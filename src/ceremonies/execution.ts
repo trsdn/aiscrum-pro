@@ -78,6 +78,7 @@ async function planPhase(ctx: ExecutionContext): Promise<PlanResult> {
   try {
     await client.setMode(sessionId, ACP_MODES.PLAN);
     await applySessionSettings(client, sessionId, plannerConfig);
+    log.debug({ sessionId, phase: "planner", model: plannerConfig.model }, "Session model applied");
     log.info("planner session started in Plan mode");
     eventBus?.emitTyped("log", { level: "info", message: "Item planner started" });
     progress("planning implementation");
@@ -195,6 +196,10 @@ async function tddPhase(ctx: ExecutionContext, implementationPlan: string): Prom
   try {
     await client.setMode(sessionId, ACP_MODES.AGENT);
     await applySessionSettings(client, sessionId, testConfig);
+    log.debug(
+      { sessionId, phase: "test-engineer", model: testConfig.model },
+      "Session model applied",
+    );
     log.info("test-engineer session started");
     eventBus?.emitTyped("log", { level: "info", message: "TDD session started — writing tests" });
     progress("writing tests (TDD)");
@@ -261,6 +266,7 @@ async function implementPhase(
   try {
     await client.setMode(sessionId, ACP_MODES.AGENT);
     await applySessionSettings(client, sessionId, workerConfig);
+    log.debug({ sessionId, phase: "worker", model: workerConfig.model }, "Session model applied");
     log.info("developer session started in Agent mode");
     eventBus?.emitTyped("log", {
       level: "info",
@@ -387,6 +393,10 @@ async function acceptanceCriteriaReview(
 
   try {
     await applySessionSettings(client, sessionId, reviewerConfig);
+    log.debug(
+      { sessionId, phase: "reviewer", model: reviewerConfig.model },
+      "Session model applied",
+    );
 
     const result = await client.sendPrompt(sessionId, prompt, config.sessionTimeoutMs);
 

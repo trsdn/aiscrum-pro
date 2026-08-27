@@ -173,6 +173,11 @@
   box-sizing: border-box;
 }
 
+/* Make select dropdowns visually interactive */
+select.settings-input {
+  cursor: pointer;
+}
+
 .settings-input:focus {
   border-color: #58a6ff;
   outline: none;
